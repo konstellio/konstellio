@@ -1,0 +1,37 @@
+{
+  "name": "konstellio-disposable",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/Disposable.js",
+  "scripts": {
+    "compile": "rimraf ./dist && webpack",
+    "test": "mocha --compilers ts:ts-node/register --full-trace src/**/*.spec.ts",
+    "test:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --compilers ts:ts-node/register --full-trace src/**/*.spec.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/konstellio/disposable.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/konstellio/disposable/issues"
+  },
+  "homepage": "https://github.com/konstellio/disposable#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/mocha": "^2.2.41",
+    "awesome-typescript-loader": "^3.1.3",
+    "chai": "^4.0.2",
+    "istanbul": "^1.1.0-alpha.1",
+    "mocha": "^3.4.2",
+    "rimraf": "^2.6.1",
+    "source-map-loader": "^0.2.1",
+    "ts-node": "^3.0.6",
+    "typedoc": "^0.7.1",
+    "typescript": "^2.3.4",
+    "webpack": "^2.6.1"
+  },
+  "false": {}
+}

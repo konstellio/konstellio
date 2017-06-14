@@ -1,0 +1,6 @@
+instrumentation:
+  extensions:
+    - .tsx
+    - .ts
+  excludes:
+    - '*.spec.ts'
