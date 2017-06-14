@@ -73,6 +73,13 @@ describe('Query', () => {
 			expect((<List<Expression>>a.operands).get(0)).to.equal((<List<Expression>>b.operands).get(0));
 			expect((<List<Expression>>a.operands).get(1)).to.equal((<List<Expression>>b.operands).get(1));
 			expect((<List<Expression>>b.operands).get(2)).to.equal(lt);
+
+			const c = a.replace(eq, lt);
+			const d = a.replace(lt, eq);
+			const e = c.replace(lt, eq);
+			expect(c).to.not.equal(a);
+			expect(d).to.equal(a);
+			expect(d).to.not.equal(e);
 		});
 
 	});

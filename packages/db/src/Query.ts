@@ -1426,14 +1426,18 @@ export class Bitwise {
 			return <Bitwise>newValue;
 		}
 		if (this._operands) {
-			const replaced = this._operands.map(op => {
-				if (op === searchValue) {
-					return newValue;
-				}
-				else if (op instanceof Bitwise && deep === true) {
-					return op.replace(searchValue, newValue, true);
-				}
-				return op;
+			const replaced = this._operands.withMutations((list) => {
+				list.forEach((op, idx = 0) => {
+					if (op === searchValue) {
+						list = list.update(idx, (op) => newValue);
+					}
+					else if (op instanceof Bitwise && deep === true) {
+						const opUpdated = op.replace(searchValue, newValue, true);
+						if (op !== opUpdated) {
+							list = list.update(idx, (op) => opUpdated);
+						}
+					}
+				});
 			});
 
 			if (replaced !== this._operands) {
