@@ -4,7 +4,9 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "compile": "rimraf ./dist && webpack"
+    "compile": "rimraf ./dist && webpack",
+    "test": "mocha --compilers ts:ts-node/register --full-trace src/**/*.spec.ts",
+    "test:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --compilers ts:ts-node/register --full-trace src/**/*.spec.ts"
   },
   "repository": {
     "type": "git",
@@ -35,7 +37,7 @@
     "typescript": "^2.3.4",
     "webpack": "^2.6.1"
   },
-  "optionalDependencies": {
+  "peerDependencies": {
     "@google-cloud/bigquery": "^0.9.5",
     "@google-cloud/datastore": "^1.0.2",
     "sqlite3": "^3.1.8"
