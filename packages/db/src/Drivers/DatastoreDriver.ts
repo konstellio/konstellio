@@ -1,4 +1,4 @@
-import { ADriver } from './Driver';
+import { ADriver } from '../Driver';
 import {
 	SelectQueryResult,
 	AggregateQueryResult,
@@ -6,7 +6,7 @@ import {
 	UpdateQueryResult,
 	ReplaceQueryResult,
 	DeleteQueryResult
-} from './QueryResult';
+} from '../QueryResult';
 import {
 	q,
 	Expression,
@@ -25,7 +25,7 @@ import {
 	QueryNotSupportedError,
 	QuerySyntaxError,
 	simplifyBitwiseTree
-} from './Query';
+} from '../Query';
 import * as Datastore from '@google-cloud/datastore';
 import { List } from 'immutable';
 

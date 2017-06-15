@@ -4,8 +4,8 @@ use(require("chai-as-promised"));
 should();
 import { spawn, ChildProcess } from 'child_process';
 import { DatastoreDriver } from './DatastoreDriver';
-import { q } from './Query';
-import { InsertQueryResult, UpdateQueryResult } from './QueryResult';
+import { q } from '../Query';
+import { InsertQueryResult, UpdateQueryResult } from '../QueryResult';
 
 describe('Datastore', () => {
 

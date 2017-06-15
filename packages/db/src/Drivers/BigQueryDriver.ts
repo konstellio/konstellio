@@ -1,4 +1,4 @@
-import { ADriver } from './Driver';
+import { ADriver } from '../Driver';
 import {
 	SelectQueryResult,
 	AggregateQueryResult,
@@ -6,7 +6,7 @@ import {
 	UpdateQueryResult,
 	ReplaceQueryResult,
 	DeleteQueryResult
-} from './QueryResult';
+} from '../QueryResult';
 import {
 	q,
 	Expression,
@@ -23,7 +23,7 @@ import {
 	QueryNotSupportedError,
 	QuerySyntaxError,
 	simplifyBitwiseTree
-} from './Query';
+} from '../Query';
 import * as BigQuery from '@google-cloud/bigquery';
 import { List } from 'immutable';
 
