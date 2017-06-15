@@ -55,8 +55,8 @@ export class DatastoreDriver extends ADriver {
 		this.driver = Datastore(options);
 	}
 
-	connect(): Promise<ADriver> {
-		return new Promise<ADriver>((resolve, reject) => {
+	connect(): Promise<DatastoreDriver> {
+		return new Promise<DatastoreDriver>((resolve, reject) => {
 			resolve(this);
 		});
 	}
