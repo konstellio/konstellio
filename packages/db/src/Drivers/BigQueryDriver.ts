@@ -56,7 +56,7 @@ export class BigQueryDriver extends ADriver {
 		});
 	}
 
-	execute<T>(query: string): Promise<SelectQueryResult<T>>
+	execute(query: string): Promise<any>
 	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>
 	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>
 	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>

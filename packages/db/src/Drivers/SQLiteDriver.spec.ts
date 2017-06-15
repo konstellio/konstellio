@@ -24,7 +24,12 @@ describe('SQLite', () => {
 			filename: ':memory:'
 		});
 
-		driver.connect().then(() => done()).catch(done);
+		driver.connect()
+		.then(() => driver.execute('CREATE TABLE lorem (info TEXT)'))
+		.then(res => {
+			console.log(res);
+		})
+		.then(() => done()).catch(done);
 	});
 
 	it('insert', () => {

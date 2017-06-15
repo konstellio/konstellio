@@ -61,7 +61,7 @@ export class DatastoreDriver extends ADriver {
 		});
 	}
 
-	execute<T>(query: string): Promise<SelectQueryResult<T>>
+	execute(query: string): Promise<any>
 	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>
 	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>
 	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>
@@ -168,16 +168,15 @@ export class DatastoreDriver extends ADriver {
 			// https://googlecloudplatform.github.io/google-cloud-node/#/docs/datastore/0.8.0/datastore?method=insert
 			// https://googlecloudplatform.github.io/google-cloud-node/#/docs/datastore/0.8.0/datastore?method=transaction
 
-			const transaction = this.driver.transaction();
+			const collection = query.collection();
+			if (!collection) {
+				return reject(new QuerySyntaxError(`InsertQuery needs a collection.`));
+			}
 
+			const transaction = this.driver.transaction();
 			transaction.run((err?: Error) => {
 				if (err) {
 					return reject(err);
-				}
-
-				const collection = query.collection();
-				if (!collection) {
-					return reject(new QuerySyntaxError(`InsertQuery needs a collection.`));
 				}
 
 				const fields = query.fields()

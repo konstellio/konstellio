@@ -33,6 +33,11 @@ export type SQLiteDriverConstructor = {
 	verbose?: boolean
 }
 
+export type SQLiteQueryResult = {
+	lastId: string,
+	changes: any[]
+}
+
 export class SQLiteDriver extends ADriver {
 
 	options: SQLiteDriverConstructor
@@ -58,7 +63,7 @@ export class SQLiteDriver extends ADriver {
 		});
 	}
 
-	execute<T>(query: string): Promise<SelectQueryResult<T>>
+	execute(query: string): Promise<SQLiteQueryResult>
 	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>
 	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>
 	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>
@@ -68,7 +73,7 @@ export class SQLiteDriver extends ADriver {
 	execute(query: DeleteQuery): Promise<DeleteQueryResult>
 	execute<T>(query: any): Promise<any> {
 		if (typeof query === 'string') {
-			return this.executeSQL<T>(query);
+			return this.executeSQL(query);
 		}
 		else if (query instanceof SelectQuery) {
 			return this.executeSelect<T>(query);
@@ -95,11 +100,22 @@ export class SQLiteDriver extends ADriver {
 		return Promise.reject(new TypeError(`Expected query to be a string, SelectQuery, AggregateQuery, InsertQuery, UpdateQuery, ReplaceQuery or DeleteQuery, got ${typeof query}.`));
 	}
 
-	private executeSQL<T> (query: string): Promise<SelectQueryResult<T>> {
-		return new Promise<SelectQueryResult<T>>((resolve, reject) => {
+	private executeSQL (query: string): Promise<SQLiteQueryResult> {
+		return new Promise<SQLiteQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://github.com/mapbox/node-sqlite3/wiki/API#databaserunsql-param--callback
-			reject(new Error(`Not implemented.`));
+			this.driver.run(query, function (err) {
+				if (err) {
+					return reject(err);
+				}
+
+				const result: SQLiteQueryResult = {
+					lastId: this.lastId,
+					changes: this.changes
+				};
+
+				return resolve(result);
+			})
 		});
 	}
 
@@ -131,6 +147,15 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<InsertQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_insert.html
+
+			const collection = query.collection();
+			if (!collection) {
+				return reject(new QuerySyntaxError(`InsertQuery needs a collection.`));
+			}
+
+			const fields = query.fields()
+			const data = fields ? fields.toJS() : {};
+
 			reject(new Error(`Not implemented.`));
 		});
 	}
