@@ -25,10 +25,7 @@ describe('SQLite', () => {
 		});
 
 		driver.connect()
-		.then(() => driver.execute('CREATE TABLE lorem (info TEXT)'))
-		.then(res => {
-			console.log(res);
-		})
+		.then(() => driver.execute('CREATE TABLE Bar_Foo (title TEXT, postDate TEXT, likes INTEGER)'))
 		.then(() => done()).catch(done);
 	});
 
