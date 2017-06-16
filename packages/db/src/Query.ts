@@ -137,6 +137,17 @@ export type DataExpression = Map<string, ValueExpression>
 export type JoinExpression = Map<string, { query: SelectQuery, on: Expression }>
 export type Expression = Comparison | Bitwise;
 
+export type QueryReducer<I, O> = (node: I, accumulator: O) => void;
+export type QueryReducers<T> = {
+	Query?: QueryReducer<Query, T>
+	Collection?: QueryReducer<Collection, T>
+	Field?: QueryReducer<Field, T>
+	SortableField?: QueryReducer<SortableField, T>
+	CalcField?: QueryReducer<CalcField, T>
+	Comparison?: QueryReducer<Comparison, T>
+	Bitwise?: QueryReducer<Bitwise, T>
+}
+
 export class Query {
 
 }
@@ -367,9 +378,9 @@ export class UnionQuery extends Query {
 		this._limit = limit;
 	}
 
-	add (): List<SelectQuery> | undefined
-	add (...selects: SelectQuery[]): UnionQuery
-	add (...selects: any[]): any {
+	select (): List<SelectQuery> | undefined
+	select (...selects: SelectQuery[]): UnionQuery
+	select (...selects: any[]): any {
 		if (selects.length > 0) {
 			return new UnionQuery(List<SelectQuery>(selects), this._sort, this._offset, this._limit);
 		}
@@ -1217,37 +1228,37 @@ export class SubCalcField extends CalcField {
 
 export class MaxCalcField extends CalcField {
 
-	private _field: Field | CalcField
+	private _fields: List<Field | CalcField>
 
-	constructor (field: CalcFieldExpression) {
+	constructor (...fields: CalcFieldExpression[]) {
 		super('max');
-		this._field = typeof field === 'string' ? new Field(field) : field;
+		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
 	}
 
-	public get field () {
-		return this._field;
+	public get fields () {
+		return this._fields;
 	}
 
 	public toString () {
-		return `MAX(${this._field.toString()})`;
+		return `MAX(${this._fields.map(f => f ? f.toString() : '').join(', ')})`;
 	}
 }
 
 export class MinCalcField extends CalcField {
 
-	private _field: Field | CalcField
+	private _fields: List<Field | CalcField>
 
-	constructor (field: CalcFieldExpression) {
+	constructor (...fields: CalcFieldExpression[]) {
 		super('min');
-		this._field = typeof field === 'string' ? new Field(field) : field;
+		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
 	}
 
-	public get field () {
-		return this._field;
+	public get fields () {
+		return this._fields;
 	}
 
 	public toString () {
-		return `MIN(${this._field.toString()})`;
+		return `MIN(${this._fields.map(f => f ? f.toString() : '').join(', ')})`;
 	}
 }
 
@@ -1256,7 +1267,7 @@ export class ConcatCalcField extends CalcField {
 	private _fields: List<Field | CalcField>
 
 	constructor (...fields: CalcFieldExpression[]) {
-		super('min');
+		super('concat');
 		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
 	}
 
@@ -1494,4 +1505,31 @@ export function simplifyBitwiseTree (node: Bitwise): Bitwise {
 	});
 
 	return simplified;
+}
+
+export function reduceQuery<T> (reducers: QueryReducers<T>, initial: T, node: Query | Collection | Field | SortableField | CalcField | Expression): T {
+
+	if (node instanceof Query && reducers.Query) {
+		reducers.Query(node, initial);
+	}
+	else if (node instanceof Collection && reducers.Collection) {
+		reducers.Collection(node, initial);
+	}
+	else if (node instanceof Field && reducers.Field) {
+		reducers.Field(node, initial);
+	}
+	else if (node instanceof SortableField && reducers.SortableField) {
+		reducers.SortableField(node, initial);
+	}
+	else if (node instanceof CalcField && reducers.CalcField) {
+		reducers.CalcField(node, initial);
+	}
+	else if (node instanceof Comparison && reducers.Comparison) {
+		reducers.Comparison(node, initial);
+	}
+	else if (node instanceof Bitwise && reducers.Bitwise) {
+		reducers.Bitwise(node, initial);
+	}
+
+	return initial;
 }
