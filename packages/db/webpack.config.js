@@ -32,8 +32,11 @@ module.exports = {
 	// dependencies, which allows browsers to cache those libraries between builds.
 	externals: {
 		"util": "util",
+		"immutable": "immutable",
+		"konstellio-disposable": "konstellio-disposable",
 		"konstellio-eventemitter": "konstellio-eventemitter",
 		"@google-cloud/bigquery": "@google-cloud/bigquery",
-		"@google-cloud/datastore": "@google-cloud/datastore"
+		"@google-cloud/datastore": "@google-cloud/datastore",
+		"sqlite3": "sqlite3"
 	}
 };

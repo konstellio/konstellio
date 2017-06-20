@@ -64,11 +64,11 @@ export class SQLiteDriver extends ADriver {
 		else if (query instanceof Query.InsertQuery) {
 			return this.executeInsert<T>(query);
 		}
+		else if (query instanceof Query.ReplaceQuery) {
+			return Promise.reject(new Query.QueryNotSupportedError(`SQLite does not support ReplaceQuery.`));
+		}
 		else if (query instanceof Query.UpdateQuery) {
 			return this.executeUpdate<T>(query);
-		}
-		else if (query instanceof Query.ReplaceQuery) {
-			return this.executeReplace<T>(query);
 		}
 		else if (query instanceof Query.DeleteQuery) {
 			return this.executeDelete(query);
@@ -77,22 +77,34 @@ export class SQLiteDriver extends ADriver {
 		return Promise.reject(new TypeError(`Expected query to be a string, SelectQuery, AggregateQuery, InsertQuery, UpdateQuery, ReplaceQuery or DeleteQuery, got ${typeof query}.`));
 	}
 
-	private executeSQL (query: string): Promise<SQLiteQueryResult> {
-		return new Promise<SQLiteQueryResult>((resolve, reject) => {
+	private executeSQL (query: string): Promise<SQLiteQueryResult | QueryResult.SelectQueryResult<any>> {
+		return new Promise<SQLiteQueryResult | QueryResult.SelectQueryResult<any>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://github.com/mapbox/node-sqlite3/wiki/API#databaserunsql-param--callback
-			this.driver.run(query, function (err) {
-				if (err) {
-					return reject(err);
-				}
+			if (query.replace(/^[\s(]+/, '').substr(0, 5).toUpperCase() === 'SELECT') {
+				this.driver.all(query, (err, rows) => {
+					if (err) {
+						return reject(err);
+					}
 
-				const result: SQLiteQueryResult = {
-					lastId: this.lastId,
-					changes: this.changes
-				};
+					const result = new QueryResult.SelectQueryResult<any>(rows as any[]);
 
-				return resolve(result);
-			})
+					return resolve(result);
+				});
+			} else {
+				this.driver.run(query, function (err) {
+					if (err) {
+						return reject(err);
+					}
+
+					const result: SQLiteQueryResult = {
+						lastId: this.lastId,
+						changes: this.changes
+					};
+
+					return resolve(result);
+				});
+			}
 		});
 	}
 
@@ -100,7 +112,17 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<QueryResult.SelectQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html
-			reject(new Error(`Not implemented.`));
+
+			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			
+			this.driver.all(command.sql, command.params, (err, rows) => {
+				if (err) {
+					return reject(err);
+				}
+
+				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				return resolve(results);
+			});
 		});
 	}
 
@@ -108,7 +130,17 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<QueryResult.AggregateQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_aggfunc.html
-			reject(new Error(`Not implemented.`));
+			
+			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			
+			this.driver.all(command.sql, command.params, (err, rows) => {
+				if (err) {
+					return reject(err);
+				}
+
+				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				return resolve(results);
+			});
 		});
 	}
 
@@ -116,7 +148,17 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<QueryResult.SelectQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html#x1326
-			reject(new Error(`Not implemented : ${query.toString()}`));
+			
+			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			
+			this.driver.all(command.sql, command.params, (err, rows) => {
+				if (err) {
+					return reject(err);
+				}
+
+				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				return resolve(results);
+			});
 		});
 	}
 
@@ -144,15 +186,19 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<QueryResult.UpdateQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_update.html
-			reject(new Error(`Not implemented.`));
-		});
-	}
 
-	private executeReplace<T> (query: Query.ReplaceQuery): Promise<QueryResult.ReplaceQueryResult<T>> {
-		return new Promise<QueryResult.ReplaceQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_replace.html
-			reject(new Error(`Not implemented.`));
+			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			
+			this.driver.run(command.sql, command.params, function (err) {
+				if (err) {
+					return reject(err);
+				}
+				const fields = query.fields();
+				const data: T = fields ? fields.toJS() : {}
+				const result = new QueryResult.UpdateQueryResult<T>(data);
+
+				return resolve(result);
+			});
 		});
 	}
 
@@ -160,7 +206,17 @@ export class SQLiteDriver extends ADriver {
 		return new Promise<QueryResult.DeleteQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_delete.html
-			reject(new Error(`Not implemented.`));
+
+			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+
+			this.driver.run(command.sql, command.params, function (err) {
+				if (err) {
+					return reject(err);
+				}
+
+				const result = new QueryResult.DeleteQueryResult(this.changes > 0);
+				resolve(result);
+			});
 		});
 	}
 }
@@ -181,13 +237,10 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			accumulator.sql += 'INSERT INTO ';
 		}
 		if (node instanceof Query.UpdateQuery) {
-			accumulator.sql += 'UPDATE INTO ';
-		}
-		if (node instanceof Query.ReplaceQuery) {
-			accumulator.sql += 'REPLACE INTO ';
+			accumulator.sql += 'UPDATE ';
 		}
 		if (node instanceof Query.DeleteQuery) {
-			accumulator.sql += 'DELETE ';
+			accumulator.sql += 'DELETE FROM ';
 		}
 		if (node instanceof Query.UnionQuery) {
 			const selects = node.select();
@@ -198,6 +251,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					accumulator.sql += `) UNION`;
 				});
 				accumulator.sql = accumulator.sql.substr(accumulator.sql.length - 6);
+				accumulator.sql += ` `;
 			}
 		}
 
@@ -210,6 +264,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					accumulator.sql += ', ';
 				});
 				accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
+				accumulator.sql += ` `;
 			} else {
 				accumulator.sql += '* ';
 			}
@@ -218,6 +273,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			const fields = node.select();
 			if (fields) {
 				accumulator.sql += fields.map<string>((field, alias) => field && alias ? `${field.toString()} AS ${alias}` : ``).join(', ');
+				accumulator.sql += ` `;
 			} else {
 				accumulator.sql += '* ';
 			}
@@ -229,19 +285,21 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			if (from) {
 				accumulator.sql += `FROM `;
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, from);
+				accumulator.sql += ` `;
 			}
 		}
 
 		// Insert ...
-		if (node instanceof Query.InsertQuery || node instanceof Query.UpdateQuery || node instanceof Query.ReplaceQuery || node instanceof Query.DeleteQuery) {
+		if (node instanceof Query.InsertQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
 			const collection = node.collection();
 			if (collection) {
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, collection);
+				accumulator.sql += ` `;
 			}
 		}
 
 		// Values ...
-		if (node instanceof Query.InsertQuery || node instanceof Query.UpdateQuery || node instanceof Query.ReplaceQuery) {
+		if (node instanceof Query.InsertQuery) {
 			const fields = node.fields();
 			if (fields) {
 				accumulator.sql += `(${fields.map<string>((value, key) => key || '').join(', ')})`;
@@ -254,7 +312,24 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					}
 					accumulator.params.push(value);
 					return `?`;
-				}).join(', ')})`;
+				}).join(', ')}) `;
+			}
+		}
+
+		// Set ...
+		if (node instanceof Query.UpdateQuery) {
+			const fields = node.fields();
+			if (fields) {
+				accumulator.sql += `SET `;
+				accumulator.sql += `${fields.map<string>((value, key) => {
+					if (value instanceof Query.Field) {
+						const subAcc = { sql: '', params: accumulator.params };
+						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, subAcc, value);
+						return `${key} = ${subAcc.sql}`;
+					}
+					accumulator.params.push(value);
+					return `${key} = ?`;
+				}).join(', ')} `;
 			}
 		}
 
@@ -275,11 +350,12 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 		}
 
 		// Where ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery || node instanceof Query.UpdateQuery || node instanceof Query.ReplaceQuery || node instanceof Query.DeleteQuery) {
+		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
 			const where = node.where();
 			if (where) {
 				accumulator.sql += `WHERE `;
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, where);
+				accumulator.sql += ` `;
 			}
 		}
 
@@ -293,14 +369,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					accumulator.sql += ', ';
 				});
 				accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
-			}
-		}
-
-		// Offset ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const offset = node.offset();
-			if (offset) {
-				accumulator.sql += `SORT BY ${offset}`;
+				accumulator.sql += ` `;
 			}
 		}
 
@@ -308,7 +377,15 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
 			const limit = node.limit();
 			if (limit) {
-				accumulator.sql += `SORT BY ${limit}`;
+				accumulator.sql += `LIMIT ${limit} `;
+			}
+		}
+
+		// Offset ...
+		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
+			const offset = node.offset();
+			if (offset) {
+				accumulator.sql += `OFFSET ${offset} `;
 			}
 		}
 	},
@@ -353,14 +430,17 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 		}
 	},
 	Comparison (node: Query.Comparison, accumulator: QueryAccumulator): void {
+		if (node.field instanceof Query.Field) {
+			Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
+		} else {
+			accumulator.sql += node.field;
+		}
 		if (node instanceof Query.ComparisonSimple) {
 			if (node.value instanceof Query.Field) {
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
 				accumulator.sql += ` ${node.operator} `;
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.value);
 			}
 			else {
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
 				accumulator.sql += ` ${node.operator} ?`;
 				accumulator.params.push(node.value);
 			}

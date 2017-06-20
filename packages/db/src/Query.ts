@@ -895,12 +895,156 @@ export class UpdateQuery extends Query {
 	}
 }
 
-export class ReplaceQuery extends UpdateQuery {
+export class ReplaceQuery extends Query {
+	private _data?: DataExpression
+	private _collection?: Collection
+	private _where?: Bitwise
+	private _limit?: number
+
+	constructor (data?: DataExpression, collection?: Collection, where?: Bitwise, limit?: number) {
+		super();
+
+		this._data = data;
+		this._collection = collection;
+		this._where = where;
+		this._limit = limit;
+	}
+
+	fields (): DataExpression | undefined
+	fields (data: { [field: string]: ValueExpression }): ReplaceQuery
+	fields (data: DataExpression): ReplaceQuery
+	fields (data?: any): any {
+		if (data) {
+			return new ReplaceQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
+		}
+		return this._data;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): ReplaceQuery
+	collection (name: string, namespace?: string): ReplaceQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new ReplaceQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
+		}
+		else if (name && name instanceof Collection) {
+			return new ReplaceQuery(this._data, name, this._where, this._limit);
+		}
+		return this._collection;
+	}
+
+	limit (): number | undefined
+	limit (limit: number): ReplaceQuery
+	limit (limit?: number): any {
+		if (typeof limit === 'number') {
+			if (limit === this._limit) {
+				return this;
+			}
+			return new ReplaceQuery(this._data, this._collection, this._where, limit);
+		}
+		return this._limit;
+	}
+
+	where (): Bitwise | undefined
+	where (query: Bitwise): ReplaceQuery
+	where (query?: Bitwise): any {
+		if (query && query instanceof Bitwise) {
+			return new ReplaceQuery(this._data, this._collection, query, this._limit);
+		}
+		return this._where;
+	}
+
+	and (queries: List<Expression>): ReplaceQuery
+	and (...queries: Expression[]): ReplaceQuery
+	and (queries: any) {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("and", queries), this._limit);
+	}
+
+	or (queries: List<Expression>): ReplaceQuery
+	or (...queries: Expression[]): ReplaceQuery
+	or (queries: any) {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("or", queries), this._limit);
+	}
+
+	xor (queries: List<Expression>): ReplaceQuery
+	xor (...queries: Expression[]): ReplaceQuery
+	xor (queries: any) {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("xor", queries), this._limit);
+	}
+
+	eq (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonEqual(field, value)), this._limit);
+	}
+
+	ne (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonNotEqual(field, value)), this._limit);
+	}
+
+	gt (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonGreaterThan(field, value)), this._limit);
+	}
+
+	gte (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._limit);
+	}
+
+	lt (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonLesserThan(field, value)), this._limit);
+	}
+
+	lte (field: string, value: ValueExpression) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonLesserThanOrEqual(field, value)), this._limit);
+	}
+
+	in (field: string, values: ValueExpression[]) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonIn(field, values)), this._limit);
+	}
+
+	beginsWith (field: string, value: string) {
+		const where = this._where || new Bitwise('and');
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonBeginsWith(field, value)), this._limit);
+	}
+
 	toString (): string
 	toString (multiline: boolean): string
 	toString (multiline: boolean, indent: string): string
 	toString (multiline?: boolean, indent?: string): string {
-		return super.toString(!!multiline, indent || '').replace(/^(\s+)UPDATE/, `$1REPLACE`);
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}REPLACE `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		if (this._data) {
+			query += `${newline}${indent}(${this._data.map<string>((value, key) => key || '').join(', ')})`;
+			query += `${newline}${indent}VALUES (${this._data.map<string>(value => {
+				if (typeof value === 'string') {
+					return `"${value}"`;
+				}
+				return `${value}`;
+			}).join(', ')})`;
+		}
+
+		if (this._where) {
+			query += `${newline}${indent}WHERE ${newline}${indent}WHERE ${this._where.toString()}`;
+		}
+
+		if (this._limit !== undefined) {
+			query += `${newline}${indent}LIMIT ${this._limit}`;
+		}
+
+		return query;
 	}
 }
 
