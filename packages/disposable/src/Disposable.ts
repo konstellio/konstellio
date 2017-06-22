@@ -11,7 +11,12 @@ export interface IDisposable {
 	dispose (): void
 }
 
-export class Disposable implements IDisposable {
+export interface IDisposableAsync {
+	isDisposed (): boolean
+	disposeAsync (): Promise<void>
+}
+
+export class Disposable implements IDisposable, IDisposableAsync {
 
 	protected disposed: boolean;
 	private disposable: (() => void) | null;
@@ -52,7 +57,7 @@ export class Disposable implements IDisposable {
 
 }
 
-export class CompositeDisposable implements IDisposable {
+export class CompositeDisposable implements IDisposable, IDisposableAsync {
 
 	protected disposed: boolean;
 	private disposables: Set<Disposable> | null;
