@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/konstellio/eventemitter#readme",
   "dependencies": {
-    "konstellio-disposable": "^0.0.1"
+    "konstellio-disposable": "^0.0.2"
   },
   "devDependencies": {
     "@types/chai-as-promised": "0.0.31",

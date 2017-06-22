@@ -1,4 +1,4 @@
-import { Disposable, IDisposable, CompositeDisposable } from 'konstellio-disposable';
+import { Disposable, IDisposable, IDisposableAsync, CompositeDisposable } from 'konstellio-disposable';
 
 export type Handler = (...args: any[]) => void | Promise<any>;
 
@@ -21,7 +21,7 @@ export interface IEventEmitter {
 	emitAsync (event: string, ...args: any[]): Promise<any[]>;
 }
 
-export class EventEmitter implements IDisposable, IEventEmitter {
+export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitter {
 
 	private disposable: CompositeDisposable | null;
 	private events: Map<string, Set<Handler>> | null;
@@ -41,6 +41,16 @@ export class EventEmitter implements IDisposable, IEventEmitter {
 			this.disposable = null;
 			this.events = null;
 		}
+	}
+
+	disposeAsync (): Promise<void> {
+		if (this.isDisposed() === true) {
+			return Promise.resolve();
+		}
+		return (<CompositeDisposable>this.disposable).disposeAsync().then(() => {
+			this.disposable = null;
+			this.events = null;
+		});
 	}
 
 	on (event: string, handler: Handler): Disposable {

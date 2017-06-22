@@ -1655,9 +1655,9 @@ kind-of@^4.0.0:
   dependencies:
     is-buffer "^1.1.5"
 
-konstellio-disposable@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.1.tgz#78e838bb49f3aa6fc2c831ba8f369520ed107cb0"
+konstellio-disposable@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.2.tgz#f3c96966b0c7f4f9b778e4079bae1f761e1b0d31"
 
 lazy-cache@^1.0.3:
   version "1.0.4"
