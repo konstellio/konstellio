@@ -38,6 +38,18 @@ export class Disposable implements IDisposable {
 		}
 	}
 
+	disposeAsync (): Promise<void> {
+		if (this.disposed === true) {
+			return Promise.resolve();
+		}
+		return new Promise<void>((resolve, reject) => {
+			resolve((<() => void>this.disposable)());
+		}).then(() => {
+			this.disposed = true;
+			this.disposable = null;
+		});
+	}
+
 }
 
 export class CompositeDisposable implements IDisposable {
@@ -75,6 +87,22 @@ export class CompositeDisposable implements IDisposable {
 			this.disposed = true;
 			this.disposables = null;
 		}
+	}
+
+	disposeAsync (): Promise<void> {
+		if (this.disposed === true) {
+			return Promise.resolve();
+		}
+		return new Promise<void>((resolve, reject) => {
+			const promises: Promise<void>[] = [];
+			(<Set<Disposable>>this.disposables).forEach((disposable, key, set) => {
+				promises.push(disposable.disposeAsync());
+			});
+			return Promise.all<void>(promises).then(() => {
+				this.disposed = true;
+				this.disposables = null;
+			});
+		});
 	}
 
 	add (...disposables: Disposable[]): void {
