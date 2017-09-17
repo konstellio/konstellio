@@ -473,7 +473,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 						lastOp = op.operator;
 					}
 				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2 - lastOp.length - 1);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2 - lastOp.length - 2);
 				accumulator.sql += `)`;
 			}
 		}
