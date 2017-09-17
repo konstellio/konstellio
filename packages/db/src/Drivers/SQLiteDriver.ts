@@ -246,11 +246,11 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			const selects = node.select();
 			if (selects) {
 				selects.forEach(select => {
-					accumulator.sql += `(`;
+					accumulator.sql += ` `;
 					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Query>select)
-					accumulator.sql += `) UNION`;
+					accumulator.sql += ` UNION`;
 				});
-				accumulator.sql = accumulator.sql.substr(accumulator.sql.length - 6);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 6);
 				accumulator.sql += ` `;
 			}
 		}
@@ -263,7 +263,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Field>field);
 					accumulator.sql += ', ';
 				});
-				accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
 				accumulator.sql += ` `;
 			} else {
 				accumulator.sql += '* ';
@@ -368,7 +368,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.SortableField>field);
 					accumulator.sql += ', ';
 				});
-				accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
 				accumulator.sql += ` `;
 			}
 		}
@@ -425,7 +425,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Field>field);
 				accumulator.sql += `, `;
 			});
-			accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
+			accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
 			accumulator.sql += `)`;
 		}
 	},
@@ -453,7 +453,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 					accumulator.sql += '?, ';
 					accumulator.params.push(value);
 				});
-				accumulator.sql += accumulator.sql.substr(accumulator.sql.length - 2);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
 			}
 			accumulator.sql += `)`;
 		}
@@ -473,7 +473,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 						lastOp = op.operator;
 					}
 				});
-				accumulator.sql = accumulator.sql.substr(accumulator.sql.length - 2 - lastOp.length - 1);
+				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2 - lastOp.length - 1);
 				accumulator.sql += `)`;
 			}
 		}
