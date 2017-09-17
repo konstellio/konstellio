@@ -390,16 +390,20 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 		}
 	},
 	Collection (node: Query.Collection, accumulator: QueryAccumulator): void {
+		accumulator.sql += '`';
 		if (node.namespace) {
 			accumulator.sql += `${node.namespace}_`;
 		}
 		accumulator.sql += `${node.name}`;
+		accumulator.sql += '`';
 	},
 	Field (node: Query.Field, accumulator: QueryAccumulator): void {
+		accumulator.sql += '`';
 		if (node.table) {
 			accumulator.sql += `${node.table}_`;
 		}
 		accumulator.sql += `${node.name}`;
+		accumulator.sql += '`';
 	},
 	SortableField (node: Query.SortableField, accumulator: QueryAccumulator): void {
 		accumulator.sql += `${node.name} ${node.direction || 'ASC'}`;
