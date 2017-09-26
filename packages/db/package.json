@@ -39,7 +39,7 @@
     "sqlite3": "^3.1.8",
     "ts-node": "^3.0.6",
     "typedoc": "^0.7.1",
-    "typescript": "2.3.4",
+    "typescript": "2.3",
     "webpack": "^2.6.1"
   },
   "peerDependencies": {

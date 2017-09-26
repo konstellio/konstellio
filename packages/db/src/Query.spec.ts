@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import { q, SelectQuery, Expression } from './Query';
+import { q, ColumnType, SelectQuery, Expression } from './Query';
 import { Map, List } from 'immutable';
 
 describe('Query', () => {
@@ -84,82 +84,108 @@ describe('Query', () => {
 
 	});
 
-	describe('SelectQuery', () => {
+	describe('test', () => {
 
-		// it('select', () => {
-		// 	expect(q.select()).to.be.an.instanceof(SelectQuery);
-		// 	expect(q.select('a', 'b', 'c').select().toJS()).to.deep.equal([{ _name: 'a' }, { _name: 'b' }, { _name: 'c' }]);
-		// 	expect(q.select('a', 'b', 'c').select('a').select().toJS()).to.deep.equal([{ _name: 'a' }]);
-		// });
+		console.log(q.createCollection('test', 'bob').columns(
+			q.column('id', 'UInt64', 1, true),
+			q.column('name', 'String'),
+			q.column('age', 'UInt8'),
+			q.column('sex', 'Bit'),
+			q.column('birthdate', 'Date')
+		).toString());
 
-		// it('from', () => {
-		// 	expect(q.select().from('Foo').getFrom()).to.deep.equal({name: 'Foo', namespace: undefined });
-		// 	expect(q.select().from('Foo', 'Bar').getFrom()).to.deep.equal({name: 'Foo', namespace: 'Bar' });
-		// });
+		console.log(q.dropCollection('test', 'bob').toString());
 
-		// it('join', () => {
-		// 	const query = q.select();
-		// 	const on = q.eq('foo', q.field('baz'));
-		// 	expect(q.select().join('Foo', query, on).getJoin()).to.deep.equal({ Foo: { query: query, on: on } });
-		// });
+		console.log(q.createIndex(
+			q.index('id', 'primary').columns('id', 'asc'),
+			q.collection('test', 'bob')
+		).toString());
 
-		// it('where', () => {
-		// 	expect(q.select().where(q.and([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-		// 		operator: 'and',
-		// 		queries: [
-		// 			{ field: 'foo', operator: '=', value: 'bar' },
-		// 			{ field: 'foo', operator: '!=', value: 'bar' }
-		// 		]
-		// 	});
-		// 	expect(q.select().where(q.or([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-		// 		operator: 'or',
-		// 		queries: [
-		// 			{ field: 'foo', operator: '=', value: 'bar' },
-		// 			{ field: 'foo', operator: '!=', value: 'bar' }
-		// 		]
-		// 	});
-		// 	expect(q.select().where(q.xor([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-		// 		operator: 'xor',
-		// 		queries: [
-		// 			{ field: 'foo', operator: '=', value: 'bar' },
-		// 			{ field: 'foo', operator: '!=', value: 'bar' }
-		// 		]
-		// 	});
-
-		// 	expect(q.select().eq('foo', 'bar').getWhere()).to.be.deep.equal({
-		// 		operator: 'and',
-		// 		queries: [
-		// 			{ field: 'foo', operator: '=', value: 'bar' }
-		// 		]
-		// 	});
-		// });
-
-		// it('sort', () => {
-		// 	expect(q.select().sort('foo').getSort()).to.be.deep.equal([
-		// 		{ name: 'foo', direction: undefined }
-		// 	]);
-		// 	expect(q.select().sort(q.sort('foo', 'desc')).getSort()).to.be.deep.equal([
-		// 		{ name: 'foo', direction: 'desc' }
-		// 	]);
-		// 	expect(q.select().sort(q.sort('foo', 'asc'), q.sort('baz', 'desc')).getSort()).to.be.deep.equal([
-		// 		{ name: 'foo', direction: 'asc' },
-		// 		{ name: 'baz', direction: 'desc' }
-		// 	]);
-		// });
-
-		// it('offset', () => {
-		// 	expect(q.select().offset(0).getOffset()).to.be.equal(0);
-		// 	expect(q.select().offset(2).getOffset()).to.be.equal(2);
-		// 	expect(() => { q.select().offset(-1).getOffset() }).to.throw(Error);
-		// });
-
-		// it('limit', () => {
-		// 	expect(q.select().limit(2).getLimit()).to.be.equal(2);
-		// 	expect(() => { q.select().limit(0).getLimit() }).to.throw(Error);
-		// 	expect(() => { q.select().limit(-1).getLimit() }).to.throw(Error);
-		// });
+		console.log(q.createIndex(
+			q.index('birthdate', 'index')
+				.columns('birthdate', 'asc')
+				.columns('id', 'asc'),
+			q.collection('test', 'bob')
+		).toString());
 
 	});
+
+	// describe('SelectQuery', () => {
+
+	// 	it('select', () => {
+	// 		expect(q.select()).to.be.an.instanceof(SelectQuery);
+	// 		expect(q.select('a', 'b', 'c').select().toJS()).to.deep.equal([{ _name: 'a' }, { _name: 'b' }, { _name: 'c' }]);
+	// 		expect(q.select('a', 'b', 'c').select('a').select().toJS()).to.deep.equal([{ _name: 'a' }]);
+	// 	});
+
+	// 	it('from', () => {
+	// 		expect(q.select().from('Foo').getFrom()).to.deep.equal({name: 'Foo', namespace: undefined });
+	// 		expect(q.select().from('Foo', 'Bar').getFrom()).to.deep.equal({name: 'Foo', namespace: 'Bar' });
+	// 	});
+
+	// 	it('join', () => {
+	// 		const query = q.select();
+	// 		const on = q.eq('foo', q.field('baz'));
+	// 		expect(q.select().join('Foo', query, on).getJoin()).to.deep.equal({ Foo: { query: query, on: on } });
+	// 	});
+
+	// 	it('where', () => {
+	// 		expect(q.select().where(q.and([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
+	// 			operator: 'and',
+	// 			queries: [
+	// 				{ field: 'foo', operator: '=', value: 'bar' },
+	// 				{ field: 'foo', operator: '!=', value: 'bar' }
+	// 			]
+	// 		});
+	// 		expect(q.select().where(q.or([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
+	// 			operator: 'or',
+	// 			queries: [
+	// 				{ field: 'foo', operator: '=', value: 'bar' },
+	// 				{ field: 'foo', operator: '!=', value: 'bar' }
+	// 			]
+	// 		});
+	// 		expect(q.select().where(q.xor([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
+	// 			operator: 'xor',
+	// 			queries: [
+	// 				{ field: 'foo', operator: '=', value: 'bar' },
+	// 				{ field: 'foo', operator: '!=', value: 'bar' }
+	// 			]
+	// 		});
+
+	// 		expect(q.select().eq('foo', 'bar').getWhere()).to.be.deep.equal({
+	// 			operator: 'and',
+	// 			queries: [
+	// 				{ field: 'foo', operator: '=', value: 'bar' }
+	// 			]
+	// 		});
+	// 	});
+
+	// 	it('sort', () => {
+	// 		expect(q.select().sort('foo').getSort()).to.be.deep.equal([
+	// 			{ name: 'foo', direction: undefined }
+	// 		]);
+	// 		expect(q.select().sort(q.sort('foo', 'desc')).getSort()).to.be.deep.equal([
+	// 			{ name: 'foo', direction: 'desc' }
+	// 		]);
+	// 		expect(q.select().sort(q.sort('foo', 'asc'), q.sort('baz', 'desc')).getSort()).to.be.deep.equal([
+	// 			{ name: 'foo', direction: 'asc' },
+	// 			{ name: 'baz', direction: 'desc' }
+	// 		]);
+	// 	});
+
+	// 	it('offset', () => {
+	// 		expect(q.select().offset(0).getOffset()).to.be.equal(0);
+	// 		expect(q.select().offset(2).getOffset()).to.be.equal(2);
+	// 		expect(() => { q.select().offset(-1).getOffset() }).to.throw(Error);
+	// 	});
+
+	// 	it('limit', () => {
+	// 		expect(q.select().limit(2).getLimit()).to.be.equal(2);
+	// 		expect(() => { q.select().limit(0).getLimit() }).to.throw(Error);
+	// 		expect(() => { q.select().limit(-1).getLimit() }).to.throw(Error);
+	// 	});
+
+	// });
 
 	// describe('AggregateQuery', () => {
 

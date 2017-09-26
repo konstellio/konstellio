@@ -34,6 +34,22 @@ export class q {
 		return new DeleteQuery().collection(name, namespace);
 	}
 
+	public static createCollection (name: string, namespace?: string) {
+		return new CreateCollectionQuery().collection(name, namespace);
+	}
+
+	public static createIndex (index: Index, collection?: Collection) {
+		return new CreateIndexQuery(index, collection);
+	}
+
+	public static dropCollection (name: string, namespace?: string) {
+		return new DropCollectionQuery().collection(name, namespace);
+	}
+
+	public static dropIndex (name: string, namespace?: string) {
+		return new DropCollectionQuery().collection(name, namespace);
+	}
+
 
 	public static and (...queries: Expression[]): Bitwise {
 		return new Bitwise("and", queries);
@@ -85,6 +101,14 @@ export class q {
 		return new Collection(name, namespace);
 	}
 
+	public static column (name: string, type: ColumnType, defaultValue?: any, autoIncrement?: boolean) {
+		return new Column(name, type, defaultValue, autoIncrement);
+	}
+
+	public static index (name: string, type: IndexType, columns?: List<SortableField>) {
+		return new Index(name, type, columns);
+	}
+
 	public static field (name: string) {
 		return new Field(name);
 	}
@@ -125,6 +149,29 @@ export class q {
 	}
 
 }
+
+export type ColumnType =
+	'Boolean' | 'boolean' | 'bool' |
+	'Bit' | 'bit' |
+	'UInt8' | 'uint8' |
+	'UInt16' | 'uint16' |
+	'UInt32' | 'uint32' |
+	'UInt64' | 'uint64' |
+	'Int8' | 'int8' |
+	'Int16' | 'int16' |
+	'Int32' | 'int32' |
+	'Int64' | 'int64' |
+	'Float32' | 'float32' |
+	'Float64' | 'float64' |
+	'String' | 'string' |
+	'Date' | 'date'
+;
+
+export type IndexType =
+	'Index' | 'index' |
+	'Primary' | 'primary' |
+	'Unique' | 'unique'
+;
 
 export type FieldExpression = string | Field
 export type CalcFieldExpression = string | Field | CalcField
@@ -1179,6 +1226,217 @@ export class DeleteQuery extends Query {
 	}
 }
 
+export class CreateCollectionQuery extends Query {
+	private _collection?: Collection
+	private _columns?: List<Column>
+
+	constructor (collection?: Collection, columns?: List<Column>) {
+		super();
+
+		this._collection = collection;
+		this._columns = columns;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): CreateCollectionQuery
+	collection (name: string, namespace?: string): CreateCollectionQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+		}
+		else if (name && name instanceof Collection) {
+			return new CreateCollectionQuery(name, this._columns);
+		}
+		return this._collection;
+	}
+
+	columns (): List<Column> | undefined
+	columns (...columns: Column[]): CreateCollectionQuery
+	columns (...columns: any[]): any {
+		if (columns.length > 0) {
+			return new CreateCollectionQuery(this._collection, List<Column>(columns));
+		}
+		return this._columns;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}CREATE TABLE `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		query += ` (`;
+		
+
+		if (this._columns) {
+			query += `${newline}${indent}${this._columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
+		}
+
+		query += `${newline}${indent})`;
+
+		return query;
+	}
+}
+
+export class AlterCollectionQuery extends Query {
+
+}
+
+export class DropCollectionQuery extends Query {
+	private _collection?: Collection
+
+	constructor (collection?: Collection) {
+		super();
+
+		this._collection = collection;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): DropCollectionQuery
+	collection (name: string, namespace?: string): DropCollectionQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new DropCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		}
+		else if (name && name instanceof Collection) {
+			return new DropCollectionQuery(name);
+		}
+		return this._collection;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}DROP TABLE `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		return query;
+	}
+}
+
+export class CreateIndexQuery extends Query {
+	private _collection?: Collection
+	private _index?: Index
+
+	constructor (index?: Index, collection?: Collection) {
+		super();
+
+		this._collection = collection;
+		this._index = index;
+	}
+
+	index (): Index | undefined
+	index (index: Index): CreateIndexQuery
+	index (index?: any): any {
+		if (index) {
+			return new CreateIndexQuery(index, this._collection);
+		}
+		return this._index;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): CreateIndexQuery
+	collection (name: string, namespace?: string): CreateIndexQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new CreateIndexQuery(this._index, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		}
+		else if (name && name instanceof Collection) {
+			return new CreateIndexQuery(this._index, name);
+		}
+		return this._collection;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}CREATE INDEX`;
+
+		if (this._collection) {
+			query += ` ON ${this._collection.toString()}`;
+		}
+
+		if (this._index) {
+			query += ` ${this._index.toString()}`;
+		}
+
+
+		return query;
+	}
+}
+
+export class DropIndexQuery extends Query {
+	private _name?: string
+	private _collection?: Collection
+
+	constructor (name?: string, collection?: Collection) {
+		super();
+
+		this._name = name;
+		this._collection = collection;
+	}
+
+	name (): string
+	name (name: string): DropIndexQuery
+	name (name?: any): any {
+		if (typeof name === 'string') {
+			return new DropIndexQuery(name, this._collection);
+		}
+		return this._name;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): DropIndexQuery
+	collection (name: string, namespace?: string): DropIndexQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new DropIndexQuery(this._name, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		}
+		else if (name && name instanceof Collection) {
+			return new DropIndexQuery(this._name, name);
+		}
+		return this._collection;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}DROP INDEX ${this._name}`;
+		
+		if (this._collection) {
+			query += ` ON ${this._collection.toString()}`;
+		}
+
+		return query;
+	}
+}
+
 export class Collection {
 	private _name: string
 	private _namespace?: string
@@ -1208,6 +1466,116 @@ export class Collection {
 			return `${this._namespace}.${this._name}`;
 		}
 		return this._name;
+	}
+}
+
+export class Column {
+	private _name: string
+	private _type: ColumnType
+	private _defaultValue?: any
+	private _autoIncrement?: boolean
+
+
+	constructor (name: string, type: ColumnType, defaultValue?: any, autoIncrement?: boolean) {
+		this._name = name;
+		this._type = type;
+		this._defaultValue = defaultValue;
+		this._autoIncrement = autoIncrement;
+	}
+
+	name (): string
+	name (name: string): Column
+	name (name?: any): any {
+		if (typeof name === 'string') {
+			return new Column(name, this._type, this._defaultValue, this._autoIncrement);
+		}
+		return this._name;
+	}
+
+	type (): ColumnType
+	type (type: ColumnType): Column
+	type (type?: any): any {
+		if (type) {
+			return new Column(this._name, type, this._defaultValue, this._autoIncrement);
+		}
+		return this._type;
+	}
+
+	defaultValue (): any
+	defaultValue (defaultValue: any): Column
+	defaultValue (defaultValue?: any): any {
+		if (defaultValue) {
+			return new Column(this._name, this._type, defaultValue, this._autoIncrement);
+		}
+		return this._defaultValue;
+	}
+
+	autoIncrement (): boolean
+	autoIncrement (autoIncrement: boolean): Column
+	autoIncrement (autoIncrement?: any): any {
+		if (typeof autoIncrement === 'boolean') {
+			return new Column(this._name, this._type, this._defaultValue, autoIncrement);
+		}
+		return this._autoIncrement;
+	}
+
+	public toString () {
+		return [
+			this._name,
+			this._type.toString().toLocaleUpperCase(),
+			this._defaultValue ? `DEFAULT(${this._defaultValue})` : ``,
+			this._autoIncrement ? `AUTOINCREMENT` : ``,
+		].filter(s => s).join(' ');
+	}
+}
+
+export class Index {
+	private _name: string
+	private _type: IndexType
+	private _columns?: List<SortableField>
+
+	constructor (name: string, type: IndexType, columns?: List<SortableField>) {
+		this._name = name;
+		this._type = type;
+		this._columns = columns;
+	}
+
+	name (): string
+	name (name: string): Index
+	name (name?: any): any {
+		if (typeof name === 'string') {
+			return new Index(name, this._type, this._columns);
+		}
+		return this._name;
+	}
+
+	type (): IndexType
+	type (type: IndexType): Index
+	type (type?: any): any {
+		if (type) {
+			return new Index(this._name, type, this._columns);
+		}
+		return this._type;
+	}
+
+	columns (): List<SortableField> | undefined
+	columns (column: string, direction?: DirectionExpression): Index
+	columns (...columns: SortableField[]): Index
+	columns (...columns: any[]): any {
+		if (columns.length <= 2 && typeof columns[0] === 'string') {
+			const sort = this._columns ? this._columns : List<SortableField>();
+			const name = <string>columns[0];
+			const direction = columns.length === 2 ? <DirectionExpression>columns[1] : undefined;
+			return new Index(this._name, this._type, sort.push(new SortableField(name, direction)));
+		}
+		else if (columns.length > 0) {
+			return new Index(this._name, this._type, List<SortableField>(columns));
+		}
+		return this._columns;
+	}
+
+	public toString () {
+		return `${this._type.toString().toLocaleUpperCase()} ${this._name} (${this._columns ? this._columns.map<string>(c => c ? c.toString() : '').join(', ') : ''})`;
 	}
 }
 
