@@ -38,12 +38,24 @@ export class q {
 		return new CreateCollectionQuery().collection(name, namespace);
 	}
 
-	public static createIndex (index: Index, collection?: Collection) {
-		return new CreateIndexQuery(index, collection);
+	public static describeCollection (name: string, namespace?: string) {
+		return new DescribeCollectionQuery().collection(name, namespace);
+	}
+
+	public static alterCollection (name: string, namespace?: string) {
+		return new AlterCollectionQuery().collection(name, namespace);
+	}
+
+	public static collectionExists (name: string, namespace?: string) {
+		return new CollectionExistsQuery().collection(name, namespace);
 	}
 
 	public static dropCollection (name: string, namespace?: string) {
 		return new DropCollectionQuery().collection(name, namespace);
+	}
+
+	public static createIndex (index: Index, collection?: Collection) {
+		return new CreateIndexQuery(index, collection);
 	}
 
 	public static dropIndex (name: string, namespace?: string) {
@@ -1267,7 +1279,7 @@ export class CreateCollectionQuery extends Query {
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}CREATE TABLE `;
+		let query = `${indent}CREATE COLLECTION `;
 
 		if (this._collection) {
 			query += this._collection.toString();
@@ -1286,8 +1298,144 @@ export class CreateCollectionQuery extends Query {
 	}
 }
 
-export class AlterCollectionQuery extends Query {
+export class DescribeCollectionQuery extends Query {
+	private _collection?: Collection
+	
+	constructor (collection?: Collection) {
+		super();
 
+		this._collection = collection;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): DescribeCollectionQuery
+	collection (name: string, namespace?: string): DescribeCollectionQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new DescribeCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		}
+		else if (name && name instanceof Collection) {
+			return new DescribeCollectionQuery(name);
+		}
+		return this._collection;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}DESCRIBE COLLECTION `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		return query;
+	}
+}
+
+export class AlterCollectionQuery extends Query {
+	private _collection?: Collection
+	private _columns?: List<Column>
+
+	constructor (collection?: Collection, columns?: List<Column>) {
+		super();
+
+		this._collection = collection;
+		this._columns = columns;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): AlterCollectionQuery
+	collection (name: string, namespace?: string): AlterCollectionQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+		}
+		else if (name && name instanceof Collection) {
+			return new AlterCollectionQuery(name, this._columns);
+		}
+		return this._collection;
+	}
+
+	columns (): List<Column> | undefined
+	columns (...columns: Column[]): AlterCollectionQuery
+	columns (...columns: any[]): any {
+		if (columns.length > 0) {
+			return new AlterCollectionQuery(this._collection, List<Column>(columns));
+		}
+		return this._columns;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}ALTER COLLECTION `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		query += ` (`;
+		
+
+		if (this._columns) {
+			query += `${newline}${indent}${this._columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
+		}
+
+		query += `${newline}${indent})`;
+
+		return query;
+	}
+}
+
+export class CollectionExistsQuery extends Query {
+	private _collection?: Collection
+
+	constructor (collection?: Collection) {
+		super();
+
+		this._collection = collection;
+	}
+
+	collection (): Collection | undefined
+	collection (collection: Collection): CollectionExistsQuery
+	collection (name: string, namespace?: string): CollectionExistsQuery
+	collection (name?: any, namespace?: any): any {
+		if (typeof name === 'string') {
+			return new CollectionExistsQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		}
+		else if (name && name instanceof Collection) {
+			return new CollectionExistsQuery(name);
+		}
+		return this._collection;
+	}
+
+	toString (): string
+	toString (multiline: boolean): string
+	toString (multiline: boolean, indent: string): string
+	toString (multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}COLLECTION EXISTS `;
+
+		if (this._collection) {
+			query += this._collection.toString();
+		}
+
+		return query;
+	}
 }
 
 export class DropCollectionQuery extends Query {
@@ -1320,7 +1468,7 @@ export class DropCollectionQuery extends Query {
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}DROP TABLE `;
+		let query = `${indent}DROP COLLECTION `;
 
 		if (this._collection) {
 			query += this._collection.toString();

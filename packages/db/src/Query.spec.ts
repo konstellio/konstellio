@@ -84,31 +84,42 @@ describe('Query', () => {
 
 	});
 
-	describe('test', () => {
+	// describe('test', () => {
 
-		console.log(q.createCollection('test', 'bob').columns(
-			q.column('id', 'UInt64', 1, true),
-			q.column('name', 'String'),
-			q.column('age', 'UInt8'),
-			q.column('sex', 'Bit'),
-			q.column('birthdate', 'Date')
-		).toString());
+	// 	console.log(q.createCollection('test', 'bob').columns(
+	// 		q.column('id', 'UInt64', 1, true),
+	// 		q.column('name', 'String'),
+	// 		q.column('age', 'UInt8'),
+	// 		q.column('sex', 'Bit'),
+	// 		q.column('birthdate', 'Date')
+	// 	).toString());
 
-		console.log(q.dropCollection('test', 'bob').toString());
+	// 	console.log(q.alterCollection('test', 'bob').columns(
+	// 		q.column('id', 'UInt64', 1, true),
+	// 		q.column('name', 'String'),
+	// 		q.column('age', 'UInt8'),
+	// 		q.column('sex', 'Bit'),
+	// 		q.column('birthdate', 'Date')
+	// 	).toString());
+		
+	// 	console.log(q.collectionExists('test', 'bob').toString());
 
-		console.log(q.createIndex(
-			q.index('id', 'primary').columns('id', 'asc'),
-			q.collection('test', 'bob')
-		).toString());
+	// 	console.log(q.dropCollection('test', 'bob').toString());
 
-		console.log(q.createIndex(
-			q.index('birthdate', 'index')
-				.columns('birthdate', 'asc')
-				.columns('id', 'asc'),
-			q.collection('test', 'bob')
-		).toString());
+	// 	console.log(q.createIndex(
+	// 		q.index('id', 'primary').columns('id', 'asc'),
+	// 		q.collection('test', 'bob')
+	// 	).toString());
 
-	});
+	// 	console.log(q.createIndex(
+	// 		q.index('birthdate', 'index')
+	// 			.columns('birthdate', 'asc')
+	// 			.columns('id', 'asc'),
+	// 		q.collection('test', 'bob')
+	// 	).toString());
+
+
+	// });
 
 	// describe('SelectQuery', () => {
 
