@@ -75,7 +75,7 @@ export class DatastoreDriver extends ADriver {
 
 	private executeSelect<T> (query: Query.SelectQuery): Promise<QueryResult.SelectQueryResult<T>> {
 		return new Promise<QueryResult.SelectQueryResult<T>>((resolve, reject) => {
-			if (query.join()) {
+			if (query.getJoin()) {
 				return reject(new Query.TooComplexQueryError(`Datastore does not support join.`));
 			}
 
@@ -85,12 +85,12 @@ export class DatastoreDriver extends ADriver {
 				return this.executeUnion<T>(decomposed).then(resolve).catch(reject);
 			}
 
-			const select = query.select();
-			const collection = query.from();
-			const where = query.where();
-			const sort = query.sort();
-			const offset = query.offset();
-			const limit = query.limit();
+			const select = query.getSelect();
+			const collection = query.getFrom();
+			const where = query.getWhere();
+			const sort = query.getSort();
+			const offset = query.getOffset();
+			const limit = query.getLimit();
 
 			if (!collection) {
 				return reject(new Query.QuerySyntaxError(`SelectQuery needs a collection.`));
@@ -143,7 +143,7 @@ export class DatastoreDriver extends ADriver {
 			// https://googlecloudplatform.github.io/google-cloud-node/#/docs/datastore/0.8.0/datastore?method=insert
 			// https://googlecloudplatform.github.io/google-cloud-node/#/docs/datastore/0.8.0/datastore?method=transaction
 
-			const collection = query.collection();
+			const collection = query.getCollection();
 			if (!collection) {
 				return reject(new Query.QuerySyntaxError(`InsertQuery needs a collection.`));
 			}
@@ -154,7 +154,7 @@ export class DatastoreDriver extends ADriver {
 					return reject(err);
 				}
 
-				const fields = query.fields()
+				const fields = query.getFields()
 				const key = this.driver.key([collection.name], { namespace: collection.namespace });
 				const data = fields ? fields.toJS() : {};
 
@@ -208,7 +208,7 @@ export class DatastoreDriver extends ADriver {
 
 	public static decomposeQuery (query: Query.SelectQuery): Query.SelectQuery | Query.UnionQuery {
 
-		const where = query.where();
+		const where = query.getWhere();
 		if (where) {
 			const decomposed = DatastoreDriver.decomposeBitwiseTree(where);
 
@@ -220,9 +220,9 @@ export class DatastoreDriver extends ADriver {
 				return query.where(simplified);
 			}
 
-			const sort = query.sort();
-			const offset = query.offset();
-			const limit = query.limit();
+			const sort = query.getSort();
+			const offset = query.getOffset();
+			const limit = query.getLimit();
 			
 			let union = Query.q.union(...decomposed.map(simplified => {
 				if (simplified instanceof Query.Comparison) {

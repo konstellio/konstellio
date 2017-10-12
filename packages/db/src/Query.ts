@@ -5,7 +5,7 @@ export class q {
 
 	public static select (...fields: FieldExpression[]) {
 		if (fields.length > 0) {
-			return new SelectQuery().select(...fields);
+			return new SelectQuery().select(...fields)
 		}
 		return new SelectQuery();
 	}
@@ -162,28 +162,28 @@ export class q {
 
 }
 
-export type ColumnType =
-	'Boolean' | 'boolean' | 'bool' |
-	'Bit' | 'bit' |
-	'UInt8' | 'uint8' |
-	'UInt16' | 'uint16' |
-	'UInt32' | 'uint32' |
-	'UInt64' | 'uint64' |
-	'Int8' | 'int8' |
-	'Int16' | 'int16' |
-	'Int32' | 'int32' |
-	'Int64' | 'int64' |
-	'Float32' | 'float32' |
-	'Float64' | 'float64' |
-	'String' | 'string' |
-	'Date' | 'date'
-;
+export enum ColumnType {
+	Boolean = 'Boolean',
+	Bit = 'Bit',
+	UInt8 = 'UInt8',
+	UInt16 = 'UInt16',
+	UInt32 = 'UInt32',
+	UInt64 = 'UInt64',
+	Int8 = 'Int8',
+	Int16 = 'Int16',
+	Int32 = 'Int32',
+	Int64 = 'Int64',
+	Float32 = 'Float32',
+	Float64 = 'Float64',
+	String = 'String',
+	Date = 'Date'
+};
 
-export type IndexType =
-	'Index' | 'index' |
-	'Primary' | 'primary' |
-	'Unique' | 'unique'
-;
+export enum IndexType {
+	Index = 'Index',
+	Primary = 'Primary',
+	Unique = 'Unique'
+};
 
 export type FieldExpression = string | Field
 export type CalcFieldExpression = string | Field | CalcField
@@ -233,87 +233,92 @@ export class SelectQuery extends Query {
 		this._limit = limit;
 	}
 
-	select (): List<Field> | undefined
-	select (...fields: FieldExpression[]): SelectQuery
-	select (...fields: any[]): any {
-		if (fields.length > 0) {
-			return new SelectQuery(List<Field>(fields.map(f => f instanceof Field ? f : new Field(f))), this._from, this._join, this._where, this._sort, this._offset, this._limit);
-		}
+	getSelect (): List<Field> | undefined {
 		return this._select;
 	}
 
-	from (): Collection | undefined
-	from (collection: Collection): SelectQuery
-	from (name: string, namespace?: string): SelectQuery
-	from (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new SelectQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._sort, this._offset, this._limit);
-		}
-		if (name && name instanceof Collection) {
-			return new SelectQuery(this._select, name, this._join, this._where, this._sort, this._offset, this._limit);
-		}
+	getFrom (): Collection | undefined {
 		return this._from;
 	}
 
-	join (): JoinExpression | undefined
-	join (alias: string, query: SelectQuery, on: Expression): SelectQuery
-	join (alias?: string, query?: SelectQuery, on?: Expression): any {
-		if (typeof alias === 'string') {
-			const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
-			return new SelectQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._sort, this._offset, this._limit);
-		}
+	getJoin (): JoinExpression | undefined {
 		return this._join;
 	}
 
-	offset (): number | undefined
-	offset (offset: number): SelectQuery
-	offset (offset?: number): any {
-		if (typeof offset === 'number') {
-			if (offset === this._offset) {
-				return this;
-			}
-			return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, offset, this._limit);
-		}
+	getWhere (): Bitwise | undefined {
+		return this._where;
+	}
+
+	getSort (): List<SortableField> | undefined {
+		return this._sort;
+	}
+
+	getOffset (): number | undefined {
 		return this._offset;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): SelectQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, this._offset, limit);
-		}
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	where (): Bitwise | undefined
-	where (query: Bitwise): SelectQuery
-	where (query?: Bitwise): any {
-		if (query && query instanceof Bitwise) {
-			return new SelectQuery(this._select, this._from, this._join, query, this._sort, this._offset, this._limit);
+	select (...fields: FieldExpression[]): SelectQuery {
+		return new SelectQuery(List<Field>(Array.from<FieldExpression>(arguments).map(f => f instanceof Field ? f : new Field(f))), this._from, this._join, this._where, this._sort, this._offset, this._limit);
+	}
+
+	from (collection: Collection): SelectQuery
+	from (name: any, namespace?: string): SelectQuery
+	from (name?: any, namespace?: string): SelectQuery {
+		if (name && name instanceof Collection) {
+			if (name === this._from) {
+				return this;
+			}
+			return new SelectQuery(this._select, name, this._join, this._where, this._sort, this._offset, this._limit);
 		}
-		return this._where;
+		if (this._from && this._from.name === name && this._from.namespace === namespace) {
+			return this;
+		}
+		return new SelectQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._sort, this._offset, this._limit);
+	}
+
+	join (alias: string, query: SelectQuery, on: Expression): SelectQuery {
+		const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
+		return new SelectQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._sort, this._offset, this._limit);
+	}
+
+	offset (offset: number): SelectQuery {
+		if (offset === this._offset) {
+			return this;
+		}
+		return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, offset, this._limit);
+	}
+
+	limit (limit: number): SelectQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, this._offset, limit);
+	}
+
+	where (query: Bitwise): SelectQuery {
+		return new SelectQuery(this._select, this._from, this._join, query, this._sort, this._offset, this._limit);
 	}
 
 	and (queries: List<Expression>): SelectQuery
 	and (...queries: Expression[]): SelectQuery
-	and (queries: any) {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("and", queries), this._sort, this._offset, this._limit);
+	and (): SelectQuery {
+		return new SelectQuery(this._select, this._from, this._join, new Bitwise("and", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
 	}
 
 	or (queries: List<Expression>): SelectQuery
 	or (...queries: Expression[]): SelectQuery
-	or (queries: any) {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("or", queries), this._sort, this._offset, this._limit);
+	or (): SelectQuery {
+		return new SelectQuery(this._select, this._from, this._join, new Bitwise("or", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
 	}
 
 	xor (queries: List<Expression>): SelectQuery
 	xor (...queries: Expression[]): SelectQuery
-	xor (queries: any) {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("xor", queries), this._sort, this._offset, this._limit);
+	xor (): SelectQuery {
+		return new SelectQuery(this._select, this._from, this._join, new Bitwise("xor", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
 	}
 
 	eq (field: string, value: ValueExpression) {
@@ -356,20 +361,16 @@ export class SelectQuery extends Query {
 		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._sort, this._offset, this._limit);
 	}
 
-	sort (): List<SortableField> | undefined
 	sort (field: string, direction?: DirectionExpression): SelectQuery
 	sort (...fields: SortableField[]): SelectQuery
-	sort (...fields: any[]): any {
-		if (fields.length <= 2 && typeof fields[0] === 'string') {
+	sort (): SelectQuery {
+		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>fields[0];
-			const direction = fields.length === 2 ? <DirectionExpression>fields[1] : undefined;
+			const name = <string>arguments[0];
+			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
 			return new SelectQuery(this._select, this._from, this._join, this._where, sort.push(new SortableField(name, direction)), this._offset, this._limit);
 		}
-		else if (fields.length > 0) {
-			return new SelectQuery(this._select, this._from, this._join, this._where, List<SortableField>(fields), this._offset, this._limit);
-		}
-		return this._sort;
+		return new SelectQuery(this._select, this._from, this._join, this._where, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
 	}
 
 	toString (): string
@@ -437,53 +438,51 @@ export class UnionQuery extends Query {
 		this._limit = limit;
 	}
 
-	select (): List<SelectQuery> | undefined
-	select (...selects: SelectQuery[]): UnionQuery
-	select (...selects: any[]): any {
-		if (selects.length > 0) {
-			return new UnionQuery(List<SelectQuery>(selects), this._sort, this._offset, this._limit);
-		}
+	getSelect (): List<SelectQuery> | undefined {
 		return this._selects;
 	}
 
-	offset (): number | undefined
-	offset (offset: number): UnionQuery
-	offset (offset?: number): any {
-		if (typeof offset === 'number') {
-			if (offset === this._limit) {
-				return this;
-			}
-			return new UnionQuery(this._selects, this._sort, offset, this._limit);
-		}
+	getSort (): List<SortableField> | undefined {
+		return this._sort;
+	}
+
+	getOffset (): number | undefined {
 		return this._offset;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): UnionQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new UnionQuery(this._selects, this._sort, this._offset, limit);
-		}
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	sort (): List<SortableField> | undefined
+	select (...selects: SelectQuery[]): UnionQuery {
+		return new UnionQuery(List<SelectQuery>(Array.from<SelectQuery>(arguments)), this._sort, this._offset, this._limit);
+	}
+
+	offset (offset: number): UnionQuery {
+		if (offset === this._limit) {
+			return this;
+		}
+		return new UnionQuery(this._selects, this._sort, offset, this._limit);
+	}
+
+	limit (limit: number): UnionQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new UnionQuery(this._selects, this._sort, this._offset, limit);
+	}
+
 	sort (field: string, direction?: DirectionExpression): UnionQuery
 	sort (...fields: SortableField[]): UnionQuery
-	sort (...fields: any[]): any {
-		if (fields.length <= 2 && typeof fields[0] === 'string') {
+	sort (): UnionQuery {
+		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>fields[0];
-			const direction = fields.length === 2 ? <DirectionExpression>fields[1] : undefined;
+			const name = <string>arguments[0];
+			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
 			return new UnionQuery(this._selects, sort.push(new SortableField(name, direction)), this._offset, this._limit);
 		}
-		else if (fields.length > 0) {
-			return new UnionQuery(this._selects, List<SortableField>(fields), this._offset, this._limit);
-		}
-		return this._sort;
+		
+		return new UnionQuery(this._selects, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
 	}
 
 	toString (): string
@@ -537,88 +536,98 @@ export class AggregateQuery extends Query {
 		this._limit = limit;
 	}
 
-	select (): AggregateExpression | undefined
-	select (fields: { [field: string]: CalcField }): AggregateQuery
-	select (fields: AggregateExpression): AggregateQuery
-	select (fields?: any): any {
-		if (fields) {
-			return new AggregateQuery(Map<string, CalcField>(fields), this._from, this._join, this._where, this._group, this._sort, this._offset, this._limit);
-		}
+	getSelect (): AggregateExpression | undefined {
 		return this._select;
 	}
 
-	from (): Collection | undefined
-	from (collection: Collection): AggregateQuery
-	from (name: string, namespace?: string): AggregateQuery
-	from (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new AggregateQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._group, this._sort, this._offset, this._limit);
-		}
-		else if (name && name instanceof Collection) {
-			return new AggregateQuery(this._select, name, this._join, this._where, this._group, this._sort, this._offset, this._limit);
-		}
+	getFrom (): Collection | undefined {
 		return this._from;
 	}
 
-	join (): JoinExpression | undefined
-	join (alias: string, query: SelectQuery, on: Expression): AggregateQuery
-	join (alias?: string, query?: SelectQuery, on?: Expression): any {
-		if (typeof alias === 'string') {
-			const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
-			return new AggregateQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._group, this._sort, this._offset, this._limit);
-		}
+	getJoin (): JoinExpression | undefined {
 		return this._join;
 	}
 
-	offset (): number | undefined
-	offset (offset: number): DeleteQuery
-	offset (offset?: number): any {
-		if (typeof offset === 'number') {
-			if (offset === this._offset) {
-				return this;
-			}
-			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, offset, this._limit);
-		}
+	getWhere (): Bitwise | undefined {
+		return this._where;
+	}
+
+	getGroup (): List<Field> | undefined {
+		return this._group;
+	}
+
+	getSort (): List<SortableField> | undefined {
+		return this._sort;
+	}
+
+	getOffset (): number | undefined {
 		return this._offset;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): DeleteQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, this._offset, limit);
-		}
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	where (): Bitwise | undefined
-	where (query: Bitwise): AggregateQuery
-	where (query?: Bitwise): any {
-		if (query && query instanceof Bitwise) {
-			return new AggregateQuery(this._select, this._from, this._join, query, this._group, this._sort, this._offset, this._limit);
+	select (fields: { [field: string]: CalcField }): AggregateQuery
+	select (fields: AggregateExpression): AggregateQuery
+	select (fields: any): AggregateQuery {
+		return new AggregateQuery(Map<string, CalcField>(fields), this._from, this._join, this._where, this._group, this._sort, this._offset, this._limit);
+	}
+
+	from (collection: Collection): AggregateQuery
+	from (name: any, namespace?: string): AggregateQuery
+	from (name?: any, namespace?: string): AggregateQuery {
+		if (name && name instanceof Collection) {
+			if (name === this._from) {
+				return this;
+			}
+			return new AggregateQuery(this._select, name, this._join, this._where, this._group, this._sort, this._offset, this._limit);
 		}
-		return this._where;
+		if (this._from && this._from.name === name && this._from.namespace === namespace) {
+			return this;
+		}
+		return new AggregateQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._group, this._sort, this._offset, this._limit);
+	}
+
+	join (alias: string, query: SelectQuery, on: Expression): AggregateQuery {
+		const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
+		return new AggregateQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._group, this._sort, this._offset, this._limit);
+	}
+
+	offset (offset: number): AggregateQuery {
+		if (offset === this._offset) {
+			return this;
+		}
+		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, offset, this._limit);
+	}
+
+	limit (limit: number): AggregateQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, this._offset, limit);
+	}
+
+	where (query: Bitwise): AggregateQuery {
+		return new AggregateQuery(this._select, this._from, this._join, query, this._group, this._sort, this._offset, this._limit);
 	}
 
 	and (queries: List<Expression>): AggregateQuery
 	and (...queries: Expression[]): AggregateQuery
-	and (queries: any) {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("and", queries), this._group, this._sort, this._offset, this._limit);
+	and (): AggregateQuery {
+		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("and", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
 	}
 
 	or (queries: List<Expression>): AggregateQuery
 	or (...queries: Expression[]): AggregateQuery
-	or (queries: any) {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("or", queries), this._group, this._sort, this._offset, this._limit);
+	or (): AggregateQuery {
+		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("or", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
 	}
 
 	xor (queries: List<Expression>): AggregateQuery
 	xor (...queries: Expression[]): AggregateQuery
-	xor (queries: any) {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("xor", queries), this._group, this._sort, this._offset, this._limit);
+	xor (): AggregateQuery {
+		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("xor", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
 	}
 
 	eq (field: string, value: ValueExpression) {
@@ -661,29 +670,20 @@ export class AggregateQuery extends Query {
 		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._group, this._sort, this._offset, this._limit);
 	}
 
-	sort (): List<SortableField> | undefined
 	sort (field: string, direction?: DirectionExpression): AggregateQuery
 	sort (...fields: SortableField[]): AggregateQuery
-	sort (...fields: any[]): any {
-		if (fields.length <= 2 && typeof fields[0] === 'string') {
+	sort (): AggregateQuery {
+		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>fields[0];
-			const direction = fields.length === 2 ? <DirectionExpression>fields[1] : undefined;
+			const name = <string>arguments[0];
+			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
 			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, sort.push(new SortableField(name, direction)), this._offset, this._limit);
 		}
-		else if (fields.length > 0) {
-			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, List<SortableField>(fields), this._offset, this._limit);
-		}
-		return this._sort;
+		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
 	}
 
-	group (): List<Field> | undefined
-	group (...fields: FieldExpression[]): AggregateQuery
-	group (...fields: any[]): any {
-		if (fields.length > 0) {
-			return new AggregateQuery(this._select, this._from, this._join, this._where, List<Field>(fields.map(f => f instanceof Field ? f : new Field(f))), this._sort, this._offset, this._limit);
-		}
-		return this._group;
+	group (...fields: FieldExpression[]): AggregateQuery {
+		return new AggregateQuery(this._select, this._from, this._join, this._where, List<Field>(fields.map(f => f instanceof Field ? f : new Field(f))), this._sort, this._offset, this._limit);
 	}
 
 	toString (): string
@@ -750,27 +750,27 @@ export class InsertQuery extends Query {
 		this._collection = collection;
 	}
 
-	fields (): DataExpression | undefined
-	fields (data: { [field: string]: ValueExpression }): InsertQuery
-	fields (data: DataExpression): InsertQuery
-	fields (data?: any): any {
-		if (data) {
-			return new InsertQuery(Map<string, ValueExpression>(data), this._collection);
-		}
+	getFields (): DataExpression | undefined {
 		return this._data;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): UpdateQuery
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
+	fields (data: { [field: string]: ValueExpression }): InsertQuery
+	fields (data: DataExpression): InsertQuery
+	fields (data: any): InsertQuery {
+		return new InsertQuery(Map<string, ValueExpression>(data), this._collection);
+	}
+
+	collection (collection: Collection): InsertQuery
 	collection (name: string, namespace?: string): InsertQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new InsertQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: string): InsertQuery {
+		if (name && name instanceof Collection) {
 			return new InsertQuery(this._data, name);
 		}
-		return this._collection;
+		return new InsertQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -816,66 +816,64 @@ export class UpdateQuery extends Query {
 		this._limit = limit;
 	}
 
-	fields (): DataExpression | undefined
-	fields (data: { [field: string]: ValueExpression }): UpdateQuery
-	fields (data: DataExpression): UpdateQuery
-	fields (data?: any): any {
-		if (data) {
-			return new UpdateQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
-		}
+	getFields (): DataExpression | undefined {
 		return this._data;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): UpdateQuery
-	collection (name: string, namespace?: string): UpdateQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new UpdateQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-		}
-		else if (name && name instanceof Collection) {
-			return new UpdateQuery(this._data, name, this._where, this._limit);
-		}
+	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): UpdateQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new UpdateQuery(this._data, this._collection, this._where, limit);
-		}
+	getWhere (): Bitwise | undefined {
+		return this._where;
+	}
+
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	where (): Bitwise | undefined
-	where (query: Bitwise): UpdateQuery
-	where (query?: Bitwise): any {
-		if (query && query instanceof Bitwise) {
-			return new UpdateQuery(this._data, this._collection, query, this._limit);
+	fields (data: { [field: string]: ValueExpression }): UpdateQuery
+	fields (data: DataExpression): UpdateQuery
+	fields (data: any): UpdateQuery {
+		return new UpdateQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
+	}
+
+	collection (collection: Collection): UpdateQuery
+	collection (name: string, namespace?: string): UpdateQuery
+	collection (name?: any, namespace?: string): UpdateQuery {
+		if (name && name instanceof Collection) {
+			return new UpdateQuery(this._data, name, this._where, this._limit);
 		}
-		return this._where;
+		return new UpdateQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
+	}
+
+	limit (limit: number): UpdateQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new UpdateQuery(this._data, this._collection, this._where, limit);
+	}
+
+	where (query: Bitwise): UpdateQuery {
+		return new UpdateQuery(this._data, this._collection, query, this._limit);
 	}
 
 	and (queries: List<Expression>): UpdateQuery
 	and (...queries: Expression[]): UpdateQuery
-	and (queries: any) {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("and", queries), this._limit);
+	and (): UpdateQuery {
+		return new UpdateQuery(this._data, this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	or (queries: List<Expression>): UpdateQuery
 	or (...queries: Expression[]): UpdateQuery
-	or (queries: any) {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("or", queries), this._limit);
+	or (): UpdateQuery {
+		return new UpdateQuery(this._data, this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	xor (queries: List<Expression>): UpdateQuery
 	xor (...queries: Expression[]): UpdateQuery
-	xor (queries: any) {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("xor", queries), this._limit);
+	xor (): UpdateQuery {
+		return new UpdateQuery(this._data, this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	eq (field: string, value: ValueExpression) {
@@ -969,66 +967,64 @@ export class ReplaceQuery extends Query {
 		this._limit = limit;
 	}
 
-	fields (): DataExpression | undefined
-	fields (data: { [field: string]: ValueExpression }): ReplaceQuery
-	fields (data: DataExpression): ReplaceQuery
-	fields (data?: any): any {
-		if (data) {
-			return new ReplaceQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
-		}
+	getFields (): DataExpression | undefined {
 		return this._data;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): ReplaceQuery
-	collection (name: string, namespace?: string): ReplaceQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new ReplaceQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-		}
-		else if (name && name instanceof Collection) {
-			return new ReplaceQuery(this._data, name, this._where, this._limit);
-		}
+	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): ReplaceQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new ReplaceQuery(this._data, this._collection, this._where, limit);
-		}
+	getWhere (): Bitwise | undefined {
+		return this._where;
+	}
+
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	where (): Bitwise | undefined
-	where (query: Bitwise): ReplaceQuery
-	where (query?: Bitwise): any {
-		if (query && query instanceof Bitwise) {
-			return new ReplaceQuery(this._data, this._collection, query, this._limit);
+	fields (data: { [field: string]: ValueExpression }): ReplaceQuery
+	fields (data: DataExpression): ReplaceQuery
+	fields (data: any): ReplaceQuery {
+		return new ReplaceQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
+	}
+
+	collection (collection: Collection): ReplaceQuery
+	collection (name: string, namespace?: string): ReplaceQuery
+	collection (name?: any, namespace?: string): ReplaceQuery {
+		if (name && name instanceof Collection) {
+			return new ReplaceQuery(this._data, name, this._where, this._limit);
 		}
-		return this._where;
+		return new ReplaceQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
+	}
+
+	limit (limit: number): ReplaceQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new ReplaceQuery(this._data, this._collection, this._where, limit);
+	}
+
+	where (query: Bitwise): ReplaceQuery {
+		return new ReplaceQuery(this._data, this._collection, query, this._limit);
 	}
 
 	and (queries: List<Expression>): ReplaceQuery
 	and (...queries: Expression[]): ReplaceQuery
-	and (queries: any) {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("and", queries), this._limit);
+	and (): ReplaceQuery {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	or (queries: List<Expression>): ReplaceQuery
 	or (...queries: Expression[]): ReplaceQuery
-	or (queries: any) {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("or", queries), this._limit);
+	or (): ReplaceQuery {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	xor (queries: List<Expression>): ReplaceQuery
 	xor (...queries: Expression[]): ReplaceQuery
-	xor (queries: any) {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("xor", queries), this._limit);
+	xor (): ReplaceQuery {
+		return new ReplaceQuery(this._data, this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	eq (field: string, value: ValueExpression) {
@@ -1120,56 +1116,54 @@ export class DeleteQuery extends Query {
 		this._limit = limit;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): DeleteQuery
-	collection (name: string, namespace?: string): DeleteQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new DeleteQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-		}
-		else if (name && name instanceof Collection) {
-			return new DeleteQuery(name, this._where, this._limit);
-		}
+	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
-	limit (): number | undefined
-	limit (limit: number): DeleteQuery
-	limit (limit?: number): any {
-		if (typeof limit === 'number') {
-			if (limit === this._limit) {
-				return this;
-			}
-			return new DeleteQuery(this._collection, this._where, limit);
-		}
+	getWhere (): Bitwise | undefined {
+		return this._where;
+	}
+
+	getLimit (): number | undefined {
 		return this._limit;
 	}
 
-	where (): Bitwise | undefined
-	where (query: Bitwise): DeleteQuery
-	where (query?: Bitwise): any {
-		if (query && query instanceof Bitwise) {
-			return new DeleteQuery(this._collection, query, this._limit);
+	collection (collection: Collection): DeleteQuery
+	collection (name: string, namespace?: string): DeleteQuery
+	collection (name?: any, namespace?: string): DeleteQuery {
+		if (name && name instanceof Collection) {
+			return new DeleteQuery(name, this._where, this._limit);
 		}
-		return this._where;
+		return new DeleteQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
+	}
+
+	limit (limit: number): DeleteQuery {
+		if (limit === this._limit) {
+			return this;
+		}
+		return new DeleteQuery(this._collection, this._where, limit);
+	}
+
+	where (query: Bitwise): DeleteQuery {
+		return new DeleteQuery(this._collection, query, this._limit);
 	}
 
 	and (queries: List<Expression>): DeleteQuery
 	and (...queries: Expression[]): DeleteQuery
-	and (queries: any) {
-		return new DeleteQuery(this._collection, new Bitwise("and", queries), this._limit);
+	and (): DeleteQuery {
+		return new DeleteQuery(this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	or (queries: List<Expression>): DeleteQuery
 	or (...queries: Expression[]): DeleteQuery
-	or (queries: any) {
-		return new DeleteQuery(this._collection, new Bitwise("or", queries), this._limit);
+	or (): DeleteQuery {
+		return new DeleteQuery(this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	xor (queries: List<Expression>): DeleteQuery
 	xor (...queries: Expression[]): DeleteQuery
-	xor (queries: any) {
-		return new DeleteQuery(this._collection, new Bitwise("xor", queries), this._limit);
+	xor (): DeleteQuery {
+		return new DeleteQuery(this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
 	}
 
 	eq (field: string, value: ValueExpression) {
@@ -1249,26 +1243,25 @@ export class CreateCollectionQuery extends Query {
 		this._columns = columns;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): CreateCollectionQuery
-	collection (name: string, namespace?: string): CreateCollectionQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
-		}
-		else if (name && name instanceof Collection) {
-			return new CreateCollectionQuery(name, this._columns);
-		}
+	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
-	columns (): List<Column> | undefined
-	columns (...columns: Column[]): CreateCollectionQuery
-	columns (...columns: any[]): any {
-		if (columns.length > 0) {
-			return new CreateCollectionQuery(this._collection, List<Column>(columns));
-		}
+	getColumns (): List<Column> | undefined {
 		return this._columns;
+	}
+
+	collection (collection: Collection): CreateCollectionQuery
+	collection (name: string, namespace?: string): CreateCollectionQuery
+	collection (name?: any, namespace?: string): CreateCollectionQuery {
+		if (name && name instanceof Collection) {
+			return new CreateCollectionQuery(name, this._columns);
+		}
+		return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+	}
+
+	columns (...columns: Column[]): CreateCollectionQuery {
+		return new CreateCollectionQuery(this._collection, List<Column>(columns));
 	}
 
 	toString (): string
@@ -1307,17 +1300,17 @@ export class DescribeCollectionQuery extends Query {
 		this._collection = collection;
 	}
 
-	collection (): Collection | undefined
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
 	collection (collection: Collection): DescribeCollectionQuery
 	collection (name: string, namespace?: string): DescribeCollectionQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new DescribeCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: string): DescribeCollectionQuery {
+		if (name && name instanceof Collection) {
 			return new DescribeCollectionQuery(name);
 		}
-		return this._collection;
+		return new DescribeCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -1349,26 +1342,25 @@ export class AlterCollectionQuery extends Query {
 		this._columns = columns;
 	}
 
-	collection (): Collection | undefined
-	collection (collection: Collection): AlterCollectionQuery
-	collection (name: string, namespace?: string): AlterCollectionQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
-		}
-		else if (name && name instanceof Collection) {
-			return new AlterCollectionQuery(name, this._columns);
-		}
+	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
-	columns (): List<Column> | undefined
-	columns (...columns: Column[]): AlterCollectionQuery
-	columns (...columns: any[]): any {
-		if (columns.length > 0) {
-			return new AlterCollectionQuery(this._collection, List<Column>(columns));
-		}
+	getColumns (): List<Column> | undefined {
 		return this._columns;
+	}
+
+	collection (collection: Collection): AlterCollectionQuery
+	collection (name: string, namespace?: string): AlterCollectionQuery
+	collection (name?: any, namespace?: any): AlterCollectionQuery {
+		if (name && name instanceof Collection) {
+			return new AlterCollectionQuery(name, this._columns);
+		}
+		return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+	}
+
+	columns (...columns: Column[]): AlterCollectionQuery {
+		return new AlterCollectionQuery(this._collection, List<Column>(columns));
 	}
 
 	toString (): string
@@ -1407,17 +1399,17 @@ export class CollectionExistsQuery extends Query {
 		this._collection = collection;
 	}
 
-	collection (): Collection | undefined
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
 	collection (collection: Collection): CollectionExistsQuery
 	collection (name: string, namespace?: string): CollectionExistsQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new CollectionExistsQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: string): CollectionExistsQuery {
+		if (name && name instanceof Collection) {
 			return new CollectionExistsQuery(name);
 		}
-		return this._collection;
+		return new CollectionExistsQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -1447,17 +1439,17 @@ export class DropCollectionQuery extends Query {
 		this._collection = collection;
 	}
 
-	collection (): Collection | undefined
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
 	collection (collection: Collection): DropCollectionQuery
 	collection (name: string, namespace?: string): DropCollectionQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new DropCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: string): DropCollectionQuery {
+		if (name && name instanceof Collection) {
 			return new DropCollectionQuery(name);
 		}
-		return this._collection;
+		return new DropCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -1489,26 +1481,25 @@ export class CreateIndexQuery extends Query {
 		this._index = index;
 	}
 
-	index (): Index | undefined
-	index (index: Index): CreateIndexQuery
-	index (index?: any): any {
-		if (index) {
-			return new CreateIndexQuery(index, this._collection);
-		}
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
+	getIndex (): Index | undefined {
 		return this._index;
 	}
 
-	collection (): Collection | undefined
+	index (index: Index): CreateIndexQuery {
+		return new CreateIndexQuery(index, this._collection);
+	}
+
 	collection (collection: Collection): CreateIndexQuery
 	collection (name: string, namespace?: string): CreateIndexQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new CreateIndexQuery(this._index, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: string): CreateIndexQuery {
+		if (name && name instanceof Collection) {
 			return new CreateIndexQuery(this._index, name);
 		}
-		return this._collection;
+		return new CreateIndexQuery(this._index, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -1545,26 +1536,25 @@ export class DropIndexQuery extends Query {
 		this._collection = collection;
 	}
 
-	name (): string
-	name (name: string): DropIndexQuery
-	name (name?: any): any {
-		if (typeof name === 'string') {
-			return new DropIndexQuery(name, this._collection);
-		}
+	getName (): string | undefined {
 		return this._name;
 	}
 
-	collection (): Collection | undefined
+	getCollection (): Collection | undefined {
+		return this._collection;
+	}
+
+	name (name: string): DropIndexQuery {
+		return new DropIndexQuery(name, this._collection);
+	}
+
 	collection (collection: Collection): DropIndexQuery
 	collection (name: string, namespace?: string): DropIndexQuery
-	collection (name?: any, namespace?: any): any {
-		if (typeof name === 'string') {
-			return new DropIndexQuery(this._name, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-		}
-		else if (name && name instanceof Collection) {
+	collection (name?: any, namespace?: any): DropIndexQuery {
+		if (name && name instanceof Collection) {
 			return new DropIndexQuery(this._name, name);
 		}
-		return this._collection;
+		return new DropIndexQuery(this._name, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
 	}
 
 	toString (): string
@@ -1709,15 +1699,15 @@ export class Index {
 	columns (): List<SortableField> | undefined
 	columns (column: string, direction?: DirectionExpression): Index
 	columns (...columns: SortableField[]): Index
-	columns (...columns: any[]): any {
-		if (columns.length <= 2 && typeof columns[0] === 'string') {
+	columns (): any {
+		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
 			const sort = this._columns ? this._columns : List<SortableField>();
-			const name = <string>columns[0];
-			const direction = columns.length === 2 ? <DirectionExpression>columns[1] : undefined;
+			const name = <string>arguments[0];
+			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
 			return new Index(this._name, this._type, sort.push(new SortableField(name, direction)));
 		}
-		else if (columns.length > 0) {
-			return new Index(this._name, this._type, List<SortableField>(columns));
+		else if (arguments.length > 0) {
+			return new Index(this._name, this._type, List<SortableField>(Array.from<SortableField>(arguments)));
 		}
 		return this._columns;
 	}

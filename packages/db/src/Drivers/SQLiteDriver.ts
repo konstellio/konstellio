@@ -173,7 +173,7 @@ export class SQLiteDriver extends ADriver {
 				if (err) {
 					return reject(err);
 				}
-				const fields = query.fields();
+				const fields = query.getFields();
 				const data: T = fields ? fields.toJS() : {}
 				const result = new QueryResult.InsertQueryResult<T>(this.lastId, data);
 
@@ -193,7 +193,7 @@ export class SQLiteDriver extends ADriver {
 				if (err) {
 					return reject(err);
 				}
-				const fields = query.fields();
+				const fields = query.getFields();
 				const data: T = fields ? fields.toJS() : {}
 				const result = new QueryResult.UpdateQueryResult<T>(data);
 
@@ -243,7 +243,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			accumulator.sql += 'DELETE FROM ';
 		}
 		if (node instanceof Query.UnionQuery) {
-			const selects = node.select();
+			const selects = node.getSelect();
 			if (selects) {
 				selects.forEach(select => {
 					accumulator.sql += ` `;
@@ -257,7 +257,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Select ...
 		if (node instanceof Query.SelectQuery) {
-			const fields = node.select();
+			const fields = node.getSelect();
 			if (fields) {
 				fields.forEach(field => {
 					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Field>field);
@@ -270,7 +270,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 			}
 		}
 		if (node instanceof Query.AggregateQuery) {
-			const fields = node.select();
+			const fields = node.getSelect();
 			if (fields) {
 				accumulator.sql += fields.map<string>((field, alias) => field && alias ? `${field.toString()} AS ${alias}` : ``).join(', ');
 				accumulator.sql += ` `;
@@ -281,7 +281,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Select ... From ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery) {
-			const from = node.from();
+			const from = node.getFrom();
 			if (from) {
 				accumulator.sql += `FROM `;
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, from);
@@ -291,7 +291,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Insert ...
 		if (node instanceof Query.InsertQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
-			const collection = node.collection();
+			const collection = node.getCollection();
 			if (collection) {
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, collection);
 				accumulator.sql += ` `;
@@ -300,7 +300,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Values ...
 		if (node instanceof Query.InsertQuery) {
-			const fields = node.fields();
+			const fields = node.getFields();
 			if (fields) {
 				accumulator.sql += `(${fields.map<string>((value, key) => key || '').join(', ')})`;
 				accumulator.sql += ` VALUES `;
@@ -318,7 +318,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Set ...
 		if (node instanceof Query.UpdateQuery) {
-			const fields = node.fields();
+			const fields = node.getFields();
 			if (fields) {
 				accumulator.sql += `SET `;
 				accumulator.sql += `${fields.map<string>((value, key) => {
@@ -335,7 +335,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Join ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery) {
-			const joins = node.join();
+			const joins = node.getJoin();
 			if (joins) {
 				joins.forEach((value, alias) => {
 					if (value) {
@@ -351,7 +351,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Where ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
-			const where = node.where();
+			const where = node.getWhere();
 			if (where) {
 				accumulator.sql += `WHERE `;
 				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, where);
@@ -361,7 +361,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Sort By ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const sort = node.sort();
+			const sort = node.getSort();
 			if (sort) {
 				accumulator.sql += `SORT BY `;
 				sort.forEach(field => {
@@ -375,7 +375,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Limit ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const limit = node.limit();
+			const limit = node.getLimit();
 			if (limit) {
 				accumulator.sql += `LIMIT ${limit} `;
 			}
@@ -383,7 +383,7 @@ const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
 
 		// Offset ...
 		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const offset = node.offset();
+			const offset = node.getOffset();
 			if (offset) {
 				accumulator.sql += `OFFSET ${offset} `;
 			}

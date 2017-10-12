@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import { q, ColumnType, SelectQuery, Expression } from './Query';
+import { q, ColumnType, IndexType, SelectQuery, Expression } from './Query';
 import { Map, List } from 'immutable';
 
 describe('Query', () => {
@@ -87,19 +87,19 @@ describe('Query', () => {
 	// describe('test', () => {
 
 	// 	console.log(q.createCollection('test', 'bob').columns(
-	// 		q.column('id', 'UInt64', 1, true),
-	// 		q.column('name', 'String'),
-	// 		q.column('age', 'UInt8'),
-	// 		q.column('sex', 'Bit'),
-	// 		q.column('birthdate', 'Date')
+	// 		q.column('id', ColumnType.UInt32, 1, true),
+	// 		q.column('name', ColumnType.String),
+	// 		q.column('age', ColumnType.UInt8),
+	// 		q.column('sex', ColumnType.Bit),
+	// 		q.column('birthdate', ColumnType.Date)
 	// 	).toString());
 
 	// 	console.log(q.alterCollection('test', 'bob').columns(
-	// 		q.column('id', 'UInt64', 1, true),
-	// 		q.column('name', 'String'),
-	// 		q.column('age', 'UInt8'),
-	// 		q.column('sex', 'Bit'),
-	// 		q.column('birthdate', 'Date')
+	// 		q.column('id', ColumnType.UInt32, 1, true),
+	// 		q.column('name', ColumnType.String),
+	// 		q.column('age', ColumnType.UInt8),
+	// 		q.column('sex', ColumnType.Bit),
+	// 		q.column('birthdate', ColumnType.Date)
 	// 	).toString());
 		
 	// 	console.log(q.collectionExists('test', 'bob').toString());
@@ -107,12 +107,12 @@ describe('Query', () => {
 	// 	console.log(q.dropCollection('test', 'bob').toString());
 
 	// 	console.log(q.createIndex(
-	// 		q.index('id', 'primary').columns('id', 'asc'),
+	// 		q.index('id', IndexType.Primary).columns('id', 'asc'),
 	// 		q.collection('test', 'bob')
 	// 	).toString());
 
 	// 	console.log(q.createIndex(
-	// 		q.index('birthdate', 'index')
+	// 		q.index('birthdate', IndexType.Index)
 	// 			.columns('birthdate', 'asc')
 	// 			.columns('id', 'asc'),
 	// 		q.collection('test', 'bob')
