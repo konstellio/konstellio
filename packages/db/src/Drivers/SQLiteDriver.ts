@@ -48,6 +48,13 @@ export class SQLiteDriver extends ADriver {
 	execute<T>(query: Query.UpdateQuery): Promise<QueryResult.UpdateQueryResult<T>>
 	execute<T>(query: Query.ReplaceQuery): Promise<QueryResult.ReplaceQueryResult<T>>
 	execute(query: Query.DeleteQuery): Promise<QueryResult.DeleteQueryResult>
+	execute(query: Query.CreateCollectionQuery): Promise<QueryResult.CreateCollectionQueryResult>;
+	execute(query: Query.DescribeCollectionQuery): Promise<QueryResult.DescribeCollectionQueryResult>;
+	execute(query: Query.AlterCollectionQuery): Promise<QueryResult.AlterCollectionQueryResult>;
+	execute(query: Query.CollectionExistsQuery): Promise<QueryResult.CollectionExistsQueryResult>;
+	execute(query: Query.DropCollectionQuery): Promise<QueryResult.DropCollectionQueryResult>;
+	execute(query: Query.CreateIndexQuery): Promise<QueryResult.CreateIndexQueryResult>;
+	execute(query: Query.DropIndexQuery): Promise<QueryResult.DropIndexQueryResult>;
 	execute<T>(query: any): Promise<any> {
 		if (typeof query === 'string') {
 			return this.executeSQL(query);
