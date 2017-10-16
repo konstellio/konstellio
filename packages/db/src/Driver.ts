@@ -1,9 +1,9 @@
 import * as Query from './Query';
 import * as Result from './QueryResult';
 
-export abstract class ADriver {
+export abstract class Driver {
 
-	abstract connect(): Promise<ADriver>;
+	abstract connect(): Promise<Driver>;
 
 	abstract execute(query: string): Promise<any>;
 	abstract execute<T>(query: Query.SelectQuery): Promise<Result.SelectQueryResult<T>>;

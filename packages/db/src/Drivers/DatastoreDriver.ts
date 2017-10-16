@@ -1,4 +1,4 @@
-import { ADriver } from '../Driver';
+import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import * as Datastore from '@google-cloud/datastore';
@@ -18,7 +18,7 @@ export type DatastoreDriverConstructor = {
 	maxRetries?: number
 }
 
-export class DatastoreDriver extends ADriver {
+export class DatastoreDriver extends Driver {
 
 	driver: any
 

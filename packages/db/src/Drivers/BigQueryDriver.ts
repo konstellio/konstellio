@@ -1,4 +1,4 @@
-import { ADriver } from '../Driver';
+import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import * as BigQuery from '@google-cloud/bigquery';
@@ -17,7 +17,7 @@ export type BigQueryDriverConstructor = {
 	maxRetries?: number
 }
 
-export class BigQueryDriver extends ADriver {
+export class BigQueryDriver extends Driver {
 
 	driver: any
 
@@ -27,8 +27,8 @@ export class BigQueryDriver extends ADriver {
 		this.driver = BigQuery(options);
 	}
 
-	connect(): Promise<ADriver> {
-		return new Promise<ADriver>((resolve, reject) => {
+	connect(): Promise<Driver> {
+		return new Promise<Driver>((resolve, reject) => {
 			resolve(this);
 		});
 	}

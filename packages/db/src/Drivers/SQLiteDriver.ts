@@ -1,4 +1,4 @@
-import { ADriver } from '../Driver';
+import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import * as SQLite from 'sqlite3';
@@ -15,7 +15,7 @@ export type SQLiteQueryResult = {
 	changes: any[]
 }
 
-export class SQLiteDriver extends ADriver {
+export class SQLiteDriver extends Driver {
 
 	options: SQLiteDriverConstructor
 	driver: any
