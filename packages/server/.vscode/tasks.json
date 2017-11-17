@@ -6,7 +6,7 @@
         {
             "identifier": "Build",
             "type": "typescript",
-            "tsconfig": "sculptor-cli\\tsconfig.json",
+            "tsconfig": "sculptor-server\\tsconfig.json",
             "problemMatcher": [
                 "$tsc"
             ]
