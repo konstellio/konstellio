@@ -30,9 +30,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use('/graphiql', graphiqlExpress({ endpointURL: '/graphql' }));
 app.use('/graphql', graphqlExpress((req) => {
-    // TODO clone/copy `ast` per "group"
+
+    //const ast = parse(typeDefs); // only take ±2ms to parse
+    
     // TODO modify `ast` with AST transformer (hide @permission, etc)
-    // TODO cache the new `ast` for "group"
+    const schema = buildSchemaFromTypeDefinitions(ast);
+    addResolveFunctionsToSchema(schema, resolvers);
+    // TODO cache the new `schema` for "group"
     
     // Example : remove type/field with @hidden directive
     // function visible (node): boolean {
@@ -44,9 +48,6 @@ app.use('/graphql', graphqlExpress((req) => {
     //         definition.fields = definition.fields.filter(visible);
     //     }
     // })
-
-    const schema = buildSchemaFromTypeDefinitions(ast);
-    addResolveFunctionsToSchema(schema, resolvers);
 
     return {
         schema
