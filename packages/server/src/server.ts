@@ -106,15 +106,17 @@ function addResolveFunctionsToSchema(schema: GraphQLSchema, resolveFunctions: an
 			const fields = getFieldsForType(type);
 			if (fields) {
 				const field = fields[fieldName];
-				const fieldResolve = resolveFunctions[typeName][fieldName];
-				if (typeof fieldResolve === 'function') {
-					setFieldProperties(field, { resolve: fieldResolve });
-				}
-				else {
-					if (typeof fieldResolve !== 'object') {
-						throw new SchemaError("Resolver " + typeName + "." + fieldName + " must be object or function");
+				if (field) {
+					const fieldResolve = resolveFunctions[typeName][fieldName];
+					if (typeof fieldResolve === 'function') {
+						setFieldProperties(field, { resolve: fieldResolve });
 					}
-					setFieldProperties(field, fieldResolve);
+					else {
+						if (typeof fieldResolve !== 'object') {
+							throw new SchemaError("Resolver " + typeName + "." + fieldName + " must be object or function");
+						}
+						setFieldProperties(field, fieldResolve);
+					}
 				}
 			}
 		});
