@@ -5,9 +5,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "compile": "rimraf ./dist && webpack",
-    "test": "mocha --compilers ts:ts-node/register --full-trace src/**/*.spec.ts",
-    "test:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --compilers ts:ts-node/register --full-trace src/**/*.spec.ts"
+    "compile": "tsc --pretty",
+    "test": "mocha --full-trace dist/**/*.spec.js",
+    "test:ts": "mocha --compilers ts:ts-node/register --full-trace src/**/*.spec.ts",
+    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --compilers ts:ts-node/register --full-trace src/**/*.spec.ts"
   },
   "repository": {
     "type": "git",
@@ -39,13 +40,11 @@
     "sqlite3": "^3.1.8",
     "ts-node": "^3.0.6",
     "typedoc": "^0.7.1",
-    "typescript": "^2.5.3",
-    "webpack": "^2.6.1"
+    "typescript": "^2.5.3"
   },
   "peerDependencies": {
     "@google-cloud/bigquery": "^0.9.5",
     "@google-cloud/datastore": "^1.0.2",
-    "sqlite3": "^3.1.8",
-    "konstellio-schema": "^0.0.1"
+    "sqlite3": "^3.1.8"
   }
 }
