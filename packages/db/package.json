@@ -23,7 +23,7 @@
   "homepage": "https://github.com/konstellio/db#readme",
   "dependencies": {
     "immutable": "^3.8.1",
-    "konstellio-eventemitter": "^0.0.2"
+    "konstellio-eventemitter": "^0.0.6"
   },
   "devDependencies": {
     "@google-cloud/bigquery": "^0.9.5",
