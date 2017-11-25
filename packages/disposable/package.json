@@ -3,6 +3,7 @@
   "version": "0.0.6",
   "description": "",
   "main": "dist/Disposable.js",
+  "types": "dist/Disposable.d.ts",
   "scripts": {
     "compile": "tsc --pretty",
     "test": "mocha --full-trace dist/**/*.spec.js",

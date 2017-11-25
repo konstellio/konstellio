@@ -36,11 +36,8 @@ export class Disposable implements IDisposable, IDisposableAsync {
 	}
 
 	dispose (): void {
-		if (this.disposed === false) {
-			(<() => void>this.disposable)();
-			this.disposed = true;
-			this.disposable = null;
-		}
+		this.disposeAsync();
+		this.disposed = true;
 	}
 
 	disposeAsync (): Promise<void> {
@@ -85,13 +82,8 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 	}
 
 	dispose (): void {
-		if (this.disposed === false) {
-			(<Set<Disposable>>this.disposables).forEach((disposable, key, set) => {
-				disposable.dispose();
-			});
-			this.disposed = true;
-			this.disposables = null;
-		}
+		this.disposeAsync();
+		this.disposed = true;
 	}
 
 	disposeAsync (): Promise<void> {
