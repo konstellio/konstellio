@@ -31,8 +31,7 @@
     "rimraf": "^2.6.1",
     "source-map-loader": "^0.2.1",
     "ts-node": "^3.0.6",
-    "typedoc": "^0.7.1",
-    "typescript": "^2.3.4"
+    "typescript": "^2.6.2"
   },
   "false": {}
 }
