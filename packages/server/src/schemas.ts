@@ -1,21 +1,5 @@
 
-export type FieldResolverFunction = (parent: any, args: any, context: any, info: any) => any | Promise<any>;
-export type FieldResolverFragment = {
-	fragment: string
-	resolve: (parent: any, args: any, context: any, info: any) => any | Promise<any>
-}
-export type FieldResolver = {
-	[key: string]: FieldResolverFunction | FieldResolverFragment
-}
-export type Resolvers = {
-	[key: string]: FieldResolver
-};
-export type Schema = {
-	typeDefs: string
-	resolvers?: Resolvers
-}
-
-const schemas: Schema[] = [{
+const schemas = [{
 	typeDefs: `
 		scalar Cursor
 		scalar Date
