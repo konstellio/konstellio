@@ -7,8 +7,8 @@
   "scripts": {
     "compile": "tsc --pretty",
     "test": "mocha --full-trace dist/**/*.spec.js",
-    "test:ts": "mocha --compilers ts:ts-node/register --full-trace src/**/*.spec.ts",
-    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --compilers ts:ts-node/register --full-trace src/**/*.spec.ts"
+    "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
+    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
   },
   "repository": {
     "type": "git",
