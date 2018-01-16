@@ -1,7 +1,8 @@
 import * as express from 'express';
 import { Express } from '../../node_modules/@types/express-serve-static-core/index';
 import * as bodyParser from 'body-parser';
-import { graphqlExpress, graphiqlExpress } from 'apollo-server-express';
+import { graphqlExpress } from 'apollo-server-express';
+import playgroundExpress from 'graphql-playground-middleware-express';
 import { visit } from 'graphql/language/visitor';
 import { makeExecutableSchema } from 'graphql-tools';
 import { Kind, FieldDefinitionNode } from 'graphql';
@@ -27,40 +28,49 @@ export function createGraphQLServer({ ast, resolvers }: ServerOptions): Server {
 
 	const app = express();
 	app.disable('x-powered-by');
-	app.use(bodyParser.urlencoded({ extended: true }));
-	app.use(bodyParser.json());
-	app.use('/graphiql', graphiqlExpress({
-		endpointURL: '/graphql'
-	}));
-	app.use('/graphql', graphqlExpress((req) => {
+	app.use(
+		'/playground',
+		playgroundExpress({
+			endpoint: '/graphql'
+		})
+	);
+	app.use(
+		'/graphql',
+		bodyParser.urlencoded({ extended: true }),
+		bodyParser.json(),
+		graphqlExpress((req) => {
 
-		const groups = ['nobody']
+			const groups = ['nobody']
 
-		// TODO cache resulting schema for `groups`
-		const groupAst = visit(ast, {
-			[Kind.FIELD_DEFINITION](node: FieldDefinitionNode) {
-				const permission = node.directives && node.directives.find(directive => directive.name.value === 'permission');
-				if (permission) {
-					const args = permission.arguments ? getArgumentsValues(permission.arguments) : {};
-					if (args.group && groups.indexOf(args.group) === -1) {
-						return null; // returning null will delete this node
+			// TODO cache resulting schema for `groups`
+			const groupAst = visit(ast, {
+				[Kind.FIELD_DEFINITION](node: FieldDefinitionNode) {
+					const permission = node.directives && node.directives.find(directive => directive.name.value === 'permission');
+					if (permission) {
+						const args = permission.arguments ? getArgumentsValues(permission.arguments) : {};
+						if (args.group && groups.indexOf(args.group) === -1) {
+							return null; // returning null will delete this node
+						}
 					}
 				}
-			}
-		});
+			});
 
-		const schema = makeExecutableSchema({
-			typeDefs: groupAst,
-			resolvers,
-			resolverValidationOptions: {
-				allowResolversNotInSchema: true
-			}
-		});
+			const schema = makeExecutableSchema({
+				typeDefs: groupAst,
+				resolvers,
+				resolverValidationOptions: {
+					allowResolversNotInSchema: true
+				}
+			});
 
-		return {
-			schema
-		};
-	}));
+			return {
+				schema,
+				context: {
+					req,
+				}
+			};
+		})
+	);
 
 	return {
 		express: app,

@@ -7,11 +7,15 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
-            "program": "${workspaceFolder}\\dist\\server.js",
+            "name": "Launch Ex. Blog",
+            "program": "${workspaceFolder}\\dist\\bin.js",
             "preLaunchTask": "Build",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
+            ],
+            "cwd": "${workspaceFolder}\\examples\\blog",
+            "args": [
+                "--help"
             ]
         }
     ]
