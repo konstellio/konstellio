@@ -23,13 +23,14 @@
   "homepage": "https://github.com/konstellio/db#readme",
   "dependencies": {
     "immutable": "^3.8.1",
-    "konstellio-eventemitter": "^0.0.6"
+    "konstellio-eventemitter": "0.0.8"
   },
   "devDependencies": {
     "@google-cloud/bigquery": "^0.9.5",
     "@google-cloud/datastore": "^1.0.2",
     "@types/chai-as-promised": "0.0.31",
     "@types/mocha": "^2.2.41",
+    "@types/node": "^9.3.0",
     "awesome-typescript-loader": "^3.1.3",
     "chai": "^4.0.2",
     "chai-as-promised": "^7.0.0",
@@ -40,8 +41,7 @@
     "source-map-loader": "^0.2.1",
     "sqlite3": "^3.1.8",
     "ts-node": "^3.0.6",
-    "typedoc": "^0.7.1",
-    "typescript": "^2.5.3"
+    "typescript": "^2.6.2"
   },
   "peerDependencies": {
     "@google-cloud/bigquery": "^0.9.5",
