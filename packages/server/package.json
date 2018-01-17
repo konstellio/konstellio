@@ -2,6 +2,7 @@
   "name": "sculptor-server",
   "version": "0.0.1",
   "description": "",
+  "main": "./dist/index.js",
   "bin": {
     "sulptor": "./dist/bin.js"
   },

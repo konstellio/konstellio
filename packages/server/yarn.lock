@@ -923,22 +923,22 @@ kind-of@^3.0.2:
   dependencies:
     is-buffer "^1.1.5"
 
-konstellio-db@^0.0.5:
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/konstellio-db/-/konstellio-db-0.0.5.tgz#54ae82cb97ae45b26336b7cb63ad8f76129850c5"
+konstellio-db@^0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/konstellio-db/-/konstellio-db-0.0.6.tgz#67821e1fd59a27157b280020f057fa426b1db633"
   dependencies:
     immutable "^3.8.1"
-    konstellio-eventemitter "^0.0.6"
+    konstellio-eventemitter "0.0.8"
 
-konstellio-disposable@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.6.tgz#77b037f8c0d68e55bb6ce2ef18305e185e1353f3"
+konstellio-disposable@^0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.7.tgz#2568f1b6ae3383fcf5a8f77af9ed33e91ad68cec"
 
-konstellio-eventemitter@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/konstellio-eventemitter/-/konstellio-eventemitter-0.0.6.tgz#f31ed8e0d551b1b95e113d691384a61c60f9c921"
+konstellio-eventemitter@0.0.8:
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/konstellio-eventemitter/-/konstellio-eventemitter-0.0.8.tgz#8c30dc69fb8340267586b48145a17056980c87eb"
   dependencies:
-    konstellio-disposable "^0.0.6"
+    konstellio-disposable "^0.0.7"
 
 lazy-cache@^1.0.3:
   version "1.0.4"

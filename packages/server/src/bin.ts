@@ -1,13 +1,12 @@
 import * as commander from 'commander';
 import { isAbsolute, join, resolve } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import * as fs from 'fs';
+import { promisify } from 'util';
 import { parse } from 'graphql/language/parser';
 import { createGraphQLServer, parseSchema } from './';
 import baseResolvers from './baseResolvers';
 import baseSchema from './baseSchema';
 import { createServer } from 'http';
-
-// TODO Fetch schema & resolvers from database instead of files
 
 commander
 	.option('-p, --project <project>', 'Path to the project folder', process.cwd());
@@ -22,59 +21,54 @@ const projectLocation = isAbsolute(commander.project) ? commander.project : reso
 const schemaLocation = join(projectLocation, 'schema.gql');
 const resolversLocation = join(projectLocation, 'resolvers.js');
 
-// Check if project has all the files needed
-if (
-	existsSync(projectLocation) === false ||
-	existsSync(schemaLocation) === false ||
-	existsSync(resolversLocation) === false
-) {
-	console.error(`Project "${projectLocation}" is not valid.`);
-	process.exit();
-}
+(async () => {
+	const exists = promisify(fs.exists);
+	const readFile = promisify(fs.readFile);
 
-// Read schema from schemaLocation
-let projectSchema;
-try {
-	projectSchema = readFileSync(schemaLocation).toString();
-} catch (err) {
-	console.error(`Could not load schema at ${schemaLocation}.`);
-	process.exit();
-}
+	// Check if project has all the files needed
+	if (
+		await exists(projectLocation) === false ||
+		await exists(schemaLocation) === false ||
+		await exists(resolversLocation) === false
+	) {
+		throw new Error(`Project "${projectLocation}" is not valid.`);
+	}
 
-// Read resolvers from resolversLocation
-let projectResolvers;
-try {
-	projectResolvers = require(resolversLocation);
-} catch (err) {
-	console.error(`${err} at ${resolversLocation}.`);
-	process.exit();
-}
+	// TODO Fetch schema & resolvers from other source instead of files
+	// Read schema & resolvers from project location
+	const projectSchema = (await readFile(schemaLocation)).toString();
+	const projectResolvers = await require(resolversLocation)();
 
-// Build final schema and resolvers (basically concating base and project)
-const finalSchema = baseSchema + `\n` + projectSchema;
-const finalResolvers = [baseResolvers, projectResolvers].reduce((final, part) => {
-	const resolvers = part || {};
-	Object.keys(resolvers).forEach(key => {
-		final[key] = final[key] || {};
-		Object.assign(final[key], resolvers[key]);
+	// Build final schema and resolvers (basically concating base and project)
+	const finalSchema = await baseSchema() + `\n` + projectSchema;
+	const finalResolvers = [await baseResolvers(), projectResolvers].reduce((final, part) => {
+		const resolvers = part || {};
+		Object.keys(resolvers).forEach(key => {
+			final[key] = final[key] || {};
+			Object.assign(final[key], resolvers[key]);
+		});
+		return final;
 	});
-	return final;
+
+	// Parse final schema to an AST
+	const ast = parse(finalSchema, { noLocation: true });
+
+	// const models = parseSchema(ast);
+
+	// Create graphql express app
+	const app = createGraphQLServer({
+		ast,
+		resolvers: finalResolvers
+	});
+
+	// Create server
+	const server = createServer(app.express);
+	server.listen(8080, 'localhost', () => {
+		const addr = server.address();
+		console.log(`Sculptor server is now running on http://${addr.address}:${addr.port}`);
+	});
+
+})().catch(err => {
+	console.error(err);
+	process.exit();
 });
-
-// Parse final schema to an AST
-const ast = parse(finalSchema, { noLocation: true });
-
-// const models = parseSchema(ast);
-
-// Create graphql express app
-const app = createGraphQLServer({
-	ast,
-	resolvers: finalResolvers
-});
-
-// Create server
-const server = createServer(app.express);
-server.listen(8080, () => {
-	const addr = server.address();
-	console.log(`Sculptor server is now running on http://${addr.address}:${addr.port}`);
-})
