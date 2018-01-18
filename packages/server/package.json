@@ -7,7 +7,7 @@
     "sulptor": "./dist/bin.js"
   },
   "scripts": {
-    "bin": "ts-node src/bin.ts -p examples/blog",
+    "bin": "ts-node src/bin.ts -f examples/blog/.sculptor.yml",
     "compile": "tsc --pretty",
     "start": "node dist/server.js",
     "test": "mocha --full-trace dist/**/*.spec.js",
@@ -22,6 +22,7 @@
     "@types/graphql": "^0.11.6",
     "@types/mocha": "^2.2.44",
     "@types/node": "^8.0.53",
+    "@types/redis": "^2.8.4",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "istanbul": "^0.4.5",
@@ -39,8 +40,10 @@
     "graphql": "^0.11.7",
     "graphql-playground-middleware-express": "^1.5.3",
     "graphql-tools": "2.8.0",
+    "js-yaml": "^3.10.0",
     "konstellio-db": "^0.0.6",
     "redis": "^2.8.0",
+    "redis-mock": "^0.20.0",
     "sqlite3": "^3.1.13"
   }
 }

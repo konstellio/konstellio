@@ -27,36 +27,36 @@ export type Index = {
 }
 
 export function getValue(node: ValueNode): any {
-    if (node.kind === Kind.VARIABLE) {
-        return 1;
-    }
-    else if (node.kind === Kind.LIST) {
-        return node.values.map(getValue);
-    }
-    else if (node.kind === Kind.OBJECT) {
-        return node.fields.reduce((obj, field) => {
-            obj[field.name.value] = getValue(field.value);
-            return obj;
-        }, {});
-    }
-    else if (node.kind === Kind.NULL) {
-        return 2;
-    }
-    else {
-        return node.value;
-    }
+	if (node.kind === Kind.VARIABLE) {
+		return 1;
+	}
+	else if (node.kind === Kind.LIST) {
+		return node.values.map(getValue);
+	}
+	else if (node.kind === Kind.OBJECT) {
+		return node.fields.reduce((obj, field) => {
+			obj[field.name.value] = getValue(field.value);
+			return obj;
+		}, {});
+	}
+	else if (node.kind === Kind.NULL) {
+		return 2;
+	}
+	else {
+		return node.value;
+	}
 }
 
 export function getArgumentsValues(nodes: ArgumentNode[]): { [key: string]: any } {
-    return nodes.reduce((args, arg) => {
-        args[arg.name.value] = getValue(arg.value);
-        return args;
-    }, {});
+	return nodes.reduce((args, arg) => {
+		args[arg.name.value] = getValue(arg.value);
+		return args;
+	}, {});
 }
 
 export function parseSchema (ast: DocumentNode): Schema[] {
 	const models: { [key: string]: Schema } = {};
-    const temps: { [key: string]: Schema } = {};
+	const temps: { [key: string]: Schema } = {};
 
 	function getNamedType(type: TypeNode): string {
 		if (type.kind === "NamedType") {
@@ -79,18 +79,18 @@ export function parseSchema (ast: DocumentNode): Schema[] {
 
 	function isObjectValue(arg: ValueNode): arg is ObjectValueNode {
 		return arg.kind === "ObjectValue";
-    }
+	}
 
 	visit(ast, {
 		[Kind.OBJECT_TYPE_DEFINITION](node: ObjectTypeDefinitionNode, key: string, parent: DefinitionNode) {
 			const model = node.directives && node.directives.find(directive => directive.name.value === 'model');
 			if (model) {
-                const args = model.arguments ? getArgumentsValues(model.arguments) : {};
+				const args = model.arguments ? getArgumentsValues(model.arguments) : {};
 				const name = node.name.value;
 				const fields = node.fields.map<Field | undefined>(definition => {
 					const field = definition.directives && definition.directives.find(directive => directive.name.value === 'field');
 					if (field) {
-                        const args = field.arguments ? getArgumentsValues(field.arguments) : {};
+						const args = field.arguments ? getArgumentsValues(field.arguments) : {};
 						return Object.assign({
 							handle: definition.name.value,
 							group: "default",
@@ -101,14 +101,14 @@ export function parseSchema (ast: DocumentNode): Schema[] {
 						}, args);
 					}
 					return undefined;
-                }).filter<Field>((schema): schema is Field => schema !== undefined);
-                
-                const indexes = args.indexes && args.indexes.map(index => {
-                    return Object.assign({
-                        type: 'index',
-                        fields: []
-                    }, index);
-                }) || [];
+				}).filter<Field>((schema): schema is Field => schema !== undefined);
+				
+				const indexes = args.indexes && args.indexes.map(index => {
+					return Object.assign({
+						type: 'index',
+						fields: []
+					}, index);
+				}) || [];
 
 				if (isTypeExtension(parent)) {
 					if (typeof models[name] !== "undefined") {

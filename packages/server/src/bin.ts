@@ -1,74 +1,62 @@
 import * as commander from 'commander';
 import { isAbsolute, join, resolve } from 'path';
-import * as fs from 'fs';
-import { promisify } from 'util';
-import { parse } from 'graphql/language/parser';
-import { createGraphQLServer, parseSchema } from './';
-import baseResolvers from './baseResolvers';
-import baseSchema from './baseSchema';
+import { existsSync, readFileSync } from 'fs';
+import { createGraphQL, parseSchema, createDatabase, createFilesystem, createCache, createMessageQueue } from './';
+import { SculptorConfig } from './lib/sculptorConfig';
 import { createServer } from 'http';
+import * as yaml from 'js-yaml';
 
 commander
-	.option('-p, --project <project>', 'Path to the project folder', process.cwd());
+	.option('-f, --file <file>', 'Path to the sculptor file', join(process.cwd(), '.sculptor.yml'));
 
 commander
 	.command('dev', 'Start server in development mode');
 
 commander.parse(process.argv);
 
-// Project location from cwd or --project argument
-const projectLocation = isAbsolute(commander.project) ? commander.project : resolve(process.cwd(), commander.project);
-const schemaLocation = join(projectLocation, 'schema.gql');
-const resolversLocation = join(projectLocation, 'resolvers.js');
 
 (async () => {
-	const exists = promisify(fs.exists);
-	const readFile = promisify(fs.readFile);
-
-	// Check if project has all the files needed
-	if (
-		await exists(projectLocation) === false ||
-		await exists(schemaLocation) === false ||
-		await exists(resolversLocation) === false
-	) {
-		throw new Error(`Project "${projectLocation}" is not valid.`);
+	const sculptorFile = isAbsolute(commander.file) ? commander.file : resolve(process.cwd(), commander.file);
+	
+	if (existsSync(sculptorFile) === false) {
+		throw new Error(`Sculptor file ${sculptorFile} not found.`);
 	}
 
-	// TODO Fetch schema & resolvers from other source instead of files
-	// Read schema & resolvers from project location
-	const projectSchema = (await readFile(schemaLocation)).toString();
-	const projectResolvers = await require(resolversLocation)();
+	const config: SculptorConfig = yaml.safeLoad(readFileSync(sculptorFile));
+	if (typeof config.version === 'undefined' || typeof config.sculptor === 'undefined') {
+		throw new Error(`Sculptor file ${sculptorFile} is not a valid sculptor file.`);
+	}
 
-	// Build final schema and resolvers (basically concating base and project)
-	const finalSchema = await baseSchema() + `\n` + projectSchema;
-	const finalResolvers = [await baseResolvers(), projectResolvers].reduce((final, part) => {
-		const resolvers = part || {};
-		Object.keys(resolvers).forEach(key => {
-			final[key] = final[key] || {};
-			Object.assign(final[key], resolvers[key]);
-		});
-		return final;
-	});
+	const [db, fs, cache, mq] = await Promise.all([
+		createDatabase(config.sculptor.database),
+		createFilesystem(config.sculptor.fs),
+		createCache(config.sculptor.cache),
+		createMessageQueue(config.sculptor.mq)
+	]);
 
-	// Parse final schema to an AST
-	const ast = parse(finalSchema, { noLocation: true });
-
-	// const models = parseSchema(ast);
-
-	// Create graphql express app
-	const app = createGraphQLServer({
-		ast,
-		resolvers: finalResolvers
-	});
+	const graphql = await createGraphQL(
+		config.sculptor.graphql,
+		{
+			db,
+			fs,
+			cache,
+			mq
+		}
+	);
 
 	// Create server
-	const server = createServer(app.express);
-	server.listen(8080, 'localhost', () => {
-		const addr = server.address();
-		console.log(`Sculptor server is now running on http://${addr.address}:${addr.port}`);
-	});
+	const server = createServer(graphql);
+	server.listen(
+		config.sculptor.server && config.sculptor.server.port || 8080,
+		config.sculptor.server && config.sculptor.server.host || 'localhost',
+		() => {
+			const addr = server.address();
+			console.log(`Sculptor server is now running on http://${addr.address}:${addr.port}`);
+		}
+	)
+
 
 })().catch(err => {
-	console.error(err);
+	console.error(err.stack);
 	process.exit();
-});
+})

@@ -1,5 +1,5 @@
 export default async function () {
-	return`
+	return `
 
 		scalar Cursor
 		scalar Date
@@ -35,5 +35,6 @@ export default async function () {
 		type LogoutResponse {
 			acknowledge: Boolean!
 		}
+
 	`;
 }

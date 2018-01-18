@@ -1,15 +1,18 @@
+import { SculptorGraphql } from './sculptorConfig';
 import * as express from 'express';
 import { Express } from '../../node_modules/@types/express-serve-static-core/index';
 import * as bodyParser from 'body-parser';
 import { graphqlExpress } from 'apollo-server-express';
 import playgroundExpress from 'graphql-playground-middleware-express';
+import { Kind, FieldDefinitionNode, DocumentNode } from 'graphql';
+import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
-import { makeExecutableSchema } from 'graphql-tools';
-import { Kind, FieldDefinitionNode } from 'graphql';
-import { DocumentNode } from 'graphql';
-import { getArgumentsValues } from './parseSchema';
-import { IResolvers } from 'graphql-tools/dist/Interfaces';
 import { GraphQLSchema } from 'graphql/type/schema';
+import { makeExecutableSchema } from 'graphql-tools';
+import { IResolvers } from 'graphql-tools/dist/Interfaces';
+import { getArgumentsValues, parseSchema } from './parseSchema';
+import baseResolvers from '../base/resolvers';
+import baseSchema from '../base/schema';
 
 export interface Server {
 	express: Express
@@ -23,11 +26,20 @@ export interface ServerOptions {
 	resolvers?: IResolvers
 }
 
-export function createGraphQLServer({ ast, resolvers }: ServerOptions): Server {
+export async function createGraphQL(
+	config?: SculptorGraphql,
+	context?: any
+): Promise<Express> {
 	const cache = new Map<string, GraphQLSchema>();
+
+	const sculptorSchema = await baseSchema();
+	const sculptorResolvers = await baseResolvers();
 
 	const app = express();
 	app.disable('x-powered-by');
+
+	// TODO authentification
+
 	app.use(
 		'/playground',
 		playgroundExpress({
@@ -40,9 +52,25 @@ export function createGraphQLServer({ ast, resolvers }: ServerOptions): Server {
 		bodyParser.json(),
 		graphqlExpress((req) => {
 
-			const groups = ['nobody']
-
+			// TODO set groups from authentification
 			// TODO cache resulting schema for `groups`
+			// TODO Parse schema & resolvers from config
+			// TODO Schema from fs should be marked as "hardcoded"
+
+			const groups = ['nobody'];
+
+			const ast = parse([sculptorSchema].join(`\n`), { noLocation: true });
+			const resolvers = [sculptorResolvers].reduce((resolvers, base) => {
+				Object.keys(base || {}).forEach(key => {
+					resolvers[key] = resolvers[key] || {};
+					Object.assign(resolvers[key], base[key]);
+				})
+				return resolvers;
+			});
+
+			// TODO asset database table & schema based on models
+			const models = parseSchema(ast);
+
 			const groupAst = visit(ast, {
 				[Kind.FIELD_DEFINITION](node: FieldDefinitionNode) {
 					const permission = node.directives && node.directives.find(directive => directive.name.value === 'permission');
@@ -63,27 +91,14 @@ export function createGraphQLServer({ ast, resolvers }: ServerOptions): Server {
 				}
 			});
 
+			Object.assign(context, { req }, context);
+
 			return {
 				schema,
-				context: {
-					req,
-				}
+				context
 			};
 		})
 	);
 
-	return {
-		express: app,
-		updateAST(newAST: DocumentNode): void {
-			cache.clear();
-			ast = newAST;
-		},
-		updateResolvers(newResolvers: IResolvers): void {
-			cache.clear();
-			resolvers = newResolvers;
-		},
-		clearCache(): void {
-			cache.clear();
-		}
-	}
+	return app;
 }

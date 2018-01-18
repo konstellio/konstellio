@@ -1,0 +1,29 @@
+version: 1
+
+sculptor:
+
+  server:
+    host: localhost
+    port: 8080
+
+  graphql:
+    schemas:
+      - schema.gql
+    resolvers:
+      - resolvers.js
+
+  database:
+    driver: sqlite
+    filename: mock://memory
+
+  fs:
+    driver: local
+    root: ./
+  
+  cache:
+    driver: redis
+    uri: mock://memory
+
+  amqp:
+    driver: amqp
+    uri: mock://memory
