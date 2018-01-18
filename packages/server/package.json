@@ -3,13 +3,12 @@
   "version": "0.0.1",
   "description": "",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "sulptor": "./dist/bin.js"
   },
   "scripts": {
-    "bin": "ts-node src/bin.ts -f examples/blog/.sculptor.yml",
     "compile": "tsc --pretty",
-    "start": "node dist/server.js",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
@@ -42,8 +41,6 @@
     "graphql-tools": "2.8.0",
     "js-yaml": "^3.10.0",
     "konstellio-db": "^0.0.6",
-    "redis": "^2.8.0",
-    "redis-mock": "^0.20.0",
     "sqlite3": "^3.1.13"
   }
 }

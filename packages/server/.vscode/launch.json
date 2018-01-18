@@ -13,10 +13,7 @@
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ],
-            "cwd": "${workspaceFolder}\\examples\\blog",
-            "args": [
-                "--help"
-            ]
+            "cwd": "${workspaceFolder}\\examples\\blog"
         }
     ]
 }

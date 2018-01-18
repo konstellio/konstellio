@@ -1,5 +1,5 @@
 import * as commander from 'commander';
-import { isAbsolute, join, resolve } from 'path';
+import { isAbsolute, join, resolve, dirname } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { createGraphQL, parseSchema, createDatabase, createFilesystem, createCache, createMessageQueue } from './';
 import { SculptorConfig } from './lib/sculptorConfig';
@@ -7,10 +7,10 @@ import { createServer } from 'http';
 import * as yaml from 'js-yaml';
 
 commander
-	.option('-f, --file <file>', 'Path to the sculptor file', join(process.cwd(), '.sculptor.yml'));
+	.option('-f, --file [file]', 'Path to the sculptor file', join(process.cwd(), '.sculptor.yml'));
 
-commander
-	.command('dev', 'Start server in development mode');
+// commander
+// 	.command('dev', 'Start server in development mode', { isDefault: true });
 
 commander.parse(process.argv);
 
@@ -26,6 +26,11 @@ commander.parse(process.argv);
 	if (typeof config.version === 'undefined' || typeof config.sculptor === 'undefined') {
 		throw new Error(`Sculptor file ${sculptorFile} is not a valid sculptor file.`);
 	}
+
+	const sculptorProject = dirname(sculptorFile);
+
+	// Add sculptor project to package search path when requiring modules
+	(require.main as any).paths.unshift(join(sculptorProject, 'node_modules'));
 
 	const [db, fs, cache, mq] = await Promise.all([
 		createDatabase(config.sculptor.database),
