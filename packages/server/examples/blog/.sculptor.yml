@@ -24,6 +24,6 @@ sculptor:
     driver: redis
     uri: mock://memory
 
-  amqp:
+  mq:
     driver: amqp
     uri: mock://memory
