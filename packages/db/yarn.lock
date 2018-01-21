@@ -70,6 +70,16 @@
     propprop "^0.3.0"
     split-array-stream "^1.0.0"
 
+"@konstellio/disposable@^0.0.7":
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/@konstellio/disposable/-/disposable-0.0.7.tgz#b3ea9bb22a4d71e364029554993e492d9a393405"
+
+"@konstellio/eventemitter@^0.0.9":
+  version "0.0.9"
+  resolved "https://registry.yarnpkg.com/@konstellio/eventemitter/-/eventemitter-0.0.9.tgz#5f87666339d528365ba4910bd28bd742a48359e2"
+  dependencies:
+    "@konstellio/disposable" "^0.0.7"
+
 "@types/chai-as-promised@0.0.31":
   version "0.0.31"
   resolved "https://registry.yarnpkg.com/@types/chai-as-promised/-/chai-as-promised-0.0.31.tgz#e1e905ea6d971dafcad36560c8f1f7a7d690c5e5"
@@ -1407,16 +1417,6 @@ kind-of@^3.0.2:
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-3.2.2.tgz#31ea21a734bab9bbb0f32466d893aea51e4a3c64"
   dependencies:
     is-buffer "^1.1.5"
-
-konstellio-disposable@^0.0.7:
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.7.tgz#2568f1b6ae3383fcf5a8f77af9ed33e91ad68cec"
-
-konstellio-eventemitter@0.0.8:
-  version "0.0.8"
-  resolved "https://registry.yarnpkg.com/konstellio-eventemitter/-/konstellio-eventemitter-0.0.8.tgz#8c30dc69fb8340267586b48145a17056980c87eb"
-  dependencies:
-    konstellio-disposable "^0.0.7"
 
 lazy-cache@^1.0.3:
   version "1.0.4"
