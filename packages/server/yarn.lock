@@ -2,6 +2,23 @@
 # yarn lockfile v1
 
 
+"@konstellio/db@^0.0.7":
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/@konstellio/db/-/db-0.0.7.tgz#37aa8ee22bb7f5156a02a2b4188bc6afc79a27e3"
+  dependencies:
+    "@konstellio/eventemitter" "^0.0.9"
+    immutable "^3.8.1"
+
+"@konstellio/disposable@^0.0.7":
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/@konstellio/disposable/-/disposable-0.0.7.tgz#b3ea9bb22a4d71e364029554993e492d9a393405"
+
+"@konstellio/eventemitter@^0.0.9":
+  version "0.0.9"
+  resolved "https://registry.yarnpkg.com/@konstellio/eventemitter/-/eventemitter-0.0.9.tgz#5f87666339d528365ba4910bd28bd742a48359e2"
+  dependencies:
+    "@konstellio/disposable" "^0.0.7"
+
 "@types/body-parser@*":
   version "1.16.8"
   resolved "https://registry.yarnpkg.com/@types/body-parser/-/body-parser-1.16.8.tgz#687ec34140624a3bec2b1a8ea9268478ae8f3be3"
@@ -811,8 +828,8 @@ iconv-lite@0.4.19, iconv-lite@~0.4.13:
   resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.4.19.tgz#f7468f60135f5e5dad3399c0a81be9a1603a082b"
 
 immutable@^3.8.1:
-  version "3.8.1"
-  resolved "https://registry.yarnpkg.com/immutable/-/immutable-3.8.1.tgz#200807f11ab0f72710ea485542de088075f68cd2"
+  version "3.8.2"
+  resolved "https://registry.yarnpkg.com/immutable/-/immutable-3.8.2.tgz#c2439951455bb39913daf281376f1530e104adf3"
 
 inflight@^1.0.4:
   version "1.0.6"
@@ -929,23 +946,6 @@ kind-of@^3.0.2:
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-3.2.2.tgz#31ea21a734bab9bbb0f32466d893aea51e4a3c64"
   dependencies:
     is-buffer "^1.1.5"
-
-konstellio-db@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/konstellio-db/-/konstellio-db-0.0.6.tgz#67821e1fd59a27157b280020f057fa426b1db633"
-  dependencies:
-    immutable "^3.8.1"
-    konstellio-eventemitter "0.0.8"
-
-konstellio-disposable@^0.0.7:
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/konstellio-disposable/-/konstellio-disposable-0.0.7.tgz#2568f1b6ae3383fcf5a8f77af9ed33e91ad68cec"
-
-konstellio-eventemitter@0.0.8:
-  version "0.0.8"
-  resolved "https://registry.yarnpkg.com/konstellio-eventemitter/-/konstellio-eventemitter-0.0.8.tgz#8c30dc69fb8340267586b48145a17056980c87eb"
-  dependencies:
-    konstellio-disposable "^0.0.7"
 
 lazy-cache@^1.0.3:
   version "1.0.4"

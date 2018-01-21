@@ -31,6 +31,8 @@
     "typescript": "^2.6.1"
   },
   "dependencies": {
+    "@konstellio/db": "^0.0.7",
+    "@konstellio/fs": "^0.0.1",
     "apollo-link": "^1.0.3",
     "apollo-server-express": "^1.2.0",
     "body-parser": "^1.18.2",
@@ -40,7 +42,6 @@
     "graphql-playground-middleware-express": "^1.5.3",
     "graphql-tools": "2.8.0",
     "js-yaml": "^3.10.0",
-    "konstellio-db": "^0.0.6",
     "sqlite3": "^3.1.13"
   }
 }
