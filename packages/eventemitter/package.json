@@ -1,5 +1,5 @@
 {
-  "name": "konstellio-eventemitter",
+  "name": "@konstellio/eventemitter",
   "version": "0.0.8",
   "description": "",
   "main": "dist/EventEmitter.js",
@@ -22,11 +22,12 @@
   },
   "homepage": "https://github.com/konstellio/eventemitter#readme",
   "dependencies": {
-    "konstellio-disposable": "^0.0.7"
+    "@konstellio/disposable": "^0.0.7"
   },
   "devDependencies": {
     "@types/chai-as-promised": "0.0.31",
     "@types/mocha": "^2.2.41",
+    "@types/node": "^9.3.0",
     "awesome-typescript-loader": "^3.1.3",
     "chai": "^4.0.2",
     "chai-as-promised": "^7.0.0",
