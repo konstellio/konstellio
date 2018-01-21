@@ -1,8 +1,9 @@
 import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
-import * as SQLite from 'sqlite3';
 import { List } from 'immutable';
+// import * as SQLite from 'sqlite3';
+let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
 
 export type SQLiteDriverConstructor = {
 	filename?: string,

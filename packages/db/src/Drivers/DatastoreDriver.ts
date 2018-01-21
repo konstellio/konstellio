@@ -1,8 +1,9 @@
 import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
-import * as Datastore from '@google-cloud/datastore';
 import { List } from 'immutable';
+// import * as Datastore from '@google-cloud/datastore';
+let Datastore; try { Datastore = require('@google-cloud/datastore'); } catch (e) { }
 
 export type DatastoreDriverConstructor = {
 	projectId: string,

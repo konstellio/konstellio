@@ -1,8 +1,9 @@
 import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
-import * as BigQuery from '@google-cloud/bigquery';
 import { List } from 'immutable';
+// import * as BigQuery from '@google-cloud/bigquery';
+let BigQuery; try { BigQuery = require('@google-cloud/bigquery'); } catch (e) { }
 
 // https://googlecloudplatform.github.io/google-cloud-node/#/docs/google-cloud/v0.53.0/google-cloud#gcloud
 export type BigQueryDriverConstructor = {
