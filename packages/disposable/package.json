@@ -1,5 +1,5 @@
 {
-  "name": "konstellio-disposable",
+  "name": "@konstellio/disposable",
   "version": "0.0.7",
   "description": "",
   "main": "dist/Disposable.js",
