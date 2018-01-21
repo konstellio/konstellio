@@ -1,4 +1,4 @@
-import { Disposable, IDisposable, IDisposableAsync, CompositeDisposable } from 'konstellio-disposable';
+import { Disposable, IDisposable, IDisposableAsync, CompositeDisposable } from '@konstellio/disposable';
 
 export type Handler = (...args: any[]) => void | Promise<any>;
 
