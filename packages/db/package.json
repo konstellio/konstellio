@@ -22,7 +22,6 @@
   },
   "homepage": "https://github.com/konstellio/db#readme",
   "dependencies": {
-    "@konstellio/eventemitter": "^0.0.9",
     "immutable": "^3.8.1"
   },
   "devDependencies": {
