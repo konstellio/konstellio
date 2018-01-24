@@ -29,5 +29,8 @@
     "ts-node": "^4.1.0",
     "typescript": "^2.6.2"
   },
-  "dependencies": {}
+  "peerDependencies": {
+    "redis": "^2.8.0",
+    "redis-mock": "^0.20.0"
+  }
 }
