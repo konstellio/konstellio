@@ -1,7 +1,6 @@
-import { exists, unlink, stat, mkdir, rename, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
-import { join, normalize, basename } from 'path';
+import { exists, unlink, stat, mkdir, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
+import { join, normalize, basename, dirname } from 'path';
 import { Driver, File, Directory, Stats, Node } from '../Driver';
-import * as mkdirp from 'mkdirp';
 
 export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
 
@@ -46,6 +45,18 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 		});
 	}
 
+	copy(destPath: string): Promise<LocalFile> {
+		destPath = join(this.driver.rootDirectory, normalize(destPath));
+		return new Promise((resolve, reject) => {
+			copyFile(this.realPath, destPath, err => {
+				if (err) {
+					return reject(err);
+				}
+				resolve(this.driver.getFile(destPath));
+			});
+		});
+	}
+
 	rename(newPath: string): Promise<LocalFile> {
 		newPath = join(this.driver.rootDirectory, normalize(newPath));
 		return new Promise((resolve, reject) => {
@@ -53,7 +64,7 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 				if (err) {
 					return reject(err);
 				}
-				resolve(new LocalFile(this.driver, basename(newPath), this.parent));
+				resolve(this.driver.getFile(newPath));
 			});
 		});
 	}
@@ -152,7 +163,21 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 				if (err) {
 					return reject(err);
 				}
-				console.log(entries);
+				const results = entries.map<Promise<LocalFile | LocalDirectory>>(entry => new Promise((resolve, reject) => {
+					const path = join(this.fullPath, entry);
+					const realPath = join(this.realPath, entry);
+					stat(realPath, (err, stat) => {
+						if (err) {
+							return reject(err);
+						}
+						return resolve(
+							stat.isDirectory()
+								? this.driver.getDirectory(path)
+								: this.driver.getFile(path)
+						);
+					});
+				}));
+				Promise.all(results).then(resolve).catch(reject);
 			});
 		});
 	}
