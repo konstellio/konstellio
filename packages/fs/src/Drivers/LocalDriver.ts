@@ -1,5 +1,5 @@
-import { exists, unlink, stat, mkdir, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
-import { join, normalize } from 'path';
+import { exists, unlink, stat, mkdir, rename, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
+import { join, normalize, basename } from 'path';
 import { Driver, File, Directory, Stats, Node } from '../Driver';
 import * as mkdirp from 'mkdirp';
 
@@ -20,7 +20,7 @@ export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
 }
 
 export class LocalFile extends File<LocalFile, LocalDirectory> {
-	public readonly driver: LocalDriver;
+	protected readonly driver: LocalDriver;
 	public readonly parent: LocalDirectory;
 
 	get realPath(): string {
@@ -42,6 +42,18 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 					return reject(err);
 				}
 				resolve(true);
+			});
+		});
+	}
+
+	rename(newPath: string): Promise<LocalFile> {
+		newPath = join(this.driver.rootDirectory, normalize(newPath));
+		return new Promise((resolve, reject) => {
+			rename(this.realPath, newPath, err => {
+				if (err) {
+					return reject(err);
+				}
+				resolve(new LocalFile(this.driver, basename(newPath), this.parent));
 			});
 		});
 	}
@@ -118,6 +130,18 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 					return reject(err);
 				}
 				resolve(true);
+			});
+		});
+	}
+
+	rename(newPath: string): Promise<LocalDirectory> {
+		newPath = join(this.driver.rootDirectory, normalize(newPath));
+		return new Promise((resolve, reject) => {
+			rename(this.realPath, newPath, err => {
+				if (err) {
+					return reject(err);
+				}
+				resolve(new LocalDirectory(this.driver, basename(newPath), this.parent));
 			});
 		});
 	}

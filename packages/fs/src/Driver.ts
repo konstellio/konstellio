@@ -80,6 +80,7 @@ export abstract class File<F extends File<any, D>, D extends Directory<F, any>> 
 
 	abstract exists(): Promise<boolean>
 	abstract unlink(): Promise<boolean>
+	abstract rename(newPath: string): Promise<File<F, D>>
 	abstract stat(): Promise<Stats>
 	abstract createReadStream(): ReadStream
 	abstract createWriteStream(): WriteStream
@@ -116,6 +117,7 @@ export abstract class Directory<F extends File<any, D>, D extends Directory<F, a
 	abstract exists(): Promise<boolean>
 	abstract create(): Promise<boolean>
 	abstract unlink(): Promise<boolean>
+	abstract rename(newPath: string): Promise<Directory<F, D>>
 	abstract readdir(): Promise<Node<F, D>[]>
 }
 
