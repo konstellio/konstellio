@@ -1,5 +1,8 @@
 import { Driver, Serializable } from '../Driver';
-import { ClientOpts, RedisClient, createClient } from 'redis';
+import { ClientOpts, RedisClient } from 'redis';
+
+let createClient: (options: ClientOpts) => RedisClient;
+try { createClient = require('redis').createClient; } catch (e) {}
 
 export class RedisDriver extends Driver {
 
