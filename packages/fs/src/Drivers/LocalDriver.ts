@@ -46,9 +46,10 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 	}
 
 	copy(destPath: string): Promise<LocalFile> {
-		destPath = join(this.driver.rootDirectory, normalize(destPath));
+		destPath = normalize(destPath);
+		const realPath = join(this.driver.rootDirectory, destPath);
 		return new Promise((resolve, reject) => {
-			copyFile(this.realPath, destPath, err => {
+			copyFile(this.realPath, realPath, err => {
 				if (err) {
 					return reject(err);
 				}
@@ -58,9 +59,10 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 	}
 
 	rename(newPath: string): Promise<LocalFile> {
-		newPath = join(this.driver.rootDirectory, normalize(newPath));
+		newPath = normalize(newPath);
+		const realPath = join(this.driver.rootDirectory, newPath);
 		return new Promise((resolve, reject) => {
-			rename(this.realPath, newPath, err => {
+			rename(this.realPath, realPath, err => {
 				if (err) {
 					return reject(err);
 				}
@@ -146,13 +148,14 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 	}
 
 	rename(newPath: string): Promise<LocalDirectory> {
-		newPath = join(this.driver.rootDirectory, normalize(newPath));
+		newPath = normalize(newPath);
+		const realPath = join(this.driver.rootDirectory, newPath);
 		return new Promise((resolve, reject) => {
-			rename(this.realPath, newPath, err => {
+			rename(this.realPath, realPath, err => {
 				if (err) {
 					return reject(err);
 				}
-				resolve(new LocalDirectory(this.driver, basename(newPath), this.parent));
+				resolve(this.driver.getDirectory(newPath));
 			});
 		});
 	}
