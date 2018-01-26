@@ -32,5 +32,8 @@
   "peerDependencies": {
     "redis": "^2.8.0",
     "redis-mock": "^0.20.0"
+  },
+  "dependencies": {
+    "@konstellio/disposable": "^0.0.7"
   }
 }

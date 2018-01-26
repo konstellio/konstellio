@@ -7,11 +7,28 @@ try { createClient = require('redis').createClient; } catch (e) {}
 export class RedisDriver extends Driver {
 
 	protected client: RedisClient
+	protected disposed: boolean
 
 	constructor(protected options: ClientOpts) {
 		super();
 
 		this.client = createClient(this.options);
+		this.disposed = false;
+	}
+
+	isDisposed(): boolean {
+		return this.disposed;
+	}
+
+	disposeAsync(): Promise<void> {
+		return this.disposed
+			? Promise.resolve()
+			: new Promise((resolve, reject) => {
+				this.client.quit((err) => {
+					if (err) return reject(err);
+					resolve();
+				})
+			});
 	}
 
 	set(key: string, value: Serializable, ttl: number): Promise<void> {
