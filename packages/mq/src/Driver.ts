@@ -3,7 +3,7 @@ import { IDisposableAsync, IDisposable, Disposable } from '@konstellio/disposabl
 
 export type Serializable = string | number | boolean | Date
 
-export abstract class Driver<Q extends Queue<any>> {
+export abstract class Driver<C extends Channel<any>, Q extends Queue<any>> {
 
 	public readonly id: string
 
@@ -13,6 +13,7 @@ export abstract class Driver<Q extends Queue<any>> {
 
 	abstract connect(): Promise<this>
 	abstract disconnect(): Promise<void>
+	abstract createChannel(name: string, topic?: string): Promise<C>
 	abstract createQueue(name: string, topic?: string): Promise<Q>
 }
 
@@ -23,14 +24,15 @@ export type Message = {
 }
 
 export type SubscribListener = (message: Message) => void
+export type ConsumeListener = (message: Message) => void | Promise<Buffer>
 
-export abstract class Queue<D extends Driver<any>> implements IDisposableAsync {
+export abstract class Channel<D extends Driver<any, any>> implements IDisposableAsync {
 
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
 
 	public constructor(
-		protected readonly driver: Driver<any>,
+		protected readonly driver: Driver<any, any>,
 		public readonly name: string,
 		public readonly topic = ''
 	) {
@@ -39,4 +41,22 @@ export abstract class Queue<D extends Driver<any>> implements IDisposableAsync {
 
 	abstract publish(payload: Buffer): void
 	abstract subscribe(listener: SubscribListener): Disposable
+}
+
+export abstract class Queue<D extends Driver<any, any>> implements IDisposableAsync {
+
+	abstract isDisposed(): boolean
+	abstract disposeAsync(): Promise<void>
+
+	public constructor(
+		protected readonly driver: Driver<any, any>,
+		public readonly name: string,
+		public readonly topic = ''
+	) {
+		
+	}
+
+	abstract send(payload: Buffer): void
+	abstract await(payload: Buffer): Promise<Message>
+	abstract consume(listener: ConsumeListener): Disposable
 }
