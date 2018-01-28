@@ -43,6 +43,17 @@ export class RedisMockDriver extends Driver {
 		});
 	}
 
+	expire(key: string, ttl: number): Promise<void> {
+		return new Promise((resolve, reject) => {
+			this.client.expire(key, ttl, (err, reply) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve();
+			});
+		});
+	}
+
 	get(key: string): Promise<Serializable> {
 		return new Promise((resolve, reject) => {
 			this.client.get(key, (err, reply) => {
