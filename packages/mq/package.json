@@ -6,6 +6,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "compile": "tsc --pretty",
+    "docker:rabbitmq": "docker run --rm --hostname konstellio-mq -p 5672:5672 rabbitmq:3",
+    "docker:redis": "docker run --rm -p 6379:6379 redis:3",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
@@ -14,10 +16,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/amqplib": "^0.5.6",
     "@types/chai-as-promised": "^7.1.0",
     "@types/mocha": "^2.2.46",
     "@types/node": "^9.3.0",
     "@types/redis": "^2.8.4",
+    "amqplib": "^0.5.2",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "istanbul": "^0.4.5",
@@ -30,6 +34,7 @@
     "typescript": "^2.6.2"
   },
   "peerDependencies": {
+    "amqplib": "^0.5.2",
     "redis": "^2.8.0",
     "redis-mock": "^0.20.0"
   },
