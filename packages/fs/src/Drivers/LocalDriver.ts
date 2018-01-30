@@ -1,8 +1,9 @@
-import { exists, unlink, stat, mkdir, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
+import { exists, unlink, lstat, mkdir, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
 import { join, normalize, basename, dirname } from 'path';
-import { Driver, File, Directory, Stats, Node } from '../Driver';
+import { Driver, File, Directory, Stats } from '../Driver';
 
 export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
+	protected disposed: boolean
 
 	public constructor(
 		public readonly rootDirectory: string,
@@ -10,22 +11,50 @@ export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
 		public readonly fileMode = 0o644,
 		public readonly encoding = 'utf8'
 	) {
-		super();
-		this.fileConstructor = LocalFile;
-		this.directoryConstructor = LocalDirectory;
+		super(LocalFile, LocalDirectory);
 		this.rootDirectory = normalize(this.rootDirectory);
+		this.disposed = false;
 	}
 
+	isDisposed(): boolean {
+		return this.disposed;
+	}
+
+	disposeAsync(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (this.disposed === false) {
+				this.rootDirectory! = undefined!;
+				this.disposed = true;
+			}
+		});
+	}
 }
 
 export class LocalFile extends File<LocalFile, LocalDirectory> {
-	protected readonly driver: LocalDriver;
-	public readonly parent: LocalDirectory;
+	protected disposed: boolean
+
+	constructor(
+		protected readonly driver: LocalDriver,
+		public readonly path: string
+	) {
+		super(driver, path);
+		this.disposed = false;
+	}
 
 	get realPath(): string {
-		return this.parent
-			? join(this.parent.realPath, this.name)
-			: join(this.driver.rootDirectory, this.name);
+		return join(this.driver.rootDirectory, this.path);
+	}
+
+	isDisposed(): boolean {
+		return this.disposed;
+	}
+
+	disposeAsync(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (this.disposed === false) {
+				this.disposed = true;
+			}
+		});
 	}
 
 	exists(): Promise<boolean> {
@@ -53,7 +82,7 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 				if (err) {
 					return reject(err);
 				}
-				resolve(this.driver.getFile(destPath));
+				resolve(this.driver.file(destPath));
 			});
 		});
 	}
@@ -66,14 +95,14 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 				if (err) {
 					return reject(err);
 				}
-				resolve(this.driver.getFile(newPath));
+				resolve(this.driver.file(newPath));
 			});
 		});
 	}
 
 	stat(): Promise<Stats> {
 		return new Promise((resolve, reject) => {
-			stat(this.realPath, (err, stats) => {
+			lstat(this.realPath, (err, stats) => {
 				if (err) {
 					return reject(err);
 				}
@@ -106,13 +135,30 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 }
 
 export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
-	public readonly driver: LocalDriver;
-	public readonly parent: LocalDirectory;
+	protected disposed: boolean
+
+	constructor(
+		protected readonly driver: LocalDriver,
+		public readonly path: string
+	) {
+		super(driver, path);
+		this.disposed = false;
+	}
 
 	get realPath(): string {
-		return this.parent
-			? join(this.parent.realPath, this.name)
-			: join(this.driver.rootDirectory, this.name);
+		return join(this.driver.rootDirectory, this.path);
+	}
+
+	isDisposed(): boolean {
+		return this.disposed;
+	}
+
+	disposeAsync(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (this.disposed === false) {
+				this.disposed = true;
+			}
+		});
 	}
 
 	exists(): Promise<boolean> {
@@ -155,7 +201,7 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 				if (err) {
 					return reject(err);
 				}
-				resolve(this.driver.getDirectory(newPath));
+				resolve(this.driver.directory(newPath));
 			});
 		});
 	}
@@ -167,16 +213,16 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 					return reject(err);
 				}
 				const results = entries.map<Promise<LocalFile | LocalDirectory>>(entry => new Promise((resolve, reject) => {
-					const path = join(this.fullPath, entry);
+					const path = join(this.path, entry);
 					const realPath = join(this.realPath, entry);
-					stat(realPath, (err, stat) => {
+					lstat(realPath, (err, stat) => {
 						if (err) {
 							return reject(err);
 						}
 						return resolve(
 							stat.isDirectory()
-								? this.driver.getDirectory(path)
-								: this.driver.getFile(path)
+								? this.driver.directory(path)
+								: this.driver.file(path)
 						);
 					});
 				}));
