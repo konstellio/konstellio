@@ -1,5 +1,5 @@
 import { exists, unlink, lstat, mkdir, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
-import { join, normalize, basename, dirname } from 'path';
+import { join, normalize, basename, dirname, sep } from 'path';
 import { Driver, File, Directory, Stats } from '../Driver';
 
 export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
@@ -76,6 +76,9 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 
 	copy(destPath: string): Promise<LocalFile> {
 		destPath = normalize(destPath);
+		if (destPath.substr(0, 3) === `..${sep}` || destPath === '..') {
+			throw new RangeError(`Specified destPath is trying to reach out of this filesystem.`);
+		}
 		const realPath = join(this.driver.rootDirectory, destPath);
 		return new Promise((resolve, reject) => {
 			copyFile(this.realPath, realPath, err => {
@@ -89,6 +92,9 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 
 	rename(newPath: string): Promise<LocalFile> {
 		newPath = normalize(newPath);
+		if (newPath.substr(0, 3) === `..${sep}` || newPath === '..') {
+			throw new RangeError(`Specified newPath is trying to reach out of this filesystem.`);
+		}
 		const realPath = join(this.driver.rootDirectory, newPath);
 		return new Promise((resolve, reject) => {
 			rename(this.realPath, realPath, err => {
@@ -195,6 +201,9 @@ export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
 
 	rename(newPath: string): Promise<LocalDirectory> {
 		newPath = normalize(newPath);
+		if (newPath.substr(0, 3) === `..${sep}` || newPath === '..') {
+			throw new RangeError(`Specified newPath is trying to reach out of this filesystem.`);
+		}
 		const realPath = join(this.driver.rootDirectory, newPath);
 		return new Promise((resolve, reject) => {
 			rename(this.realPath, realPath, err => {

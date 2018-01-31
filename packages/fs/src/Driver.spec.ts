@@ -15,17 +15,16 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 			expect(driver.file('Griffin/Peter.txt').path).to.equal('Griffin/Peter.txt');
 		});
 		it('can check existance of file', async () => {
-			expect(driver.file('Griffin/Peter.txt').exists).to.be.a('function');
-
 			return Promise.all([
 				driver.file('Griffin/Peter.txt').exists().should.eventually.be.fulfilled.and.to.be.equal(true),
 				driver.file('Griffin/Meg.txt').exists().should.eventually.be.fulfilled.and.to.be.equal(false)
 			]);
 		});
-		/*it('can stat a file', async (done) => {
-			expect(driver.file('Griffin/Peter.txt').stat).to.be.a('function');
-			expect(async () => { await driver.file('Griffin/Peter.txt').stat(); }).to.not.throw().and.be.an.instanceOf(Stats);
-			expect(async () => { await driver.file('Griffin/Meg.txt').stat(); console.log('what ?'); }).to.throw();
+		it('can stat a file', async () => {
+			return Promise.all([
+				driver.file('Griffin/Peter.txt').stat().should.eventually.be.fulfilled.and.to.be.an.instanceOf(Stats),
+				driver.file('Griffin/Meg.txt').stat().should.be.rejectedWith()
+			]);
 		});
 		it('can read file', async () => {
 			let stream: Readable;
@@ -48,7 +47,20 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 			expect(stream!).to.be.an.instanceOf(Writable);
 
 			expect(() => stream!.end(Buffer.from('Christ Griffin'))).to.not.throw();
-		});*/
+		});
+		it('can rename file', async () => {
+			const f = driver.file('Griffin/Christ.txt');
+			return Promise.all([
+				f.rename('Griffin/Christ2.txt').should.eventually.be.fulfilled.and.not.be.not.equal(f)
+			]);
+		});
+		it('can copy file', async () => {
+			const f = driver.file('Griffin/Christ2.txt');
+			return Promise.all([
+				f.copy('Griffin/Christ.txt').should.eventually.be.fulfilled.and.not.be.not.equal(f),
+				f.exists().should.eventually.be.fulfilled.and.be.equal(true)
+			]);
+		});
 	});
 
 	/*describe('directory', () => {

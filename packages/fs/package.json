@@ -13,6 +13,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=8.9.0"
+  },
   "devDependencies": {
     "@types/chai-as-promised": "^7.1.0",
     "@types/mocha": "^2.2.46",
