@@ -63,7 +63,7 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 		});
 	});
 
-	/*describe('directory', () => {
+	describe('directory', () => {
 		it('can be instanciate', async () => {
 			expect(() => driver.directory('Griffin')).to.not.throw(),
 			expect(() => driver.directory('../Griffin')).to.throw(),
@@ -71,10 +71,11 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 			expect(driver.directory('Griffin').isDirectory).to.equal(true),
 			expect(driver.directory('Griffin').path).to.equal('Griffin')
 		});
-		it('can check existance of directory', async () => {
-			expect(driver.directory('Griffin').exists).to.be.a('function');
-			expect(async () => { await driver.directory('Griffin').exists(); }).to.not.throw().and.be.equal(true);
-			expect(async () => { await driver.directory('Simpsons').exists(); }).to.not.throw().and.be.equal(false);
+		it('can check existance of file', async () => {
+			return Promise.all([
+				driver.directory('Griffin').exists().should.eventually.be.fulfilled.and.to.be.equal(true),
+				driver.directory('Simpsons').exists().should.eventually.be.fulfilled.and.to.be.equal(false)
+			]);
 		});
-	});*/
+	});
 }
