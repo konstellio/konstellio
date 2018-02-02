@@ -9,19 +9,18 @@ export class RedisDriver extends Driver<RedisChannel, RedisQueue> {
 	protected subscriber: RedisClient
 	protected publisher: RedisClient
 	protected emitter: EventEmitter
-	protected createClient: (redis_url: string, options?: ClientOpts) => RedisClient
 
 	constructor(redis_url: string, options?: ClientOpts, createClient?: (redis_url: string, options?: ClientOpts) => RedisClient) {
 		super();
 
 		try {
-			this.createClient = createClient || require('redis').createClient;
+			createClient = createClient || require('redis').createClient;
 		} catch (e) {
 			throw new Error(`Could not load redis client. Maybe try "npm install redis" ?`);
 		}
 
-		this.subscriber = this.createClient(redis_url, options);
-		this.publisher = this.createClient(redis_url, options);
+		this.subscriber = createClient!(redis_url, options);
+		this.publisher = createClient!(redis_url, options);
 		this.emitter = new EventEmitter();
 
 		this.subscriber.on('message', (channel, payload) => {

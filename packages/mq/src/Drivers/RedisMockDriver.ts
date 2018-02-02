@@ -10,7 +10,7 @@ export class RedisMockDriver extends RedisDriver {
 	constructor() {
 		let createClient: undefined | ((redis_url: string, options?: ClientOpts) => RedisClient);
 		try {
-			createClient = require('redis').createClient;
+			createClient = require('redis-mock').createClient;
 		} catch (e) {
 			throw new Error(`Could not load redis-mock client. Maybe try "npm install redis-mock" ?`);
 		}

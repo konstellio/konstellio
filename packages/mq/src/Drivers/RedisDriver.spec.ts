@@ -14,7 +14,7 @@ describe('Redis', function () {
 
 	after(done => {
 		mq.disconnect().then(() => done()).catch(done);
-	})
+	});
 
 	it('test', async () => {
 
