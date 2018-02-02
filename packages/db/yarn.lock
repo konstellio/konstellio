@@ -70,16 +70,6 @@
     propprop "^0.3.0"
     split-array-stream "^1.0.0"
 
-"@konstellio/disposable@^0.0.7":
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/@konstellio/disposable/-/disposable-0.0.7.tgz#b3ea9bb22a4d71e364029554993e492d9a393405"
-
-"@konstellio/eventemitter@^0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@konstellio/eventemitter/-/eventemitter-0.0.9.tgz#5f87666339d528365ba4910bd28bd742a48359e2"
-  dependencies:
-    "@konstellio/disposable" "^0.0.7"
-
 "@types/chai-as-promised@0.0.31":
   version "0.0.31"
   resolved "https://registry.yarnpkg.com/@types/chai-as-promised/-/chai-as-promised-0.0.31.tgz#e1e905ea6d971dafcad36560c8f1f7a7d690c5e5"
