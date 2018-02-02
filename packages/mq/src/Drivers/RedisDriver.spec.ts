@@ -5,7 +5,6 @@ should();
 import { RedisDriver } from './RedisDriver';
 
 describe('Redis', function () {
-	this.timeout(50000)
 
 	const mq: RedisDriver = new RedisDriver('redis://10.0.75.1');
 

@@ -4,20 +4,24 @@ import * as uuid from 'uuid/v4';
 import { ClientOpts, RedisClient } from 'redis';
 import { Driver, Channel, Queue, SubscribListener, ConsumeListener, Message } from '../Driver';
 
-let createClient: (redis_url: string, options?: ClientOpts) => RedisClient;
-try { createClient = require('redis').createClient; } catch (e) { }
-
 export class RedisDriver extends Driver<RedisChannel, RedisQueue> {
 
 	protected subscriber: RedisClient
 	protected publisher: RedisClient
 	protected emitter: EventEmitter
+	protected createClient: (redis_url: string, options?: ClientOpts) => RedisClient
 
-	constructor(redis_url: string, options?: ClientOpts) {
+	constructor(redis_url: string, options?: ClientOpts, createClient?: (redis_url: string, options?: ClientOpts) => RedisClient) {
 		super();
 
-		this.subscriber = createClient(redis_url, options);
-		this.publisher = createClient(redis_url, options);
+		try {
+			this.createClient = createClient || require('redis').createClient;
+		} catch (e) {
+			throw new Error(`Could not load redis client. Maybe try "npm install redis" ?`);
+		}
+
+		this.subscriber = this.createClient(redis_url, options);
+		this.publisher = this.createClient(redis_url, options);
 		this.emitter = new EventEmitter();
 
 		this.subscriber.on('message', (channel, payload) => {

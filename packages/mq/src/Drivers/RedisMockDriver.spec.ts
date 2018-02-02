@@ -5,7 +5,6 @@ should();
 import { RedisMockDriver } from './RedisMockDriver';
 
 describe('RedisMock', function () {
-	this.timeout(50000)
 
 	const mq: RedisMockDriver = new RedisMockDriver();
 
@@ -38,7 +37,6 @@ describe('RedisMock', function () {
 		await qu.sendRPC(Buffer.from('New rpc from mocha')).then((resp) => {
 			console.log('R', resp.ts, resp.content.toString());
 		});
-
 	});
 
 });
