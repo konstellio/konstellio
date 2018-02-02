@@ -9,10 +9,16 @@ export class RedisDriver extends Driver {
 	protected client: RedisClient
 	protected disposed: boolean
 
-	constructor(protected options: ClientOpts) {
+	constructor(redis_url: string, options?: ClientOpts, createClient?: (redis_url: string, options?: ClientOpts) => RedisClient) {
 		super();
 
-		this.client = createClient(this.options);
+		try {
+			createClient = createClient || require('redis').createClient;
+		} catch (e) {
+			throw new Error(`Could not load redis client. Maybe try "npm install redis" ?`);
+		}
+
+		this.client = createClient!(redis_url, options);
 		this.disposed = false;
 	}
 
@@ -29,6 +35,14 @@ export class RedisDriver extends Driver {
 					resolve();
 				})
 			});
+	}
+
+	connect(): Promise<this> {
+		return Promise.resolve(this);
+	}
+
+	disconnect(): Promise<void> {
+		return this.disposeAsync();
 	}
 
 	set(key: string, value: Serializable, ttl: number): Promise<void> {
@@ -70,7 +84,7 @@ export class RedisDriver extends Driver {
 				if (err) {
 					return reject(err);
 				}
-				resolve();
+				resolve(reply === 1);
 			});
 		});
 	}
