@@ -1,7 +1,7 @@
 import { DocumentNode, Kind, FieldDefinitionNode, ObjectTypeDefinitionNode, TypeExtensionDefinitionNode, StringValueNode, TypeNode, DefinitionNode, ArgumentNode, ValueNode, ListValueNode, ObjectValueNode, TypeDefinitionNode } from 'graphql';
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
-import { DirectiveNode } from '../../../schema/node_modules/@types/graphql';
+import { DirectiveNode } from 'graphql';
 
 export type Schema = {
 	handle: string

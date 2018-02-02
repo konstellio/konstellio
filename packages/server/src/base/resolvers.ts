@@ -1,4 +1,6 @@
-export default async function () {
+import { IResolvers } from '../lib/interfaces';
+
+export default async function (): Promise<IResolvers> {
 	return {
 		Query: {
 			async me() {
@@ -9,12 +11,12 @@ export default async function () {
 			}
 		},
 		Mutation: {
-			async login(parent, { username, password }, context, info) {
+			async login(parent, { username, password }, { db, cache }) {
 				return {
-					token: "what-token?"
+					token: `${username}:${password}`
 				};
 			},
-			async logout() {
+			async logout(parent, {}, { db, cache }) {
 				return {
 					acknowledge: true
 				};

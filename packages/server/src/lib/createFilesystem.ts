@@ -1,13 +1,11 @@
-import { SculptorFS } from './sculptorConfig';
-import { promisify } from 'util';
-import { createReadStream, createWriteStream, stat, unlink, exists } from 'fs';
+import { ConfigFS } from './interfaces';
+import { Driver, LocalDriver } from '@konstellio/fs';
 
-export async function createFilesystem(config: SculptorFS, context?: any): Promise<any> {
-	return {
-		createReadStream,
-		createWriteStream,
-		stat: promisify(stat),
-		unlink: promisify(unlink),
-		exists: promisify(exists)
-	};
+export async function createFilesystem(config: ConfigFS, context?: any): Promise<Driver> {
+
+	if (config.driver === 'local') {
+		return new LocalDriver(config.root);
+	}
+
+	return Promise.reject(new ReferenceError(`Unsupported file system driver ${config.driver}.`));
 }

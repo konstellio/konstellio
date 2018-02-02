@@ -1,22 +1,15 @@
-import { SculptorCache } from './sculptorConfig';
+import { ConfigCache } from './interfaces';
+import { Driver, RedisDriver, RedisMockDriver } from '@konstellio/cache';
 
-export async function createCache(config: SculptorCache, context?: any): Promise<any> {
+export async function createCache(config: ConfigCache, context?: any): Promise<Driver> {
 
-	let cache;
-
-	switch (config.driver) {
-		case 'redis':
-			if (config.uri === 'mock://memory') {
-				const redis = require.main!.require('redis-mock');
-				cache = redis.createClient();
-			} else {
-				const redis = require.main!.require('redis');
-				cache = redis.createClient(config.uri);
-			}
-			break;
-		default:
-			throw new ReferenceError(`Unsupported cache driver ${config.driver}.`);
+	if (config.driver === 'redis') {
+		if (config.uri === 'mock://memory') {
+			return new RedisMockDriver().connect();
+		} else {
+			return new RedisDriver(config.uri).connect();
+		}
 	}
 
-	return cache;
+	return Promise.reject(new ReferenceError(`Unsupported cache driver ${config.driver}.`));
 }

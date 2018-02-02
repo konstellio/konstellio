@@ -1,4 +1,4 @@
-import { SculptorGraphql } from './sculptorConfig';
+import { ConfigGraphql, Context } from './interfaces';
 import * as express from 'express';
 import { Express } from '../../node_modules/@types/express-serve-static-core/index';
 import * as bodyParser from 'body-parser';
@@ -27,8 +27,8 @@ export interface ServerOptions {
 }
 
 export async function createGraphQL(
-	config?: SculptorGraphql,
-	context?: any
+	config?: ConfigGraphql,
+	context?: Context
 ): Promise<Express> {
 	const cache = new Map<string, GraphQLSchema>();
 
@@ -56,6 +56,7 @@ export async function createGraphQL(
 			// TODO cache resulting schema for `groups`
 			// TODO Parse schema & resolvers from config
 			// TODO Schema from fs should be marked as "hardcoded"
+			// TODO Create DB helpers for each models in Schema
 
 			const groups = ['nobody'];
 
@@ -68,8 +69,7 @@ export async function createGraphQL(
 				return resolvers;
 			});
 
-			// TODO asset database table & schema based on models
-			const models = parseSchema(ast);
+			// const models = parseSchema(ast);
 
 			const groupAst = visit(ast, {
 				[Kind.FIELD_DEFINITION](node: FieldDefinitionNode) {
@@ -91,7 +91,7 @@ export async function createGraphQL(
 				}
 			});
 
-			Object.assign(context, { req }, context);
+			// Object.assign(context, { req }, context);
 
 			return {
 				schema,

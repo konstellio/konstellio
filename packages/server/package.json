@@ -34,6 +34,7 @@
     "@konstellio/cache": "^0.0.1",
     "@konstellio/db": "^0.0.7",
     "@konstellio/fs": "^0.0.1",
+    "@konstellio/mq": "^0.0.1",
     "apollo-link": "^1.0.3",
     "apollo-server-express": "^1.2.0",
     "body-parser": "^1.18.2",

@@ -1,7 +1,7 @@
-import { Driver, SQLiteDriver } from 'konstellio-db';
-import { SculptorDB } from './sculptorConfig';
+import { Driver, SQLiteDriver } from '@konstellio/db';
+import { ConfigDB } from './interfaces';
 
-export async function createDatabase(config: SculptorDB, context?: any): Promise<any> {
+export async function createDatabase(config: ConfigDB, context?: any): Promise<any> {
 
 	let driver: Driver;
 	switch (config.driver) {
