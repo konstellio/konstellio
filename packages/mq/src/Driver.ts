@@ -3,7 +3,7 @@ import { IDisposableAsync, IDisposable, Disposable } from '@konstellio/disposabl
 
 export type Serializable = string | number | boolean | Date
 
-export abstract class Driver<C extends Channel<any>, Q extends Queue<any>> {
+export abstract class Driver<C extends Channel<any> = Channel<any>, Q extends Queue<any> = Queue<any>> {
 	abstract connect(): Promise<this>
 	abstract disconnect(): Promise<void>
 	abstract createChannel(name: string, topic?: string): Promise<C>
@@ -18,14 +18,14 @@ export type Message = {
 export type SubscribListener = (message: Message) => void
 export type ConsumeListener = (message: Message) => void | Buffer | Promise<Buffer>
 
-export abstract class Channel<D extends Driver<any, any>> implements IDisposableAsync {
+export abstract class Channel<D extends Driver<any, any> = Driver<any, any>> implements IDisposableAsync {
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
 	abstract publish(payload: Buffer): void
 	abstract subscribe(listener: SubscribListener): Disposable
 }
 
-export abstract class Queue<D extends Driver<any, any>> implements IDisposableAsync {
+export abstract class Queue<D extends Driver<any, any> = Driver<any, any>> implements IDisposableAsync {
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
 	abstract send(payload: Buffer): void
