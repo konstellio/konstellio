@@ -2157,29 +2157,209 @@ export function simplifyBitwiseTree (node: Bitwise): Bitwise {
 	return simplified;
 }
 
-export function reduceQuery<T> (reducers: QueryReducers<T>, initial: T, node: Query | Collection | Field | SortableField | CalcField | Expression): T {
+export type Visitor<T> = {
+	SelectQuery?: VisitQuery<SelectQuery, T>,
+	UnionQuery?: VisitQuery<UnionQuery, T>,
+	AggregateQuery?: VisitQuery<AggregateQuery, T>,
+	InsertQuery?: VisitQuery<InsertQuery, T>,
+	UpdateQuery?: VisitQuery<UpdateQuery, T>,
+	ReplaceQuery?: VisitQuery<ReplaceQuery, T>,
+	DeleteQuery?: VisitQuery<DeleteQuery, T>,
+	CreateCollectionQuery?: VisitQuery<CreateCollectionQuery, T>,
+	DescribeCollectionQuery?: VisitQuery<DescribeCollectionQuery, T>,
+	AlterCollectionQuery?: VisitQuery<AlterCollectionQuery, T>,
+	CollectionExistsQuery?: VisitQuery<CollectionExistsQuery, T>,
+	DropCollectionQuery?: VisitQuery<DropCollectionQuery, T>,
+	CreateIndexQuery?: VisitQuery<CreateIndexQuery, T>,
+	DropIndexQuery?: VisitQuery<DropIndexQuery, T>,
+	Collection?: (node: Collection) => T,
+	Column?: (node: Column) => T,
+	Field?: (node: Field) => T,
+	SortableField?: (node: SortableField) => T,
+	CalcField?: (results: VisitResult<T>) => T,
+	Comparison?: (results: VisitResult<T>) => T,
+	Bitwise?: (results: VisitResult<T>) => T
+};
+export type VisitNode = Query | Collection | Field | SortableField | CalcField | Expression;
+export type VisitQuery<Q, T> = {
+	enter?: (node: Q) => boolean,
+	leave: (results: VisitResult<T>) => T
+};
+export type VisitResult<T> = { [key: string]: any }
 
-	if (node instanceof Query && reducers.Query) {
-		reducers.Query(node, initial);
-	}
-	else if (node instanceof Collection && reducers.Collection) {
-		reducers.Collection(node, initial);
-	}
-	else if (node instanceof Field && reducers.Field) {
-		reducers.Field(node, initial);
-	}
-	else if (node instanceof SortableField && reducers.SortableField) {
-		reducers.SortableField(node, initial);
-	}
-	else if (node instanceof CalcField && reducers.CalcField) {
-		reducers.CalcField(node, initial);
-	}
-	else if (node instanceof Comparison && reducers.Comparison) {
-		reducers.Comparison(node, initial);
-	}
-	else if (node instanceof Bitwise && reducers.Bitwise) {
-		reducers.Bitwise(node, initial);
-	}
+export function visit<T = any>(
+	node: VisitNode,
+	visitor: Visitor<T>
+): T | undefined {
 
-	return initial;
+	// Extract the name of the node
+	const kind = node.constructor.name;
+
+	if (
+		kind === 'SelectQuery' ||
+		kind === 'UnionQuery' ||
+		kind === 'AggregateQuery' ||
+		kind === 'InsertQuery' ||
+		kind === 'UpdateQuery' ||
+		kind === 'ReplaceQuery' ||
+		kind === 'DeleteQuery' ||
+		kind === 'CreateCollectionQuery' ||
+		kind === 'DescribeCollectionQuery' ||
+		kind === 'AlterCollectionQuery' ||
+		kind === 'CollectionExistsQuery' ||
+		kind === 'DropCollectionQuery' ||
+		kind === 'CreateIndexQuery' ||
+		kind === 'DropIndexQuery'
+	) {
+		const visitFn: VisitQuery<Query, T> | undefined = visitor[kind];
+		if (visitFn) {
+			// Enter not present or has returned false
+			if (!visitFn.enter || visitFn.enter(node) === false) {
+				const results: VisitResult<T> = {};
+				
+				if (node instanceof SelectQuery) {
+					results.select = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
+					results.from = node.getFrom() ? visit(node.getFrom()!, visitor) : undefined;
+					results.join = node.getJoin() ? node.getJoin()!.map(join => ({ on: join!.on, query: visit(join!.query, visitor) })) : undefined;
+					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
+					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof UnionQuery) {
+					results.selects = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
+					results.sort = node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)) : undefined;
+					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof AggregateQuery) {
+					results.select = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
+					results.from = node.getFrom() ? visit(node.getFrom()!, visitor) : undefined;
+					results.join = node.getJoin() ? node.getJoin()!.map((join, alias) => ({ alias, on: join!.on, query: visit(join!.query, visitor) })) : undefined;
+					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
+					results.group = node.getGroup() ? node.getGroup()!.map(field => visit(field!, visitor)) : undefined;
+					results.sort = node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)) : undefined;
+					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof InsertQuery) {
+					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+				}
+				else if (node instanceof UpdateQuery) {
+					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof ReplaceQuery) {
+					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof DeleteQuery) {
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
+					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+				}
+				else if (node instanceof CreateCollectionQuery || node instanceof AlterCollectionQuery) {
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					results.columns = node.getColumns() ? node.getColumns()!.map(field => visit(field!, visitor)) : undefined;
+				}
+				else if (node instanceof DescribeCollectionQuery || node instanceof CollectionExistsQuery || node instanceof DropCollectionQuery) {
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+				}
+				else if (node instanceof CreateIndexQuery) {
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					results.index = node.getIndex() ? visit(node.getIndex()!, visitor) : undefined;
+				}
+				else if (node instanceof DropIndexQuery) {
+					results.name = node.getName();
+					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+				}
+
+				return visitFn.leave(results);
+			}
+		}
+	}
+	else if (
+		kind === 'CountCalcField' ||
+		kind === 'AverageCalcField' ||
+		kind === 'SumCalcField' ||
+		kind === 'SubCalcField' ||
+		kind === 'MaxCalcField' ||
+		kind === 'MinCalcField' ||
+		kind === 'ConcatCalcField'
+	) {
+		const visitFn = visitor['CalcField'];
+		if (visitFn) {
+			const results: VisitResult<T> = {};
+
+			if (node instanceof CountCalcField || node instanceof AverageCalcField || node instanceof SumCalcField || node instanceof SubCalcField) {
+				results.function = node.function.toLocaleUpperCase();
+				results.field = visit(node.field, visitor);
+			}
+			else if (node instanceof MaxCalcField || node instanceof MinCalcField || node instanceof ConcatCalcField) {
+				results.function = node.function.toLocaleUpperCase();
+				results.fields = node.fields.map(field => visit(field!, visitor));
+			}
+
+			return visitFn(results);
+		}
+	}
+	else if (
+		kind === 'ComparisonSimple' ||
+		kind === 'ComparisonEqual' ||
+		kind === 'ComparisonNotEqual' ||
+		kind === 'ComparisonGreaterThan' ||
+		kind === 'ComparisonGreaterThanOrEqual' ||
+		kind === 'ComparisonLesserThan' ||
+		kind === 'ComparisonLesserThanOrEqual' ||
+		kind === 'ComparisonBeginsWith' ||
+		kind === 'ComparisonIn'
+	) {
+		const visitFn = visitor['Comparison'];
+		if (visitFn) {
+			const results: VisitResult<T> = {};
+
+			if (node instanceof ComparisonSimple) {
+				results.field = visit(node.field, visitor);
+				results.operator = node.operator;
+				results.value = node.value;
+			}
+			else if (node instanceof ComparisonIn) {
+				results.field = visit(node.field, visitor);
+				results.operator = node.operator;
+				results.values = node.values ? node.values.map(val => visit(val!, visitor)) : undefined;
+			}
+
+			return visitFn(results);
+		}
+	}
+	else if (
+		kind === 'Bitwise'
+	) {
+		const visitFn = visitor['Bitwise'];
+		if (visitFn) {
+			const results: VisitResult<T> = {};
+
+			if (node instanceof Bitwise) {
+				results.operator = node.operator;
+				results.operands = node.operands ? node.operands.map(op => visit(op!, visitor)) : undefined;
+			}
+
+			return visitFn(results);
+		}
+	}
+	else if (
+		kind === 'Collection' ||
+		kind === 'Column' ||
+		kind === 'Field'
+	) {
+		const visitorFn: ((node: any) => T) | undefined = visitor[kind];
+		return visitorFn ? visitorFn(node) : undefined;
+	}
+	else {
+		return node as T;
+	}
 }

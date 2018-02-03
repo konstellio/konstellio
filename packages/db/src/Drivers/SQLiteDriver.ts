@@ -81,8 +81,11 @@ export class SQLiteDriver extends Driver {
 		else if (query instanceof Query.DeleteQuery) {
 			return this.executeDelete(query);
 		}
+		else if (query instanceof Query.DescribeCollectionQuery) {
+			return this.executeDescribeCollection(query);
+		}
 
-		return Promise.reject(new TypeError(`Expected query to be a string, SelectQuery, AggregateQuery, InsertQuery, UpdateQuery, ReplaceQuery or DeleteQuery, got ${typeof query}.`));
+		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
 	private executeSQL (query: string): Promise<SQLiteQueryResult | QueryResult.SelectQueryResult<any>> {
@@ -121,9 +124,10 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html
 
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			// let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 			
-			this.driver.all(command.sql, command.params, (err, rows) => {
+			this.driver.all(sql, params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -139,9 +143,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_aggfunc.html
 			
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 			
-			this.driver.all(command.sql, command.params, (err, rows) => {
+			this.driver.all(sql, params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -157,9 +161,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html#x1326
 			
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 			
-			this.driver.all(command.sql, command.params, (err, rows) => {
+			this.driver.all(sql, params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -175,9 +179,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_insert.html
 
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 
-			this.driver.run(command.sql, command.params, function (err) {
+			this.driver.run(sql, params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -195,9 +199,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_update.html
 
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 			
-			this.driver.run(command.sql, command.params, function (err) {
+			this.driver.run(sql, params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -215,9 +219,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_delete.html
 
-			let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
+			let [sql, params] = convertQueryToSQL(query);
 
-			this.driver.run(command.sql, command.params, function (err) {
+			this.driver.run(sql, params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -227,267 +231,236 @@ export class SQLiteDriver extends Driver {
 			});
 		});
 	}
-}
 
-type QueryAccumulator = {
-	sql: string
-	params: any[]
-}
+	private executeDescribeCollection(query: Query.DescribeCollectionQuery): Promise<QueryResult.DescribeCollectionQueryResult> {
+		return new Promise<QueryResult.DescribeCollectionQueryResult>((resolve, reject) => {
+			// https://sqlite.org/lang_transaction.html
+			// https://sqlite.org/pragma.html
 
-const queryToStringReducers: Query.QueryReducers<QueryAccumulator> = {
-	Query (node: Query.Query, accumulator: QueryAccumulator): void {
-		
-		// Query main keyword
-		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery) {
-			accumulator.sql += 'SELECT ';
-		}
-		if (node instanceof Query.InsertQuery) {
-			accumulator.sql += 'INSERT INTO ';
-		}
-		if (node instanceof Query.UpdateQuery) {
-			accumulator.sql += 'UPDATE ';
-		}
-		if (node instanceof Query.DeleteQuery) {
-			accumulator.sql += 'DELETE FROM ';
-		}
-		if (node instanceof Query.UnionQuery) {
-			const selects = node.getSelect();
-			if (selects) {
-				selects.forEach(select => {
-					accumulator.sql += ` `;
-					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Query>select)
-					accumulator.sql += ` UNION`;
-				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 6);
-				accumulator.sql += ` `;
-			}
-		}
+			const collection = query.getCollection()!;
+			const table_name = `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
 
-		// Select ...
-		if (node instanceof Query.SelectQuery) {
-			const fields = node.getSelect();
-			if (fields) {
-				fields.forEach(field => {
-					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Field>field);
-					accumulator.sql += ', ';
-				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
-				accumulator.sql += ` `;
-			} else {
-				accumulator.sql += '* ';
-			}
-		}
-		if (node instanceof Query.AggregateQuery) {
-			const fields = node.getSelect();
-			if (fields) {
-				accumulator.sql += fields.map<string>((field, alias) => field && alias ? `${field.toString()} AS ${alias}` : ``).join(', ');
-				accumulator.sql += ` `;
-			} else {
-				accumulator.sql += '* ';
-			}
-		}
+			Promise.all<any[], any[], boolean>([
+				new Promise(resolve => {
+					this.driver.all(`PRAGMA table_info(${table_name})`, [], (err, columns) => {
+						resolve(err ? [] : columns);
+					});
+				}),
+				new Promise(resolve => {
+					this.driver.all(`PRAGMA index_list(${table_name})`, [], (err, indexes) => {
+						if (err) return resolve([]);
 
-		// Select ... From ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery) {
-			const from = node.getFrom();
-			if (from) {
-				accumulator.sql += `FROM `;
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, from);
-				accumulator.sql += ` `;
-			}
-		}
-
-		// Insert ...
-		if (node instanceof Query.InsertQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
-			const collection = node.getCollection();
-			if (collection) {
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, collection);
-				accumulator.sql += ` `;
-			}
-		}
-
-		// Values ...
-		if (node instanceof Query.InsertQuery) {
-			const fields = node.getFields();
-			if (fields) {
-				accumulator.sql += `(${fields.map<string>((value, key) => key || '').join(', ')})`;
-				accumulator.sql += ` VALUES `;
-				accumulator.sql += `(${fields.map<string>((value, key) => {
-					if (value instanceof Query.Field) {
-						const subAcc = { sql: '', params: accumulator.params };
-						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, subAcc, value);
-						return subAcc.sql;
-					}
-					accumulator.params.push(value);
-					return `?`;
-				}).join(', ')}) `;
-			}
-		}
-
-		// Set ...
-		if (node instanceof Query.UpdateQuery) {
-			const fields = node.getFields();
-			if (fields) {
-				accumulator.sql += `SET `;
-				accumulator.sql += `${fields.map<string>((value, key) => {
-					if (value instanceof Query.Field) {
-						const subAcc = { sql: '', params: accumulator.params };
-						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, subAcc, value);
-						return `${key} = ${subAcc.sql}`;
-					}
-					accumulator.params.push(value);
-					return `${key} = ?`;
-				}).join(', ')} `;
-			}
-		}
-
-		// Join ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery) {
-			const joins = node.getJoin();
-			if (joins) {
-				joins.forEach((value, alias) => {
-					if (value) {
-						accumulator.sql += `JOIN (`;
-						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, value.query);
-						accumulator.sql += `) AS ${alias} ON `;
-						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, value.on);
-						accumulator.sql += ` `;
-					}
+						Promise.all(indexes.map(index => new Promise(resolve => {
+							this.driver.all(`PRAGMA index_xinfo(${index.name})`, [], (err, columns) => {
+								if (err) return resolve();
+								resolve({
+									name: index.name,
+									type: index.unique!! ? 'unique' : 'index',
+									columns: columns || []
+								});
+							});
+						})))
+						.then((indexes) => resolve(indexes));
+					});
+				}),
+				new Promise(resolve => {
+					this.driver.all(`SELECT "auto" FROM sqlite_master WHERE tbl_name=? AND sql LIKE "%AUTOINCREMENT%"`, [table_name], (err, rows) => {
+						if (err || rows.length === 0) return resolve(false);
+						resolve(true);
+					});
 				})
-			}
-		}
+			])
+			.then(([colDefs, idxDefs, auto]) => {
 
-		// Where ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.AggregateQuery || node instanceof Query.UpdateQuery || node instanceof Query.DeleteQuery) {
-			const where = node.getWhere();
-			if (where) {
-				accumulator.sql += `WHERE `;
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, where);
-				accumulator.sql += ` `;
-			}
-		}
-
-		// Sort By ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const sort = node.getSort();
-			if (sort) {
-				accumulator.sql += `SORT BY `;
-				sort.forEach(field => {
-					Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.SortableField>field);
-					accumulator.sql += ', ';
-				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
-				accumulator.sql += ` `;
-			}
-		}
-
-		// Limit ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const limit = node.getLimit();
-			if (limit) {
-				accumulator.sql += `LIMIT ${limit} `;
-			}
-		}
-
-		// Offset ...
-		if (node instanceof Query.SelectQuery || node instanceof Query.UnionQuery || node instanceof Query.AggregateQuery) {
-			const offset = node.getOffset();
-			if (offset) {
-				accumulator.sql += `OFFSET ${offset} `;
-			}
-		}
-	},
-	Collection (node: Query.Collection, accumulator: QueryAccumulator): void {
-		accumulator.sql += '`';
-		if (node.namespace) {
-			accumulator.sql += `${node.namespace}_`;
-		}
-		accumulator.sql += `${node.name}`;
-		accumulator.sql += '`';
-	},
-	Field (node: Query.Field, accumulator: QueryAccumulator): void {
-		accumulator.sql += '`';
-		if (node.table) {
-			accumulator.sql += `${node.table}_`;
-		}
-		accumulator.sql += `${node.name}`;
-		accumulator.sql += '`';
-	},
-	SortableField (node: Query.SortableField, accumulator: QueryAccumulator): void {
-		accumulator.sql += `${node.name} ${node.direction || 'ASC'}`;
-	},
-	CalcField (node: Query.CalcField, accumulator: QueryAccumulator): void {
-		if (
-			node instanceof Query.CountCalcField ||
-			node instanceof Query.AverageCalcField ||
-			node instanceof Query.SumCalcField ||
-			node instanceof Query.SubCalcField
-		) {
-			accumulator.sql += `${node.function.toLocaleUpperCase()}(`;
-			Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
-			accumulator.sql += `)`;
-		}
-		if (
-			node instanceof Query.MaxCalcField ||
-			node instanceof Query.MinCalcField ||
-			node instanceof Query.ConcatCalcField
-		) {
-			accumulator.sql += `${node.function.toLocaleUpperCase()}(`;
-			node.fields.forEach(field => {
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, <Query.Field>field);
-				accumulator.sql += `, `;
-			});
-			accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
-			accumulator.sql += `)`;
-		}
-	},
-	Comparison (node: Query.Comparison, accumulator: QueryAccumulator): void {
-		if (node.field instanceof Query.Field) {
-			Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
-		} else {
-			accumulator.sql += node.field;
-		}
-		if (node instanceof Query.ComparisonSimple) {
-			if (node.value instanceof Query.Field) {
-				accumulator.sql += ` ${node.operator} `;
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.value);
-			}
-			else {
-				accumulator.sql += ` ${node.operator} ?`;
-				accumulator.params.push(node.value);
-			}
-		}
-		if (node instanceof Query.ComparisonIn) {
-			Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.field);
-			accumulator.sql += ` IN (`;
-			if (node.values) {
-				node.values.forEach(value => {
-					accumulator.sql += '?, ';
-					accumulator.params.push(value);
-				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2);
-			}
-			accumulator.sql += `)`;
-		}
-	},
-	Bitwise (node: Query.Bitwise, accumulator: QueryAccumulator): void {
-		if (node.operands) {
-			if (node.operands.count() === 1) {
-				Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, node.operands.get(0));
-			}
-			else {
-				accumulator.sql += `(`;
-				let lastOp = '';
-				node.operands.forEach(op => {
-					if (op) {
-						Query.reduceQuery<QueryAccumulator>(queryToStringReducers, accumulator, op);
-						accumulator.sql += `) ${op.operator.toLocaleUpperCase()} (`;
-						lastOp = op.operator;
+				const columns = colDefs.map<Query.Column>(col => {
+					let type: Query.ColumnType = Query.ColumnType.String;
+					switch (col.type) {
+						case 'TEXT': break;
+						case 'INTEGER': type = Query.ColumnType.Int64; break;
+						case 'REAL':
+						case 'NUMERIC': type = Query.ColumnType.Float64; break;
+						case 'BLOB': type = Query.ColumnType.String; break;
 					}
+					return new Query.Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
 				});
-				accumulator.sql = accumulator.sql.substr(0, accumulator.sql.length - 2 - lastOp.length - 2);
-				accumulator.sql += `)`;
-			}
-		}
+
+				const indexes = idxDefs.map<Query.Index>(idx => {
+					let type: Query.IndexType = Query.IndexType.Index;
+					switch (idx.type) {
+						case 'unique': type = Query.IndexType.Unique; break;
+					}
+					const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
+					return new Query.Index(idx.name, type).columns(cols.map(col => {
+						return new Query.SortableField(col.name, col.desc!! ? 'desc' : 'asc');
+					}));
+				});
+
+				const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Query.Index(`${table_name}_${col.name}`, Query.IndexType.Primary).columns(col.name, 'asc'))
+
+				const result = new QueryResult.DescribeCollectionQueryResult(
+					columns,
+					indexes
+				);
+
+				resolve(result);
+			});
+		});
 	}
 }
+
+export function convertQueryToSQL(query: Query.Query): [string, any[]] {
+	const params: any[] = [];
+	const sql = Query.visit<string>(query, {
+		Collection: (node) => {
+			return `${node.namespace ? `${node.namespace}_` : ''}${node.name}`;
+		},
+		Field: (node) => {
+			return `${node.table ? `${node.table}_` : ''}${node.name}`;
+		},
+		SortableField: (node) => {
+			return `${node.name} ${node.direction || 'ASC'}`;
+		},
+		CalcField: (results) => {
+			return ['concat', 'min', 'max'].indexOf(results.function) === -1
+				? `${results.function.toUpperCase()}(${results.value})`
+				: `${results.function.toUpperCase()}(${results.values.map(', ')})`;
+		},
+		Comparison: (results) => {
+			if (results.operator === 'in') {
+				params.push(...results.values);
+				return `${results.field} IN (${results.values.map(v => '?').join(', ')})`;
+			}
+			else {
+				params.push(results.value);
+				return `${results.field} ${results.operator} ?`;
+			}
+		},
+		Bitwise: (results) => {
+			return `${results.operands.join(` ${results.operator.toUpperCase()} `)}`;
+		},
+		SelectQuery: {
+			leave(results) {
+				let sql = '';
+				sql += `SELECT ${results.select ? results.select.join(', ') : '*'} `;
+				sql += `FROM ${results.from} `;
+				if (results.join) {
+					results.join.forEach(join => {
+						sql += `JOIN (${join.query}) AS ${join.alias} ON ${join.on} `
+					});
+				}
+				if (results.where) {
+					sql += `WHERE ${results.where} `;
+				}
+				if (results.limit) {
+					sql += `LIMIT ${results.limit} `;
+				}
+				if (results.offset) {
+					sql += `OFFSET ${results.offset} `;
+				}
+				return sql;
+			}
+		},
+		UnionQuery: {
+			leave(results) {
+				let sql = `(${results.selects.join(') UNION (')}) `;
+				if (results.sort) {
+					sql += `SORT BY ${results.sort.join(', ')} `;
+				}
+				if (results.limit) {
+					sql += `LIMIT ${results.limit} `;
+				}
+				if (results.offset) {
+					sql += `OFFSET ${results.offset} `;
+				}
+				return sql;
+			}
+		},
+		AggregateQuery: {
+			leave(results) {
+				let sql = `SELECT `;
+				sql += `${results.select ? results.select.join(', ') : '*'} `;
+				sql += `FROM ${results.from} `;
+				if (results.join) {
+					results.join.forEach(join => {
+						sql += `JOIN (${join.query}) AS ${join.alias} ON ${join.on} `
+					});
+				}
+				if (results.where) {
+					sql += `WHERE ${results.where} `;
+				}
+				if (results.sort) {
+					sql += `GROUP BY ${results.group.join(', ')} `;
+				}
+				if (results.sort) {
+					sql += `SORT BY ${results.sort.join(', ')} `;
+				}
+				if (results.limit) {
+					sql += `LIMIT ${results.limit} `;
+				}
+				if (results.offset) {
+					sql += `OFFSET ${results.offset} `;
+				}
+				return sql;
+			}
+		},
+		InsertQuery: {
+			leave(results) {
+				let sql = `INSERT INTO ${results.collection}`;
+				sql += `(${results.fields.map((value, key) => key).join(', ')}) VALUES `;
+				sql += `(${results.fields.map((value) => {
+					params.push(value);
+					return '?';
+				}).join(', ')})`;
+				return sql;
+			}
+		},
+		UpdateQuery: {
+			leave(results) {
+				let sql = `UPDATE ${results.collection} SET `;
+				sql += `${results.fields.map((value, key) => {
+					params.push(value);
+					return `${key} = ?`;
+				}).join(', ')} `;
+				if (results.where) {
+					sql += `WHERE ${results.where} `;
+				}
+				// if (results.limit) {
+				// 	sql += `LIMIT ${results.limit} `;
+				// }
+				return sql;
+			}
+		},
+		DeleteQuery: {
+			leave(results) {
+				let sql = `DELETE FROM ${results.collection} `;
+				if (results.where) {
+					sql += `WHERE ${results.where} `;
+				}
+				// if (results.limit) {
+				// 	sql += `LIMIT ${results.limit} `;
+				// }
+				return sql;
+			}
+		},
+		DescribeCollectionQuery: {
+			leave(results) {
+				return `PRAGMA table_info(${results.collection})`;
+			}
+		}
+	})!;
+
+	return [sql, params];
+}
+
+/*
+
+CREATE INDEX `foo_id` ON `foo` (
+	`id` ASC
+);
+
+CREATE UNIQUE INDEX `foo_id` ON `foo` (
+	`id` ASC,
+	`date` ASC
+);
+
+*/

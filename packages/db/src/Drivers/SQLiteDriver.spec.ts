@@ -6,6 +6,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { SQLiteDriver } from './SQLiteDriver';
 import { q, QueryNotSupportedError } from '../Query';
 import * as QueryResult from '../QueryResult';
+import { ColumnType } from '../index';
 
 describe('SQLite', () => {
 
@@ -25,7 +26,9 @@ describe('SQLite', () => {
 		});
 
 		driver.connect()
-		.then(() => driver.execute('CREATE TABLE Bar_Foo (title TEXT, postDate TEXT, likes INTEGER)'))
+		.then(() => driver.execute('CREATE TABLE Bar_Foo (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, postDate TEXT, likes INTEGER)'))
+		.then(() => driver.execute('CREATE INDEX Bar_Foo_postDate ON Bar_Foo (postDate ASC, likes ASC)'))
+		.then(() => driver.execute('CREATE INDEX Bar_Foo_title ON Bar_Foo (title ASC)'))
 		.then(() => done()).catch(done);
 	});
 
@@ -67,5 +70,23 @@ describe('SQLite', () => {
 
 		return driver.execute(remove).should.be.fulfilled.and.eventually.be.an.instanceOf(QueryResult.DeleteQueryResult);
 	});
+
+	it('describe collection', () => {
+
+		const describe = q.describeCollection('Foo', 'Bar');
+
+		return driver.execute(describe).should.be.fulfilled.and.eventually.be.an.instanceOf(QueryResult.DescribeCollectionQueryResult);
+	});
+
+	// it('create collection', () => {
+
+	// 	const create = q.createCollection('Moo', 'Joo').columns(
+	// 		q.column('id', ColumnType.UInt64, null, true),
+	// 		q.column('title', ColumnType.String),
+	// 		q.column('date', ColumnType.Date)
+	// 	);
+
+	// 	return driver.execute(create).should.be.fulfilled.and.eventually.be.an.instanceOf(QueryResult.CreateCollectionQueryResult);
+	// });
 
 });
