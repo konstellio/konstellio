@@ -320,131 +320,135 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 		SortableField: (node) => {
 			return `${node.name} ${node.direction || 'ASC'}`;
 		},
-		CalcField: (results) => {
-			return ['concat', 'min', 'max'].indexOf(results.function) === -1
-				? `${results.function.toUpperCase()}(${results.value})`
-				: `${results.function.toUpperCase()}(${results.values.map(', ')})`;
+		CalcField: (members) => {
+			return `${members.function.toUpperCase()}(${members.field})`;
 		},
-		Comparison: (results) => {
-			if (results.operator === 'in') {
-				params.push(...results.values);
-				return `${results.field} IN (${results.values.map(v => '?').join(', ')})`;
-			}
-			else {
-				params.push(results.value);
-				return `${results.field} ${results.operator} ?`;
-			}
+		CalcFields: (members) => {
+			return `${members.function.toUpperCase()}(${members.fields.join(', ')})`;
 		},
-		Bitwise: (results) => {
-			return `${results.operands.join(` ${results.operator.toUpperCase()} `)}`;
+		Comparison: (members) => {
+			params.push(members.value);
+			return `${members.field} ${members.operator} ?`;
+			
+		},
+		Comparisons: (members) => {
+			params.push(...members.values.toArray());
+			return `${members.field} ${members.operator.toUpperCase()} (${members.values.map(v => '?').join(', ')})`;
+		},
+		Bitwise: (members) => {
+			return `${members.operands.join(` ${members.operator.toUpperCase()} `)}`;
 		},
 		SelectQuery: {
-			leave(results) {
+			leave(members) {
 				let sql = '';
-				sql += `SELECT ${results.select ? results.select.join(', ') : '*'} `;
-				sql += `FROM ${results.from} `;
-				if (results.join) {
-					results.join.forEach(join => {
-						sql += `JOIN (${join.query}) AS ${join.alias} ON ${join.on} `
+				sql += `SELECT ${members.select ? members.select.join(', ') : '*'} `;
+				sql += `FROM ${members.from} `;
+				if (members.join) {
+					members.join.forEach(join => {
+						sql += `JOIN (${join!.query}) AS ${join!.alias} ON ${join!.on} `
 					});
 				}
-				if (results.where) {
-					sql += `WHERE ${results.where} `;
+				if (members.where) {
+					sql += `WHERE ${members.where} `;
 				}
-				if (results.limit) {
-					sql += `LIMIT ${results.limit} `;
+				if (members.limit) {
+					sql += `LIMIT ${members.limit} `;
 				}
-				if (results.offset) {
-					sql += `OFFSET ${results.offset} `;
+				if (members.offset) {
+					sql += `OFFSET ${members.offset} `;
 				}
 				return sql;
 			}
 		},
 		UnionQuery: {
-			leave(results) {
-				let sql = `(${results.selects.join(') UNION (')}) `;
-				if (results.sort) {
-					sql += `SORT BY ${results.sort.join(', ')} `;
+			leave(members) {
+				if (members.selects) {
+					let sql = `(${members.selects.join(') UNION (')}) `;
+					if (members.sort) {
+						sql += `SORT BY ${members.sort.join(', ')} `;
+					}
+					if (members.limit) {
+						sql += `LIMIT ${members.limit} `;
+					}
+					if (members.offset) {
+						sql += `OFFSET ${members.offset} `;
+					}
+					return sql;
 				}
-				if (results.limit) {
-					sql += `LIMIT ${results.limit} `;
-				}
-				if (results.offset) {
-					sql += `OFFSET ${results.offset} `;
-				}
-				return sql;
+				return '';
 			}
 		},
 		AggregateQuery: {
-			leave(results) {
+			leave(members) {
 				let sql = `SELECT `;
-				sql += `${results.select ? results.select.join(', ') : '*'} `;
-				sql += `FROM ${results.from} `;
-				if (results.join) {
-					results.join.forEach(join => {
-						sql += `JOIN (${join.query}) AS ${join.alias} ON ${join.on} `
+				sql += `${members.select ? members.select.join(', ') : '*'} `;
+				sql += `FROM ${members.from} `;
+				if (members.join) {
+					members.join.forEach(join => {
+						sql += `JOIN (${join!.query}) AS ${join!.alias} ON ${join!.on} `
 					});
 				}
-				if (results.where) {
-					sql += `WHERE ${results.where} `;
+				if (members.where) {
+					sql += `WHERE ${members.where} `;
 				}
-				if (results.sort) {
-					sql += `GROUP BY ${results.group.join(', ')} `;
+				if (members.group) {
+					sql += `GROUP BY ${members.group.join(', ')} `;
 				}
-				if (results.sort) {
-					sql += `SORT BY ${results.sort.join(', ')} `;
+				if (members.sort) {
+					sql += `SORT BY ${members.sort.join(', ')} `;
 				}
-				if (results.limit) {
-					sql += `LIMIT ${results.limit} `;
+				if (members.limit) {
+					sql += `LIMIT ${members.limit} `;
 				}
-				if (results.offset) {
-					sql += `OFFSET ${results.offset} `;
+				if (members.offset) {
+					sql += `OFFSET ${members.offset} `;
 				}
 				return sql;
 			}
 		},
 		InsertQuery: {
-			leave(results) {
-				let sql = `INSERT INTO ${results.collection}`;
-				sql += `(${results.fields.map((value, key) => key).join(', ')}) VALUES `;
-				sql += `(${results.fields.map((value) => {
-					params.push(value);
-					return '?';
-				}).join(', ')})`;
-				return sql;
+			leave(members) {
+				if (members.fields) {
+					let sql = `INSERT INTO ${members.collection}`;
+					sql += `(${members.fields.map((value, key) => key).join(', ')}) VALUES `;
+					sql += `(${members.fields.map((value) => {
+						params.push(value);
+						return '?';
+					}).join(', ')})`;
+					return sql;
+				}
+				return '';
 			}
 		},
 		UpdateQuery: {
-			leave(results) {
-				let sql = `UPDATE ${results.collection} SET `;
-				sql += `${results.fields.map((value, key) => {
-					params.push(value);
-					return `${key} = ?`;
-				}).join(', ')} `;
-				if (results.where) {
-					sql += `WHERE ${results.where} `;
+			leave(members) {
+				if (members.fields) {
+					let sql = `UPDATE ${members.collection} SET `;
+					sql += `${members.fields.map((value, key) => {
+						params.push(value);
+						return `${key} = ?`;
+					}).join(', ')} `;
+					if (members.where) {
+						sql += `WHERE ${members.where} `;
+					}
+					// if (members.limit) {
+					// 	sql += `LIMIT ${members.limit} `;
+					// }
+					return sql;
 				}
-				// if (results.limit) {
-				// 	sql += `LIMIT ${results.limit} `;
-				// }
-				return sql;
+				return '';
 			}
 		},
 		DeleteQuery: {
-			leave(results) {
-				let sql = `DELETE FROM ${results.collection} `;
-				if (results.where) {
-					sql += `WHERE ${results.where} `;
+			leave(members) {
+				let sql = `DELETE FROM ${members.collection} `;
+				if (members.where) {
+					sql += `WHERE ${members.where} `;
 				}
-				// if (results.limit) {
-				// 	sql += `LIMIT ${results.limit} `;
+				// if (members.limit) {
+				// 	sql += `LIMIT ${members.limit} `;
 				// }
 				return sql;
-			}
-		},
-		DescribeCollectionQuery: {
-			leave(results) {
-				return `PRAGMA table_info(${results.collection})`;
 			}
 		}
 	})!;

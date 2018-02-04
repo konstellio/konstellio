@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { Map, List, Record } from 'immutable';
+import { Map, List, Record, Iterable } from 'immutable';
 
 export class q {
 
@@ -2158,34 +2158,128 @@ export function simplifyBitwiseTree (node: Bitwise): Bitwise {
 }
 
 export type Visitor<T> = {
-	SelectQuery?: VisitQuery<SelectQuery, T>,
-	UnionQuery?: VisitQuery<UnionQuery, T>,
-	AggregateQuery?: VisitQuery<AggregateQuery, T>,
-	InsertQuery?: VisitQuery<InsertQuery, T>,
-	UpdateQuery?: VisitQuery<UpdateQuery, T>,
-	ReplaceQuery?: VisitQuery<ReplaceQuery, T>,
-	DeleteQuery?: VisitQuery<DeleteQuery, T>,
-	CreateCollectionQuery?: VisitQuery<CreateCollectionQuery, T>,
-	DescribeCollectionQuery?: VisitQuery<DescribeCollectionQuery, T>,
-	AlterCollectionQuery?: VisitQuery<AlterCollectionQuery, T>,
-	CollectionExistsQuery?: VisitQuery<CollectionExistsQuery, T>,
-	DropCollectionQuery?: VisitQuery<DropCollectionQuery, T>,
-	CreateIndexQuery?: VisitQuery<CreateIndexQuery, T>,
-	DropIndexQuery?: VisitQuery<DropIndexQuery, T>,
+	SelectQuery?: VisitQuery<SelectQuery, VisitMemberSelectQuery<T>, T>,
+	UnionQuery?: VisitQuery<UnionQuery, VisitMemberUnionQuery<T>, T>,
+	AggregateQuery?: VisitQuery<AggregateQuery, VisitMemberAggregateQuery<T>, T>,
+	InsertQuery?: VisitQuery<InsertQuery, VisitMemberInsertQuery<T>, T>,
+	UpdateQuery?: VisitQuery<UpdateQuery, VisitMemberUpdateQuery<T>, T>,
+	ReplaceQuery?: VisitQuery<ReplaceQuery, VisitMemberReplaceQuery<T>, T>,
+	DeleteQuery?: VisitQuery<DeleteQuery, VisitMemberDeleteQuery<T>, T>,
+	CreateCollectionQuery?: VisitQuery<CreateCollectionQuery, VisitMemberCreateCollectionQuery<T>, T>,
+	DescribeCollectionQuery?: VisitQuery<DescribeCollectionQuery, VisitMemberDescribeCollectionQuery<T>, T>,
+	AlterCollectionQuery?: VisitQuery<AlterCollectionQuery, VisitMemberAlterCollectionQuery<T>, T>,
+	CollectionExistsQuery?: VisitQuery<CollectionExistsQuery, VisitMemberCollectionExistsQuery<T>, T>,
+	DropCollectionQuery?: VisitQuery<DropCollectionQuery, VisitMemberDropCollectionQuery<T>, T>,
+	CreateIndexQuery?: VisitQuery<CreateIndexQuery, VisitMemberCreateIndexQuery<T>, T>,
+	DropIndexQuery?: VisitQuery<DropIndexQuery, VisitMemberDropIndexQuery<T>, T>,
 	Collection?: (node: Collection) => T,
 	Column?: (node: Column) => T,
 	Field?: (node: Field) => T,
 	SortableField?: (node: SortableField) => T,
-	CalcField?: (results: VisitResult<T>) => T,
-	Comparison?: (results: VisitResult<T>) => T,
-	Bitwise?: (results: VisitResult<T>) => T
+	CalcField?: (members: VisitMemberCalcField<T>) => T,
+	CalcFields?: (members: VisitMemberCalcFields<T>) => T,
+	Comparison?: (members: VisitMemberComparison<T>) => T,
+	Comparisons?: (members: VisitMemberComparisons<T>) => T,
+	Bitwise?: (members: VisitMemberBitwise<T>) => T
 };
 export type VisitNode = Query | Collection | Field | SortableField | CalcField | Expression;
-export type VisitQuery<Q, T> = {
-	enter?: (node: Q) => boolean,
-	leave: (results: VisitResult<T>) => T
-};
-export type VisitResult<T> = { [key: string]: any }
+export interface VisitQuery<Q, M, T> {
+	enter?: (query: Q) => boolean
+	leave: (members: M) => T
+}
+export interface VisitMemberSelectQuery<T> {
+	select?: Iterable<any, T>
+	from?: T
+	join?: Iterable<any, {alias: string, on: T, query: T}>
+	where?: T
+	sort?: Iterable<any, T>
+	offset?: number
+	limit?: number
+}
+export interface VisitMemberUnionQuery<T> {
+	selects?: Iterable<any, T>
+	sort?: Iterable<any, T>
+	offset?: number
+	limit?: number
+}
+export interface VisitMemberAggregateQuery<T> {
+	select?: Iterable<any, T>
+	from?: T
+	join?: Iterable<any, { alias: string, on: T, query: T }>
+	where?: T
+	group?: Iterable<any, T>
+	sort?: Iterable<any, T>
+	offset?: number
+	limit?: number
+}
+export interface VisitMemberInsertQuery<T> {
+	fields?: Iterable<any, T>
+	collection?: T
+}
+export interface VisitMemberUpdateQuery<T> {
+	collection?: T
+	fields?: Iterable<any, T>
+	where?: T
+	limit?: number
+}
+export interface VisitMemberReplaceQuery<T> {
+	collection?: T
+	fields?: Iterable<any, T>
+	where?: T
+	limit?: number
+}
+export interface VisitMemberDeleteQuery<T> {
+	collection?: T
+	where?: T
+	limit?: number
+}
+export interface VisitMemberCreateCollectionQuery<T> {
+	collection?: T
+	columns?: Iterable<number, T>
+}
+export interface VisitMemberDescribeCollectionQuery<T> {
+	collection?: T
+}
+export interface VisitMemberAlterCollectionQuery<T> {
+	collection?: T
+	columns?: Iterable<number, T>
+}
+export interface VisitMemberCollectionExistsQuery<T> {
+	collection?: T
+}
+export interface VisitMemberDropCollectionQuery<T> {
+	collection?: T
+}
+export interface VisitMemberCreateIndexQuery<T> {
+	index?: T
+	collection?: T
+}
+export interface VisitMemberDropIndexQuery<T> {
+	name?: string
+	collection?: T
+}
+export interface VisitMemberCalcField<T> {
+	function: string
+	field: T
+}
+export interface VisitMemberCalcFields<T> {
+	function: string
+	fields: Iterable<any, any>
+}
+export interface VisitMemberComparison<T> {
+	field: T
+	operator: string
+	value: any
+}
+export interface VisitMemberComparisons<T> {
+	field: T
+	operator: string
+	values: Iterable<any, any>
+}
+export interface VisitMemberBitwise<T> {
+	operator: string
+	operands: Iterable<number, T>
+}
 
 export function visit<T = any>(
 	node: VisitNode,
@@ -2211,74 +2305,98 @@ export function visit<T = any>(
 		kind === 'CreateIndexQuery' ||
 		kind === 'DropIndexQuery'
 	) {
-		const visitFn: VisitQuery<Query, T> | undefined = visitor[kind];
+		const visitFn: VisitQuery<Query, any, T> | undefined = visitor[kind];
 		if (visitFn) {
 			// Enter not present or has returned false
 			if (!visitFn.enter || visitFn.enter(node) === false) {
-				const results: VisitResult<T> = {};
-				
+				let members: undefined | VisitMemberSelectQuery<T> | VisitMemberUnionQuery<T> | VisitMemberAggregateQuery<T> | VisitMemberInsertQuery<T> | VisitMemberUpdateQuery<T> | VisitMemberReplaceQuery<T> | VisitMemberDeleteQuery<T> | VisitMemberCreateCollectionQuery<T> | VisitMemberDescribeCollectionQuery<T> | VisitMemberAlterCollectionQuery<T> | VisitMemberCollectionExistsQuery<T> | VisitMemberDropCollectionQuery<T> | VisitMemberCreateIndexQuery<T> | VisitMemberDropIndexQuery<T>;
 				if (node instanceof SelectQuery) {
-					results.select = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
-					results.from = node.getFrom() ? visit(node.getFrom()!, visitor) : undefined;
-					results.join = node.getJoin() ? node.getJoin()!.map(join => ({ on: join!.on, query: visit(join!.query, visitor) })) : undefined;
-					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
-					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						select: node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)!) : undefined,
+						from: node.getFrom() ? visit(node.getFrom()!, visitor) : undefined,
+						join: node.getJoin() ? node.getJoin()!.map((join, alias) => ({ alias: alias!, on: visit(join!.on, visitor)!, query: visit(join!.query, visitor)! })) : undefined,
+						where: node.getWhere() ? visit(node.getWhere()!, visitor) : undefined,
+						sort: node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)!) : undefined,
+						offset: node.getOffset() ? node.getOffset()! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof UnionQuery) {
-					results.selects = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
-					results.sort = node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)) : undefined;
-					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						selects: node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)!) : undefined,
+						sort: node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)!) : undefined,
+						offset: node.getOffset() ? node.getOffset()! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof AggregateQuery) {
-					results.select = node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)) : undefined;
-					results.from = node.getFrom() ? visit(node.getFrom()!, visitor) : undefined;
-					results.join = node.getJoin() ? node.getJoin()!.map((join, alias) => ({ alias, on: join!.on, query: visit(join!.query, visitor) })) : undefined;
-					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
-					results.group = node.getGroup() ? node.getGroup()!.map(field => visit(field!, visitor)) : undefined;
-					results.sort = node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)) : undefined;
-					results.offset = node.getOffset() ? visit(node.getOffset()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						select: node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)!) : undefined,
+						from: node.getFrom() ? visit(node.getFrom()!, visitor)! : undefined,
+						join: node.getJoin() ? node.getJoin()!.map((join, alias) => ({ alias: alias!, on: visit(join!.on, visitor)!, query: visit(join!.query, visitor)! })) : undefined,
+						where: node.getWhere() ? visit(node.getWhere()!, visitor)! : undefined,
+						group: node.getGroup() ? node.getGroup()!.map(field => visit(field!, visitor)!) : undefined,
+						sort: node.getSort() ? node.getSort()!.map(field => visit(field!, visitor)!) : undefined,
+						offset: node.getOffset() ? node.getOffset()! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof InsertQuery) {
-					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					members = {
+						fields: node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)!) : undefined,
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined
+					}
 				}
 				else if (node instanceof UpdateQuery) {
-					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
-					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						fields: node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)!) : undefined,
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+						where: node.getWhere() ? visit(node.getWhere()!, visitor)! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof ReplaceQuery) {
-					results.fields = node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)) : undefined;
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
-					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						fields: node.getFields() ? node.getFields()!.map(field => visit(field!, visitor)!) : undefined,
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+						where: node.getWhere() ? visit(node.getWhere()!, visitor)! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof DeleteQuery) {
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
-					results.where = node.getWhere() ? visit(node.getWhere()!, visitor) : undefined;
-					results.limit = node.getLimit() ? visit(node.getLimit()!, visitor) : undefined;
+					members = {
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+						where: node.getWhere() ? visit(node.getWhere()!, visitor)! : undefined,
+						limit: node.getLimit() ? node.getLimit()! : undefined
+					}
 				}
 				else if (node instanceof CreateCollectionQuery || node instanceof AlterCollectionQuery) {
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
-					results.columns = node.getColumns() ? node.getColumns()!.map(field => visit(field!, visitor)) : undefined;
+					members = {
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+						columns: node.getColumns() ? node.getColumns()!.map(field => visit(field!, visitor)!) : undefined
+					}
 				}
 				else if (node instanceof DescribeCollectionQuery || node instanceof CollectionExistsQuery || node instanceof DropCollectionQuery) {
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					members = {
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined
+					}
 				}
 				else if (node instanceof CreateIndexQuery) {
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
-					results.index = node.getIndex() ? visit(node.getIndex()!, visitor) : undefined;
+					members = {
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+						index: node.getIndex() ? visit(node.getIndex()!, visitor)! : undefined
+					}
 				}
 				else if (node instanceof DropIndexQuery) {
-					results.name = node.getName();
-					results.collection = node.getCollection() ? visit(node.getCollection()!, visitor) : undefined;
+					members = {
+						name: node.getName(),
+						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
+					}
 				}
 
-				return visitFn.leave(results);
+				if (members) {
+					return visitFn.leave(members);
+				}
 			}
 		}
 	}
@@ -2286,25 +2404,33 @@ export function visit<T = any>(
 		kind === 'CountCalcField' ||
 		kind === 'AverageCalcField' ||
 		kind === 'SumCalcField' ||
-		kind === 'SubCalcField' ||
+		kind === 'SubCalcField'
+	) {
+		const visitFn = visitor['CalcField'];
+		if (visitFn) {
+			if (node instanceof CountCalcField || node instanceof AverageCalcField || node instanceof SumCalcField || node instanceof SubCalcField) {
+				const members: VisitMemberCalcField<T> = {
+					function: node.function.toLocaleUpperCase(),
+					field: visit(node.field, visitor)!
+				};
+				return visitFn(members);
+			}
+		}
+	}
+	else if (
 		kind === 'MaxCalcField' ||
 		kind === 'MinCalcField' ||
 		kind === 'ConcatCalcField'
 	) {
-		const visitFn = visitor['CalcField'];
+		const visitFn = visitor['CalcFields'];
 		if (visitFn) {
-			const results: VisitResult<T> = {};
-
-			if (node instanceof CountCalcField || node instanceof AverageCalcField || node instanceof SumCalcField || node instanceof SubCalcField) {
-				results.function = node.function.toLocaleUpperCase();
-				results.field = visit(node.field, visitor);
+			if (node instanceof MaxCalcField || node instanceof MinCalcField || node instanceof ConcatCalcField) {
+				const members: VisitMemberCalcFields<T> = {
+					function: node.function.toLocaleUpperCase(),
+					fields: node.fields.map(field => visit(field!, visitor)!)
+				};
+				return visitFn(members);
 			}
-			else if (node instanceof MaxCalcField || node instanceof MinCalcField || node instanceof ConcatCalcField) {
-				results.function = node.function.toLocaleUpperCase();
-				results.fields = node.fields.map(field => visit(field!, visitor));
-			}
-
-			return visitFn(results);
 		}
 	}
 	else if (
@@ -2315,25 +2441,33 @@ export function visit<T = any>(
 		kind === 'ComparisonGreaterThanOrEqual' ||
 		kind === 'ComparisonLesserThan' ||
 		kind === 'ComparisonLesserThanOrEqual' ||
-		kind === 'ComparisonBeginsWith' ||
-		kind === 'ComparisonIn'
+		kind === 'ComparisonBeginsWith'
 	) {
 		const visitFn = visitor['Comparison'];
 		if (visitFn) {
-			const results: VisitResult<T> = {};
-
 			if (node instanceof ComparisonSimple) {
-				results.field = visit(node.field, visitor);
-				results.operator = node.operator;
-				results.value = node.value;
+				const members: VisitMemberComparison<T> = {
+					field: visit<T>(node.field, visitor)!,
+					operator: node.operator,
+					value: node.value
+				};
+				return visitFn(members);
 			}
-			else if (node instanceof ComparisonIn) {
-				results.field = visit(node.field, visitor);
-				results.operator = node.operator;
-				results.values = node.values ? node.values.map(val => visit(val!, visitor)) : undefined;
+		}
+	}
+	else if (
+		kind === 'ComparisonIn'
+	) {
+		const visitFn = visitor['Comparisons'];
+		if (visitFn) {
+			if (node instanceof ComparisonIn) {
+				const members: VisitMemberComparisons<T> = {
+					field: visit(node.field, visitor)!,
+					operator: node.operator,
+					values: node.values ? node.values.map(val => visit(val!, visitor)) : List()
+				};
+				return visitFn(members);
 			}
-
-			return visitFn(results);
 		}
 	}
 	else if (
@@ -2341,14 +2475,13 @@ export function visit<T = any>(
 	) {
 		const visitFn = visitor['Bitwise'];
 		if (visitFn) {
-			const results: VisitResult<T> = {};
-
 			if (node instanceof Bitwise) {
-				results.operator = node.operator;
-				results.operands = node.operands ? node.operands.map(op => visit(op!, visitor)) : undefined;
+				const members: VisitMemberBitwise<T> = {
+					operator: node.operator,
+					operands: node.operands ? node.operands.map(op => visit(op!, visitor)!) : List()
+				};
+				return visitFn(members);
 			}
-
-			return visitFn(results);
 		}
 	}
 	else if (
