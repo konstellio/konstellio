@@ -2,7 +2,6 @@ import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import { List } from 'immutable';
-// import * as SQLite from 'sqlite3';
 let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
 
 export type SQLiteDriverConstructor = {
@@ -83,6 +82,9 @@ export class SQLiteDriver extends Driver {
 		}
 		else if (query instanceof Query.DescribeCollectionQuery) {
 			return this.executeDescribeCollection(query);
+		}
+		else if (query instanceof Query.CreateCollectionQuery) {
+			return this.executeCreateCollection(query);
 		}
 
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
@@ -237,8 +239,7 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/pragma.html
 
-			const collection = query.getCollection()!;
-			const table_name = `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
+			const table_name = collectionName(query.getCollection()!);
 
 			Promise.all<any[], any[], boolean>([
 				new Promise(resolve => {
@@ -290,29 +291,45 @@ export class SQLiteDriver extends Driver {
 						case 'unique': type = Query.IndexType.Unique; break;
 					}
 					const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
-					return new Query.Index(idx.name, type).columns(cols.map(col => {
+					const columns = List<Query.SortableField>(cols.map(col => {
 						return new Query.SortableField(col.name, col.desc!! ? 'desc' : 'asc');
 					}));
+					const index = new Query.Index(idx.name, type, columns);
+					
+					return index;
 				});
 
 				const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Query.Index(`${table_name}_${col.name}`, Query.IndexType.Primary).columns(col.name, 'asc'))
 
 				const result = new QueryResult.DescribeCollectionQueryResult(
 					columns,
-					indexes
+					primaryKeys.concat(indexes)
 				);
 
 				resolve(result);
 			});
 		});
 	}
+
+	private executeCreateCollection(query: Query.CreateCollectionQuery): Promise<QueryResult.CreateCollectionQueryResult> {
+		return new Promise<QueryResult.CreateCollectionQueryResult>((resolve, reject) => {
+			// https://sqlite.org/lang_transaction.html
+			
+			const table_name = collectionName(query.getCollection()!);
+			console.log(table_name);
+		});
+	}
+}
+
+function collectionName(collection: Query.Collection) {
+	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
 }
 
 export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 	const params: any[] = [];
 	const sql = Query.visit<string>(query, {
 		Collection: (node) => {
-			return `${node.namespace ? `${node.namespace}_` : ''}${node.name}`;
+			return collectionName(node);
 		},
 		Field: (node) => {
 			return `${node.table ? `${node.table}_` : ''}${node.name}`;
