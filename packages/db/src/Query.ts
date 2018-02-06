@@ -54,14 +54,6 @@ export class q {
 		return new DropCollectionQuery().collection(name, namespace);
 	}
 
-	public static createIndex (index: Index, collection?: Collection) {
-		return new CreateIndexQuery(index, collection);
-	}
-
-	public static dropIndex (name: string, namespace?: string) {
-		return new DropCollectionQuery().collection(name, namespace);
-	}
-
 
 	public static and (...queries: Expression[]): Bitwise {
 		return new Bitwise("and", queries);
@@ -175,8 +167,10 @@ export enum ColumnType {
 	Int64 = 'Int64',
 	Float32 = 'Float32',
 	Float64 = 'Float64',
-	String = 'String',
-	Date = 'Date'
+	Text = 'Text',
+	Blob = 'Blob',
+	Date = 'Date',
+	DateTime = 'DateTime'
 };
 
 export enum IndexType {
@@ -1235,12 +1229,14 @@ export class DeleteQuery extends Query {
 export class CreateCollectionQuery extends Query {
 	private _collection?: Collection
 	private _columns?: List<Column>
+	private _indexes?: List<Index>
 
-	constructor (collection?: Collection, columns?: List<Column>) {
+	constructor (collection?: Collection, columns?: List<Column>, indexes?: List<Index>) {
 		super();
 
 		this._collection = collection;
 		this._columns = columns;
+		this._indexes = indexes;
 	}
 
 	getCollection (): Collection | undefined {
@@ -1251,17 +1247,25 @@ export class CreateCollectionQuery extends Query {
 		return this._columns;
 	}
 
+	getIndexes (): List<Index> | undefined {
+		return this._indexes;
+	}
+
 	collection (collection: Collection): CreateCollectionQuery
 	collection (name: string, namespace?: string): CreateCollectionQuery
 	collection (name?: any, namespace?: string): CreateCollectionQuery {
 		if (name && name instanceof Collection) {
 			return new CreateCollectionQuery(name, this._columns);
 		}
-		return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+		return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns, this._indexes);
 	}
 
 	columns (...columns: Column[]): CreateCollectionQuery {
-		return new CreateCollectionQuery(this._collection, List<Column>(columns));
+		return new CreateCollectionQuery(this._collection, List<Column>(columns), this._indexes);
+	}
+
+	indexes (...indexes: Index[]): CreateCollectionQuery {
+		return new CreateCollectionQuery(this._collection, this._columns, List<Index>(indexes));
 	}
 
 	toString (): string
@@ -1286,6 +1290,12 @@ export class CreateCollectionQuery extends Query {
 		}
 
 		query += `${newline}${indent})`;
+
+		if (this._indexes) {
+			query += ` ${newline}${indent}INDEXES (`;
+			query += `${newline}${indent}${this._indexes.map<string>(i => i ? i.toString() : '').join(`,${newline}${indent}`)}`;
+			query += `${newline}${indent})`;
+		}
 
 		return query;
 	}
@@ -1464,111 +1474,6 @@ export class DropCollectionQuery extends Query {
 
 		if (this._collection) {
 			query += this._collection.toString();
-		}
-
-		return query;
-	}
-}
-
-export class CreateIndexQuery extends Query {
-	private _collection?: Collection
-	private _index?: Index
-
-	constructor (index?: Index, collection?: Collection) {
-		super();
-
-		this._collection = collection;
-		this._index = index;
-	}
-
-	getCollection (): Collection | undefined {
-		return this._collection;
-	}
-
-	getIndex (): Index | undefined {
-		return this._index;
-	}
-
-	index (index: Index): CreateIndexQuery {
-		return new CreateIndexQuery(index, this._collection);
-	}
-
-	collection (collection: Collection): CreateIndexQuery
-	collection (name: string, namespace?: string): CreateIndexQuery
-	collection (name?: any, namespace?: string): CreateIndexQuery {
-		if (name && name instanceof Collection) {
-			return new CreateIndexQuery(this._index, name);
-		}
-		return new CreateIndexQuery(this._index, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-	}
-
-	toString (): string
-	toString (multiline: boolean): string
-	toString (multiline: boolean, indent: string): string
-	toString (multiline?: boolean, indent?: string): string {
-		multiline = !!multiline;
-		indent = multiline && indent ? indent : '';
-
-		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}CREATE INDEX`;
-
-		if (this._collection) {
-			query += ` ON ${this._collection.toString()}`;
-		}
-
-		if (this._index) {
-			query += ` ${this._index.toString()}`;
-		}
-
-
-		return query;
-	}
-}
-
-export class DropIndexQuery extends Query {
-	private _name?: string
-	private _collection?: Collection
-
-	constructor (name?: string, collection?: Collection) {
-		super();
-
-		this._name = name;
-		this._collection = collection;
-	}
-
-	getName (): string | undefined {
-		return this._name;
-	}
-
-	getCollection (): Collection | undefined {
-		return this._collection;
-	}
-
-	name (name: string): DropIndexQuery {
-		return new DropIndexQuery(name, this._collection);
-	}
-
-	collection (collection: Collection): DropIndexQuery
-	collection (name: string, namespace?: string): DropIndexQuery
-	collection (name?: any, namespace?: any): DropIndexQuery {
-		if (name && name instanceof Collection) {
-			return new DropIndexQuery(this._name, name);
-		}
-		return new DropIndexQuery(this._name, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-	}
-
-	toString (): string
-	toString (multiline: boolean): string
-	toString (multiline: boolean, indent: string): string
-	toString (multiline?: boolean, indent?: string): string {
-		multiline = !!multiline;
-		indent = multiline && indent ? indent : '';
-
-		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}DROP INDEX ${this._name}`;
-		
-		if (this._collection) {
-			query += ` ON ${this._collection.toString()}`;
 		}
 
 		return query;
@@ -2191,22 +2096,21 @@ export type Visitor<T> = {
 	AlterCollectionQuery?: VisitQuery<AlterCollectionQuery, VisitMemberAlterCollectionQuery<T>, T>,
 	CollectionExistsQuery?: VisitQuery<CollectionExistsQuery, VisitMemberCollectionExistsQuery<T>, T>,
 	DropCollectionQuery?: VisitQuery<DropCollectionQuery, VisitMemberDropCollectionQuery<T>, T>,
-	CreateIndexQuery?: VisitQuery<CreateIndexQuery, VisitMemberCreateIndexQuery<T>, T>,
-	DropIndexQuery?: VisitQuery<DropIndexQuery, VisitMemberDropIndexQuery<T>, T>,
 	Collection?: (node: Collection) => T,
 	Column?: (node: Column) => T,
+	Index?: (node: Index) => T,
 	Field?: (node: Field) => T,
 	SortableField?: (node: SortableField) => T,
-	CalcField?: (members: VisitMemberCalcField<T>) => T,
-	CalcFields?: (members: VisitMemberCalcFields<T>) => T,
-	Comparison?: (members: VisitMemberComparison<T>) => T,
-	Comparisons?: (members: VisitMemberComparisons<T>) => T,
-	Bitwise?: (members: VisitMemberBitwise<T>) => T
+	CalcField?: (node: CalcField, members: VisitMemberCalcField<T>) => T,
+	CalcFields?: (node: CalcField, members: VisitMemberCalcFields<T>) => T,
+	Comparison?: (node: Comparison, members: VisitMemberComparison<T>) => T,
+	Comparisons?: (node: Comparison, members: VisitMemberComparisons<T>) => T,
+	Bitwise?: (node: Bitwise, members: VisitMemberBitwise<T>) => T
 };
 export type VisitNode = Query | Collection | Field | SortableField | CalcField | Expression;
 export interface VisitQuery<Q, M, T> {
 	enter?: (query: Q) => boolean
-	leave: (members: M) => T
+	leave: (query: Q, members: M) => T
 }
 export interface VisitMemberSelectQuery<T> {
 	select?: Iterable<any, T>
@@ -2257,6 +2161,7 @@ export interface VisitMemberDeleteQuery<T> {
 export interface VisitMemberCreateCollectionQuery<T> {
 	collection?: T
 	columns?: Iterable<number, T>
+	indexes?: Iterable<number, T>
 }
 export interface VisitMemberDescribeCollectionQuery<T> {
 	collection?: T
@@ -2269,14 +2174,6 @@ export interface VisitMemberCollectionExistsQuery<T> {
 	collection?: T
 }
 export interface VisitMemberDropCollectionQuery<T> {
-	collection?: T
-}
-export interface VisitMemberCreateIndexQuery<T> {
-	index?: T
-	collection?: T
-}
-export interface VisitMemberDropIndexQuery<T> {
-	name?: string
 	collection?: T
 }
 export interface VisitMemberCalcField<T> {
@@ -2322,15 +2219,13 @@ export function visit<T = any>(
 		kind === 'DescribeCollectionQuery' ||
 		kind === 'AlterCollectionQuery' ||
 		kind === 'CollectionExistsQuery' ||
-		kind === 'DropCollectionQuery' ||
-		kind === 'CreateIndexQuery' ||
-		kind === 'DropIndexQuery'
+		kind === 'DropCollectionQuery'
 	) {
 		const visitFn: VisitQuery<Query, any, T> | undefined = visitor[kind];
 		if (visitFn) {
 			// Enter not present or has returned false
 			if (!visitFn.enter || visitFn.enter(node) === false) {
-				let members: undefined | VisitMemberSelectQuery<T> | VisitMemberUnionQuery<T> | VisitMemberAggregateQuery<T> | VisitMemberInsertQuery<T> | VisitMemberUpdateQuery<T> | VisitMemberReplaceQuery<T> | VisitMemberDeleteQuery<T> | VisitMemberCreateCollectionQuery<T> | VisitMemberDescribeCollectionQuery<T> | VisitMemberAlterCollectionQuery<T> | VisitMemberCollectionExistsQuery<T> | VisitMemberDropCollectionQuery<T> | VisitMemberCreateIndexQuery<T> | VisitMemberDropIndexQuery<T>;
+				let members: undefined | VisitMemberSelectQuery<T> | VisitMemberUnionQuery<T> | VisitMemberAggregateQuery<T> | VisitMemberInsertQuery<T> | VisitMemberUpdateQuery<T> | VisitMemberReplaceQuery<T> | VisitMemberDeleteQuery<T> | VisitMemberCreateCollectionQuery<T> | VisitMemberDescribeCollectionQuery<T> | VisitMemberAlterCollectionQuery<T> | VisitMemberCollectionExistsQuery<T> | VisitMemberDropCollectionQuery<T>;
 				if (node instanceof SelectQuery) {
 					members = {
 						select: node.getSelect() ? node.getSelect()!.map(field => visit(field!, visitor)!) : undefined,
@@ -2391,10 +2286,11 @@ export function visit<T = any>(
 						limit: node.getLimit() ? node.getLimit()! : undefined
 					}
 				}
-				else if (node instanceof CreateCollectionQuery || node instanceof AlterCollectionQuery) {
+				else if (node instanceof CreateCollectionQuery) {
 					members = {
 						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
-						columns: node.getColumns() ? node.getColumns()!.map(field => visit(field!, visitor)!) : undefined
+						columns: node.getColumns() ? node.getColumns()!.map(field => visit(field!, visitor)!) : undefined,
+						indexes: node.getIndexes() ? node.getIndexes()!.map(field => visit(field!, visitor)!) : undefined
 					}
 				}
 				else if (node instanceof DescribeCollectionQuery || node instanceof CollectionExistsQuery || node instanceof DropCollectionQuery) {
@@ -2402,21 +2298,9 @@ export function visit<T = any>(
 						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined
 					}
 				}
-				else if (node instanceof CreateIndexQuery) {
-					members = {
-						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
-						index: node.getIndex() ? visit(node.getIndex()!, visitor)! : undefined
-					}
-				}
-				else if (node instanceof DropIndexQuery) {
-					members = {
-						name: node.getName(),
-						collection: node.getCollection() ? visit(node.getCollection()!, visitor)! : undefined,
-					}
-				}
 
 				if (members) {
-					return visitFn.leave(members);
+					return visitFn.leave(node, members);
 				}
 			}
 		}
@@ -2434,7 +2318,7 @@ export function visit<T = any>(
 					function: node.function.toLocaleUpperCase(),
 					field: visit(node.field, visitor)!
 				};
-				return visitFn(members);
+				return visitFn(node, members);
 			}
 		}
 	}
@@ -2450,7 +2334,7 @@ export function visit<T = any>(
 					function: node.function.toLocaleUpperCase(),
 					fields: node.fields.map(field => visit(field!, visitor)!)
 				};
-				return visitFn(members);
+				return visitFn(node, members);
 			}
 		}
 	}
@@ -2472,7 +2356,7 @@ export function visit<T = any>(
 					operator: node.operator,
 					value: node.value
 				};
-				return visitFn(members);
+				return visitFn(node, members);
 			}
 		}
 	}
@@ -2487,7 +2371,7 @@ export function visit<T = any>(
 					operator: node.operator,
 					values: node.values ? node.values.map(val => visit(val!, visitor)) : List()
 				};
-				return visitFn(members);
+				return visitFn(node, members);
 			}
 		}
 	}
@@ -2501,13 +2385,14 @@ export function visit<T = any>(
 					operator: node.operator,
 					operands: node.operands ? node.operands.map(op => visit(op!, visitor)!) : List()
 				};
-				return visitFn(members);
+				return visitFn(node, members);
 			}
 		}
 	}
 	else if (
 		kind === 'Collection' ||
 		kind === 'Column' ||
+		kind === 'Index' ||
 		kind === 'Field'
 	) {
 		const visitorFn: ((node: any) => T) | undefined = visitor[kind];

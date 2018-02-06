@@ -106,21 +106,3 @@ export class DropCollectionQueryResult extends QueryResult {
 		this.acknowledge = acknowledge;
 	}
 }
-
-export class CreateIndexQueryResult extends QueryResult {
-	public readonly acknowledge: boolean
-
-	constructor (acknowledge: boolean) {
-		super();
-		this.acknowledge = acknowledge;
-	}
-}
-
-export class DropIndexQueryResult extends QueryResult {
-	public readonly acknowledge: boolean
-
-	constructor (acknowledge: boolean) {
-		super();
-		this.acknowledge = acknowledge;
-	}
-}

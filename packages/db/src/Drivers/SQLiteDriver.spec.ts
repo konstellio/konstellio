@@ -87,11 +87,11 @@ describe('SQLite', () => {
 		expect(result.columns[0].getDefaultValue()).to.be.equal(null);
 		expect(result.columns[0].getAutoIncrement()).to.be.equal(true);
 		expect(result.columns[1].getName()).to.be.equal('title');
-		expect(result.columns[1].getType()).to.be.equal(ColumnType.String);
+		expect(result.columns[1].getType()).to.be.equal(ColumnType.Text);
 		expect(result.columns[1].getDefaultValue()).to.be.equal(null);
 		expect(result.columns[1].getAutoIncrement()).to.be.equal(false);
 		expect(result.columns[2].getName()).to.be.equal('postDate');
-		expect(result.columns[2].getType()).to.be.equal(ColumnType.String);
+		expect(result.columns[2].getType()).to.be.equal(ColumnType.Text);
 		expect(result.columns[2].getDefaultValue()).to.be.equal(null);
 		expect(result.columns[2].getAutoIncrement()).to.be.equal(false);
 		expect(result.columns[3].getName()).to.be.equal('likes');
@@ -120,14 +120,25 @@ describe('SQLite', () => {
 
 	it('create collection', async () => {
 
-		const create = q.createCollection('Moo', 'Joo').columns(
-			q.column('id', ColumnType.UInt64, null, true),
-			q.column('title', ColumnType.String),
-			q.column('date', ColumnType.Date)
-		);
+		const create = q.createCollection('Moo', 'Joo')
+			.columns(
+				q.column('id', ColumnType.UInt64, null, true),
+				q.column('title', ColumnType.Text),
+				q.column('date', ColumnType.Date)
+			)
+			.indexes(
+				q.index('Joo_Moo_id', IndexType.Primary).columns(q.sort('id', 'asc')),
+				q.index('Joo_Moo_date', IndexType.Unique).columns(q.sort('id', 'asc'), q.sort('date', 'desc'))
+			)
 
 		const result: QueryResult.CreateCollectionQueryResult = await driver.execute(create).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.CreateCollectionQueryResult);
 	});
+
+	// it('alter collection', async () => {
+
+	// 	const alter = q.alterCollection('Moo', 'Joo')
+
+	// });
 
 });

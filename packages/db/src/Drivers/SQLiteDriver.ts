@@ -2,6 +2,7 @@ import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import { List } from 'immutable';
+import { ColumnType, IndexType } from '../index';
 let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
 
 export type SQLiteDriverConstructor = {
@@ -53,8 +54,6 @@ export class SQLiteDriver extends Driver {
 	execute(query: Query.AlterCollectionQuery): Promise<QueryResult.AlterCollectionQueryResult>;
 	execute(query: Query.CollectionExistsQuery): Promise<QueryResult.CollectionExistsQueryResult>;
 	execute(query: Query.DropCollectionQuery): Promise<QueryResult.DropCollectionQueryResult>;
-	execute(query: Query.CreateIndexQuery): Promise<QueryResult.CreateIndexQueryResult>;
-	execute(query: Query.DropIndexQuery): Promise<QueryResult.DropIndexQueryResult>;
 	execute<T>(query: any): Promise<any> {
 		if (typeof query === 'string') {
 			return this.executeSQL(query);
@@ -274,13 +273,13 @@ export class SQLiteDriver extends Driver {
 			.then(([colDefs, idxDefs, auto]) => {
 
 				const columns = colDefs.map<Query.Column>(col => {
-					let type: Query.ColumnType = Query.ColumnType.String;
+					let type: Query.ColumnType = Query.ColumnType.Text;
 					switch (col.type) {
 						case 'TEXT': break;
 						case 'INTEGER': type = Query.ColumnType.Int64; break;
 						case 'REAL':
 						case 'NUMERIC': type = Query.ColumnType.Float64; break;
-						case 'BLOB': type = Query.ColumnType.String; break;
+						case 'BLOB': type = Query.ColumnType.Blob; break;
 					}
 					return new Query.Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
 				});
@@ -314,15 +313,46 @@ export class SQLiteDriver extends Driver {
 	private executeCreateCollection(query: Query.CreateCollectionQuery): Promise<QueryResult.CreateCollectionQueryResult> {
 		return new Promise<QueryResult.CreateCollectionQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
-			
-			const table_name = collectionName(query.getCollection()!);
-			console.log(table_name);
+
+			let [sql, params] = convertQueryToSQL(query);
+
+			this.driver.run(sql, params, function (err) {
+				if (err) {
+					return reject(err);
+				}
+
+				const result = new QueryResult.CreateCollectionQueryResult(this.changes > 0);
+				resolve(result);
+			});
 		});
 	}
 }
 
 function collectionName(collection: Query.Collection) {
 	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
+}
+
+function columnType(type?: ColumnType) {
+	switch (type) {
+		case ColumnType.Bit:
+		case ColumnType.Boolean:
+		case ColumnType.Int8:
+		case ColumnType.Int16:
+		case ColumnType.Int32:
+		case ColumnType.Int64:
+		case ColumnType.UInt8:
+		case ColumnType.UInt16:
+		case ColumnType.UInt32:
+		case ColumnType.UInt64:
+			return 'INTEGER';
+		case ColumnType.Float32:
+		case ColumnType.Float64:
+			return 'REAL';
+		case ColumnType.Blob:
+			return 'BLOB';
+		default:
+			return 'TEXT';
+	}
 }
 
 export function convertQueryToSQL(query: Query.Query): [string, any[]] {
@@ -337,26 +367,26 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 		SortableField: (node) => {
 			return `${node.name} ${node.direction || 'ASC'}`;
 		},
-		CalcField: (members) => {
+		CalcField: (node, members) => {
 			return `${members.function.toUpperCase()}(${members.field})`;
 		},
-		CalcFields: (members) => {
+		CalcFields: (node, members) => {
 			return `${members.function.toUpperCase()}(${members.fields.join(', ')})`;
 		},
-		Comparison: (members) => {
+		Comparison: (node, members) => {
 			params.push(members.value);
 			return `${members.field} ${members.operator} ?`;
 			
 		},
-		Comparisons: (members) => {
+		Comparisons: (node, members) => {
 			params.push(...members.values.toArray());
 			return `${members.field} ${members.operator.toUpperCase()} (${members.values.map(v => '?').join(', ')})`;
 		},
-		Bitwise: (members) => {
+		Bitwise: (node, members) => {
 			return `${members.operands.join(` ${members.operator.toUpperCase()} `)}`;
 		},
 		SelectQuery: {
-			leave(members) {
+			leave(node, members) {
 				let sql = '';
 				sql += `SELECT ${members.select ? members.select.join(', ') : '*'} `;
 				sql += `FROM ${members.from} `;
@@ -378,7 +408,7 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 			}
 		},
 		UnionQuery: {
-			leave(members) {
+			leave(node, members) {
 				if (members.selects) {
 					let sql = `(${members.selects.join(') UNION (')}) `;
 					if (members.sort) {
@@ -396,7 +426,7 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 			}
 		},
 		AggregateQuery: {
-			leave(members) {
+			leave(node, members) {
 				let sql = `SELECT `;
 				sql += `${members.select ? members.select.join(', ') : '*'} `;
 				sql += `FROM ${members.from} `;
@@ -424,7 +454,7 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 			}
 		},
 		InsertQuery: {
-			leave(members) {
+			leave(node, members) {
 				if (members.fields) {
 					let sql = `INSERT INTO ${members.collection}`;
 					sql += `(${members.fields.map((value, key) => key).join(', ')}) VALUES `;
@@ -438,7 +468,7 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 			}
 		},
 		UpdateQuery: {
-			leave(members) {
+			leave(node, members) {
 				if (members.fields) {
 					let sql = `UPDATE ${members.collection} SET `;
 					sql += `${members.fields.map((value, key) => {
@@ -457,7 +487,7 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 			}
 		},
 		DeleteQuery: {
-			leave(members) {
+			leave(node, members) {
 				let sql = `DELETE FROM ${members.collection} `;
 				if (members.where) {
 					sql += `WHERE ${members.where} `;
@@ -465,6 +495,84 @@ export function convertQueryToSQL(query: Query.Query): [string, any[]] {
 				// if (members.limit) {
 				// 	sql += `LIMIT ${members.limit} `;
 				// }
+				return sql;
+			}
+		},
+		CreateCollectionQuery: {
+			leave(node, { collection }) {
+				const columns = node.getColumns();
+				const indexes = node.getIndexes();
+
+				if (!columns || columns.count() === 0) {
+					throw new Error(`Expected query to have at least one column, got none.`);
+				}
+
+				const autoCol = columns.filter(col => col !== undefined && col.getAutoIncrement() === true);
+				const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === IndexType.Primary) : List<any>();
+				const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== IndexType.Primary) : List<any>();
+
+				let sql = `CREATE TABLE ${collection} (`;
+
+				if (
+					autoCol.count() > 0 &&
+					(
+						autoCol.count() != 1 ||
+						primaryKeys.count() != 1 ||
+						primaryKeys.get(0).getColumns() === undefined ||
+						primaryKeys.get(0).getColumns()!.filter(col => col!.name === autoCol.get(0).getName()).count() === 0
+					)
+				) {
+					throw new Error(`Expected a single autoincrement column with a corresponding primary index.`);
+				}
+				if (primaryKeys.count() > 1) {
+					throw new Error(`Expected a single primary key index. This index can be on multiple columns.`);
+				}
+
+				const autoColName = autoCol && autoCol.count() > 0 && autoCol.get(0).getName();
+
+				sql += `${columns.map<string>(col => {
+					if (col !== undefined) {
+						const defaultValue = col.getDefaultValue();
+
+						let def = `${col.getName()} ${columnType(col.getType())}`;
+						if (col.getName() === autoColName) {
+							def += ` PRIMARY KEY AUTOINCREMENT`;
+						}
+						if (defaultValue !== undefined && defaultValue !== null) {
+							def += ` DEFAULT ${typeof defaultValue === 'number' ? defaultValue : `'${defaultValue}'`}`;
+						}
+						return def;
+					}
+					return '';
+				}).join(', ')}`;
+
+				if (!autoColName && primaryKeys) {
+					const cols = primaryKeys.get(0).getColumns();
+					if (cols) {
+						sql += `, PRIMARY KEY (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+					}
+				}
+
+				sql += `)`;
+
+				if (otherIndexes && otherIndexes.count() > 0) {
+					sql += `; ${otherIndexes.map<string>(idx => {
+						if (idx !== undefined) {
+							const cols = idx.getColumns();
+							if (!cols || cols.count() === 0) {
+								throw new Error(`Expected index ${idx.getName()} to contain at least 1 column.`);
+							}
+							let def = `CREATE `;
+							if (idx.getType() === IndexType.Unique) {
+								def += `UNIQUE `;
+							}
+							def += `INDEX ${idx.getName()} ON ${collection} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+							return def;
+						}
+						return '';
+					}).join(`;`)}`;
+				}
+
 				return sql;
 			}
 		}
