@@ -77,9 +77,7 @@ describe('SQLite', () => {
 
 	it('describe collection', async () => {
 
-		const describe = q.describeCollection('Foo', 'Bar');
-
-		const result: QueryResult.DescribeCollectionQueryResult = await driver.execute(describe).should.be.fulfilled;
+		const result: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Foo', 'Bar')).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.DescribeCollectionQueryResult);
 		expect(result.columns.length).to.be.equal(4);
 		expect(result.columns[0].getName()).to.be.equal('id');
@@ -133,12 +131,16 @@ describe('SQLite', () => {
 
 		const result: QueryResult.CreateCollectionQueryResult = await driver.execute(create).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.CreateCollectionQueryResult);
+
+		// TODO Index Joo_Moo_date seems to be ignored. Might be related to multiple queries in single SQL.
+		const info: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Joo')).should.be.fulfilled;
+		console.log(info);
 	});
 
-	// it('alter collection', async () => {
+	it('alter collection', async () => {
 
-	// 	const alter = q.alterCollection('Moo', 'Joo')
+		const alter = q.alterCollection('Moo', 'Joo')
 
-	// });
+	});
 
 });

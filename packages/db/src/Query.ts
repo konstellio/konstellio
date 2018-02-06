@@ -1356,10 +1356,6 @@ export class AlterCollectionQuery extends Query {
 		return this._collection;
 	}
 
-	getColumns (): List<Column> | undefined {
-		return this._columns;
-	}
-
 	collection (collection: Collection): AlterCollectionQuery
 	collection (name: string, namespace?: string): AlterCollectionQuery
 	collection (name?: any, namespace?: any): AlterCollectionQuery {
@@ -1367,10 +1363,6 @@ export class AlterCollectionQuery extends Query {
 			return new AlterCollectionQuery(name, this._columns);
 		}
 		return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
-	}
-
-	columns (...columns: Column[]): AlterCollectionQuery {
-		return new AlterCollectionQuery(this._collection, List<Column>(columns));
 	}
 
 	toString (): string
