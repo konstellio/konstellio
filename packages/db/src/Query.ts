@@ -1621,7 +1621,22 @@ export class Column {
 		this._autoIncrement = autoIncrement;
 	}
 
-	name (): string
+	getName(): string | undefined {
+		return this._name;
+	}
+
+	getType(): ColumnType | undefined {
+		return this._type;
+	}
+
+	getDefaultValue(): any | undefined {
+		return this._defaultValue;
+	}
+
+	getAutoIncrement(): boolean | undefined {
+		return this._autoIncrement;
+	}
+
 	name (name: string): Column
 	name (name?: any): any {
 		if (typeof name === 'string') {
@@ -1630,7 +1645,6 @@ export class Column {
 		return this._name;
 	}
 
-	type (): ColumnType
 	type (type: ColumnType): Column
 	type (type?: any): any {
 		if (type) {
@@ -1639,7 +1653,6 @@ export class Column {
 		return this._type;
 	}
 
-	defaultValue (): any
 	defaultValue (defaultValue: any): Column
 	defaultValue (defaultValue?: any): any {
 		if (defaultValue) {
@@ -1648,7 +1661,6 @@ export class Column {
 		return this._defaultValue;
 	}
 
-	autoIncrement (): boolean
 	autoIncrement (autoIncrement: boolean): Column
 	autoIncrement (autoIncrement?: any): any {
 		if (typeof autoIncrement === 'boolean') {
@@ -1678,7 +1690,18 @@ export class Index {
 		this._columns = columns;
 	}
 
-	name (): string
+	getName(): string | undefined {
+		return this._name;
+	}
+
+	getType(): IndexType | undefined {
+		return this._type;
+	}
+
+	getColumns(): List<SortableField> | undefined {
+		return this._columns;
+	}
+
 	name (name: string): Index
 	name (name?: any): any {
 		if (typeof name === 'string') {
@@ -1687,7 +1710,6 @@ export class Index {
 		return this._name;
 	}
 
-	type (): IndexType
 	type (type: IndexType): Index
 	type (type?: any): any {
 		if (type) {
@@ -1696,7 +1718,6 @@ export class Index {
 		return this._type;
 	}
 
-	columns (): List<SortableField> | undefined
 	columns (column: string, direction?: DirectionExpression): Index
 	columns (...columns: SortableField[]): Index
 	columns (): any {
