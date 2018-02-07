@@ -46,7 +46,7 @@ describe('SQLite', () => {
 
 	it('update', async () => {
 
-		const update = q.update('Foo', 'Bar').fields({ likes: 11 }).eq('title', 'Hello world').limit(1);
+		const update = q.update('Foo', 'Bar').fields({ likes: 11 }).eq('title', 'Hello world');//.limit(1);
 
 		const result: QueryResult.UpdateQueryResult<any> = await driver.execute<Foo>(update).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.UpdateQueryResult);
@@ -69,7 +69,7 @@ describe('SQLite', () => {
 
 	it('delete', async () => {
 
-		const remove = q.delete('Foo', 'Bar').eq('title', 'Hello world').limit(1);
+		const remove = q.delete('Foo', 'Bar').eq('title', 'Hello world');//.limit(1);
 
 		const result: QueryResult.DeleteQueryResult = await driver.execute(remove).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.DeleteQueryResult);
@@ -77,43 +77,43 @@ describe('SQLite', () => {
 
 	it('describe collection', async () => {
 
-		const result: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Foo', 'Bar')).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.DescribeCollectionQueryResult);
-		expect(result.columns.length).to.be.equal(4);
-		expect(result.columns[0].getName()).to.be.equal('id');
-		expect(result.columns[0].getType()).to.be.equal(ColumnType.Int64);
-		expect(result.columns[0].getDefaultValue()).to.be.equal(null);
-		expect(result.columns[0].getAutoIncrement()).to.be.equal(true);
-		expect(result.columns[1].getName()).to.be.equal('title');
-		expect(result.columns[1].getType()).to.be.equal(ColumnType.Text);
-		expect(result.columns[1].getDefaultValue()).to.be.equal(null);
-		expect(result.columns[1].getAutoIncrement()).to.be.equal(false);
-		expect(result.columns[2].getName()).to.be.equal('postDate');
-		expect(result.columns[2].getType()).to.be.equal(ColumnType.Text);
-		expect(result.columns[2].getDefaultValue()).to.be.equal(null);
-		expect(result.columns[2].getAutoIncrement()).to.be.equal(false);
-		expect(result.columns[3].getName()).to.be.equal('likes');
-		expect(result.columns[3].getType()).to.be.equal(ColumnType.Int64);
-		expect(result.columns[3].getDefaultValue()).to.be.equal(null);
-		expect(result.columns[3].getAutoIncrement()).to.be.equal(false);
-		expect(result.indexes.length).to.be.equal(3);
-		expect(result.indexes[0].getName()).to.be.equal('Bar_Foo_id');
-		expect(result.indexes[0].getType()).to.be.equal(IndexType.Primary);
-		expect(result.indexes[0].getColumns()!.count()).to.be.equal(1);
-		expect(result.indexes[0].getColumns()!.get(0).name).to.be.equal('id');
-		expect(result.indexes[0].getColumns()!.get(0).direction).to.be.equal('asc');
-		expect(result.indexes[1].getName()).to.be.equal('Bar_Foo_title');
-		expect(result.indexes[1].getType()).to.be.equal(IndexType.Index);
-		expect(result.indexes[1].getColumns()!.count()).to.be.equal(1);
-		expect(result.indexes[1].getColumns()!.get(0).name).to.be.equal('title');
-		expect(result.indexes[1].getColumns()!.get(0).direction).to.be.equal('asc');
-		expect(result.indexes[2].getName()).to.be.equal('Bar_Foo_postDate');
-		expect(result.indexes[2].getType()).to.be.equal(IndexType.Index);
-		expect(result.indexes[2].getColumns()!.count()).to.be.equal(2);
-		expect(result.indexes[2].getColumns()!.get(0).name).to.be.equal('postDate');
-		expect(result.indexes[2].getColumns()!.get(0).direction).to.be.equal('asc');
-		expect(result.indexes[2].getColumns()!.get(1).name).to.be.equal('likes');
-		expect(result.indexes[2].getColumns()!.get(1).direction).to.be.equal('asc');
+		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Foo', 'Bar')).should.be.fulfilled;
+		expect(desc).to.be.an.instanceOf(QueryResult.DescribeCollectionQueryResult);
+		expect(desc.columns.length).to.be.equal(4);
+		expect(desc.columns[0].getName()).to.be.equal('id');
+		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
+		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
+		expect(desc.columns[1].getName()).to.be.equal('title');
+		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[2].getName()).to.be.equal('postDate');
+		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[3].getName()).to.be.equal('likes');
+		expect(desc.columns[3].getType()).to.be.equal(ColumnType.Int64);
+		expect(desc.columns[3].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[3].getAutoIncrement()).to.be.equal(false);
+		expect(desc.indexes.length).to.be.equal(3);
+		expect(desc.indexes[0].getName()).to.be.equal('Bar_Foo_id');
+		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
+		expect(desc.indexes[0].getColumns()!.get(0).name).to.be.equal('id');
+		expect(desc.indexes[0].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[1].getName()).to.be.equal('Bar_Foo_title');
+		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Index);
+		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(1);
+		expect(desc.indexes[1].getColumns()!.get(0).name).to.be.equal('title');
+		expect(desc.indexes[1].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[2].getName()).to.be.equal('Bar_Foo_postDate');
+		expect(desc.indexes[2].getType()).to.be.equal(IndexType.Index);
+		expect(desc.indexes[2].getColumns()!.count()).to.be.equal(2);
+		expect(desc.indexes[2].getColumns()!.get(0).name).to.be.equal('postDate');
+		expect(desc.indexes[2].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[2].getColumns()!.get(1).name).to.be.equal('likes');
+		expect(desc.indexes[2].getColumns()!.get(1).direction).to.be.equal('asc');
 	});
 
 	it('create collection', async () => {
@@ -132,9 +132,33 @@ describe('SQLite', () => {
 		const result: QueryResult.CreateCollectionQueryResult = await driver.execute(create).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.CreateCollectionQueryResult);
 
-		// TODO Index Joo_Moo_date seems to be ignored. Might be related to multiple queries in single SQL.
-		const info: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Joo')).should.be.fulfilled;
-		console.log(info);
+		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Joo')).should.be.fulfilled;
+		expect(desc.columns.length).to.be.equal(3);
+		expect(desc.columns[0].getName()).to.be.equal('id');
+		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
+		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
+		expect(desc.columns[1].getName()).to.be.equal('title');
+		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[2].getName()).to.be.equal('date');
+		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
+		expect(desc.indexes.length).to.be.equal(2);
+		expect(desc.indexes[0].getName()).to.be.equal('Joo_Moo_id');
+		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
+		expect(desc.indexes[0].getColumns()!.get(0).name).to.be.equal('id');
+		expect(desc.indexes[0].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[1].getName()).to.be.equal('Joo_Moo_date');
+		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Unique);
+		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(2);
+		expect(desc.indexes[1].getColumns()!.get(0).name).to.be.equal('id');
+		expect(desc.indexes[1].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[1].getColumns()!.get(1).name).to.be.equal('date');
+		expect(desc.indexes[1].getColumns()!.get(1).direction).to.be.equal('desc');
 	});
 
 	it('alter collection', async () => {

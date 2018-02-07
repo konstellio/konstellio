@@ -2,7 +2,7 @@ import { Driver } from '../Driver';
 import * as QueryResult from '../QueryResult';
 import * as Query from '../Query';
 import { List } from 'immutable';
-import { ColumnType, IndexType } from '../index';
+import { join } from 'path';
 let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
 
 export type SQLiteDriverConstructor = {
@@ -125,10 +125,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html
 
-			// let command: QueryAccumulator = Query.reduceQuery<QueryAccumulator>(queryToStringReducers, { sql: '', params: [] }, query);
-			let [sql, params] = convertQueryToSQL(query);
-			
-			this.driver.all(sql, params, (err, rows) => {
+			const stmts = convertQueryToSQL(query);
+
+			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -144,9 +143,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_aggfunc.html
 			
-			let [sql, params] = convertQueryToSQL(query);
-			
-			this.driver.all(sql, params, (err, rows) => {
+			const stmts = convertQueryToSQL(query);
+
+			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -162,9 +161,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html#x1326
 			
-			let [sql, params] = convertQueryToSQL(query);
-			
-			this.driver.all(sql, params, (err, rows) => {
+			const stmts = convertQueryToSQL(query);
+
+			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
 				if (err) {
 					return reject(err);
 				}
@@ -180,9 +179,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_insert.html
 
-			let [sql, params] = convertQueryToSQL(query);
+			const stmts = convertQueryToSQL(query);
 
-			this.driver.run(sql, params, function (err) {
+			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -200,9 +199,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_update.html
 
-			let [sql, params] = convertQueryToSQL(query);
-			
-			this.driver.run(sql, params, function (err) {
+			const stmts = convertQueryToSQL(query);
+
+			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -220,9 +219,9 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_delete.html
 
-			let [sql, params] = convertQueryToSQL(query);
+			const stmts = convertQueryToSQL(query);
 
-			this.driver.run(sql, params, function (err) {
+			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
 				if (err) {
 					return reject(err);
 				}
@@ -238,7 +237,7 @@ export class SQLiteDriver extends Driver {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/pragma.html
 
-			const table_name = collectionName(query.getCollection()!);
+			const table_name = collectionToSQL(query.getCollection()!, []);
 
 			Promise.all<any[], any[], boolean>([
 				new Promise(resolve => {
@@ -314,282 +313,375 @@ export class SQLiteDriver extends Driver {
 		return new Promise<QueryResult.CreateCollectionQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 
-			let [sql, params] = convertQueryToSQL(query);
+			// Return a list of lambda that return a promise
+			const stmts = convertQueryToSQL(query).map<() => Promise<void>>(stmt => () => new Promise((resolve, reject) => {
+				this.driver.run(stmt.sql, stmt.params, function (err) {
+					if (err) return reject(err);
+					if (this.changes === 0) return reject(new Error(`No changes were made.`));
+					resolve();
+				});
+			}));
 
-			this.driver.run(sql, params, function (err) {
-				if (err) {
-					return reject(err);
-				}
-
-				const result = new QueryResult.CreateCollectionQueryResult(this.changes > 0);
+			// Run promise one after the other
+			stmts.reduce<Promise<void>>((last, stmt) => last.then(stmt), Promise.resolve())
+			.then(() => {
+				const result = new QueryResult.CreateCollectionQueryResult(true);
 				resolve(result);
-			});
+			})
+			.catch(reject);
 		});
 	}
 }
 
-function collectionName(collection: Query.Collection) {
+function collectionToSQL(collection: Query.Collection, params: any[]): string {
 	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
 }
 
-function columnType(type?: ColumnType) {
+function fieldToSQL(field: Query.Field, params: any[]): string {
+	return `${field.table ? `${field.table}_` : ''}${field.name}`;
+}
+
+function sortableFieldToSQL(field: Query.SortableField, params: any[]): string {
+	return `${field.name} ${field.direction || 'ASC'}`;
+}
+
+function calcFieldToSQL(field: Query.CalcField, params: any[]): string {
+	if (field instanceof Query.CountCalcField || field instanceof Query.AverageCalcField || field instanceof Query.SumCalcField || field instanceof Query.SubCalcField) {
+		return `${field.function.toUpperCase()}(${field.field instanceof Query.Field ? fieldToSQL(field.field, params) : calcFieldToSQL(field.field, params)})`;
+	}
+	else if (field instanceof Query.MaxCalcField || field instanceof Query.MinCalcField || field instanceof Query.ConcatCalcField) {
+		return `${field.function.toUpperCase()}(${field.fields.map<string>(field => {
+			return field ? (field instanceof Query.Field ? fieldToSQL(field, params) : calcFieldToSQL(field, params)) : '';
+		}).join(', ')})`;
+	}
+	else {
+		return '';
+	}
+}
+
+function comparisonToSQL(comparison: Query.Comparison, params: any[]): string {
+	if (comparison instanceof Query.ComparisonSimple) {
+		if (comparison.value instanceof Query.Field) {
+			return `${comparison.field} ${comparison.operator} ${fieldToSQL(comparison.value, params)}`;
+		} else {
+			params.push(comparison.value);
+			return `${comparison.field} ${comparison.operator} ?`;
+		}
+	}
+	else if (comparison instanceof Query.ComparisonIn && comparison.values) {
+		return `${comparison.field} IN (${comparison.values.map<string>(value => {
+			if (value) {
+				if (value instanceof Query.Field) {
+					return fieldToSQL(value, params);
+				} else {
+					params.push(value);
+					return '?';
+				}
+			}
+			return '';
+		}).join(', ')})`;
+	}
+	else {
+		return '';
+	}
+}
+
+function bitwiseToSQL(bitwise: Query.Bitwise, params: any[]): string {
+	if (bitwise.operands) {
+		return `(${bitwise.operands.map<string>(op => {
+			if (op instanceof Query.Comparison) {
+				return comparisonToSQL(op, params);
+			}
+			else if (op instanceof Query.Bitwise) {
+				return bitwiseToSQL(op, params);
+			}
+			return '';
+		}).join(` ${bitwise.operator.toUpperCase()} `)})`;
+	}
+	else {
+		return '';
+	}
+}
+
+function selectQueryToSQL(query: Query.SelectQuery): Statement {
+	const params: any[] = [];
+	let sql = ``;
+	sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? fieldToSQL(f, params) : '') : '*'}`;
+
+	if (query.getFrom()) {
+		sql += ` FROM ${collectionToSQL(query.getFrom()!, params)}`;
+	} else {
+		throw new Error(`Expected SelectQuery to be from a collection.`);
+	}
+	if (query.getJoin()) {
+		query.getJoin()!.forEach((join, alias) => {
+			const joinStm = convertQueryToSQL(join!.query);
+			params.push(...joinStm[0].params);
+			sql += ` JOIN (${joinStm[0].sql}) AS ${alias} ON ${join!.on}`;
+		});
+	}
+	if (query.getWhere()) {
+		sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)}`;
+	}
+	if (query.getLimit()) {
+		sql += ` LIMIT ${query.getLimit()!}`;
+	}
+	if (query.getOffset()) {
+		sql += ` OFFSET ${query.getOffset()!}`;
+	}
+
+	return {
+		sql,
+		params
+	}
+}
+
+function columnType(type?: Query.ColumnType) {
 	switch (type) {
-		case ColumnType.Bit:
-		case ColumnType.Boolean:
-		case ColumnType.Int8:
-		case ColumnType.Int16:
-		case ColumnType.Int32:
-		case ColumnType.Int64:
-		case ColumnType.UInt8:
-		case ColumnType.UInt16:
-		case ColumnType.UInt32:
-		case ColumnType.UInt64:
+		case Query.ColumnType.Bit:
+		case Query.ColumnType.Boolean:
+		case Query.ColumnType.Int8:
+		case Query.ColumnType.Int16:
+		case Query.ColumnType.Int32:
+		case Query.ColumnType.Int64:
+		case Query.ColumnType.UInt8:
+		case Query.ColumnType.UInt16:
+		case Query.ColumnType.UInt32:
+		case Query.ColumnType.UInt64:
 			return 'INTEGER';
-		case ColumnType.Float32:
-		case ColumnType.Float64:
+		case Query.ColumnType.Float32:
+		case Query.ColumnType.Float64:
 			return 'REAL';
-		case ColumnType.Blob:
+		case Query.ColumnType.Blob:
 			return 'BLOB';
 		default:
 			return 'TEXT';
 	}
 }
 
-export function convertQueryToSQL(query: Query.Query): [string, any[]] {
-	const params: any[] = [];
-	const sql = Query.visit<string>(query, {
-		Collection: (node) => {
-			return collectionName(node);
-		},
-		Field: (node) => {
-			return `${node.table ? `${node.table}_` : ''}${node.name}`;
-		},
-		SortableField: (node) => {
-			return `${node.name} ${node.direction || 'ASC'}`;
-		},
-		CalcField: (node, members) => {
-			return `${members.function.toUpperCase()}(${members.field})`;
-		},
-		CalcFields: (node, members) => {
-			return `${members.function.toUpperCase()}(${members.fields.join(', ')})`;
-		},
-		Comparison: (node, members) => {
-			params.push(members.value);
-			return `${members.field} ${members.operator} ?`;
-			
-		},
-		Comparisons: (node, members) => {
-			params.push(...members.values.toArray());
-			return `${members.field} ${members.operator.toUpperCase()} (${members.values.map(v => '?').join(', ')})`;
-		},
-		Bitwise: (node, members) => {
-			return `${members.operands.join(` ${members.operator.toUpperCase()} `)}`;
-		},
-		SelectQuery: {
-			leave(node, members) {
-				let sql = '';
-				sql += `SELECT ${members.select ? members.select.join(', ') : '*'} `;
-				sql += `FROM ${members.from} `;
-				if (members.join) {
-					members.join.forEach(join => {
-						sql += `JOIN (${join!.query}) AS ${join!.alias} ON ${join!.on} `
-					});
-				}
-				if (members.where) {
-					sql += `WHERE ${members.where} `;
-				}
-				if (members.limit) {
-					sql += `LIMIT ${members.limit} `;
-				}
-				if (members.offset) {
-					sql += `OFFSET ${members.offset} `;
-				}
-				return sql;
-			}
-		},
-		UnionQuery: {
-			leave(node, members) {
-				if (members.selects) {
-					let sql = `(${members.selects.join(') UNION (')}) `;
-					if (members.sort) {
-						sql += `SORT BY ${members.sort.join(', ')} `;
-					}
-					if (members.limit) {
-						sql += `LIMIT ${members.limit} `;
-					}
-					if (members.offset) {
-						sql += `OFFSET ${members.offset} `;
-					}
-					return sql;
-				}
-				return '';
-			}
-		},
-		AggregateQuery: {
-			leave(node, members) {
-				let sql = `SELECT `;
-				sql += `${members.select ? members.select.join(', ') : '*'} `;
-				sql += `FROM ${members.from} `;
-				if (members.join) {
-					members.join.forEach(join => {
-						sql += `JOIN (${join!.query}) AS ${join!.alias} ON ${join!.on} `
-					});
-				}
-				if (members.where) {
-					sql += `WHERE ${members.where} `;
-				}
-				if (members.group) {
-					sql += `GROUP BY ${members.group.join(', ')} `;
-				}
-				if (members.sort) {
-					sql += `SORT BY ${members.sort.join(', ')} `;
-				}
-				if (members.limit) {
-					sql += `LIMIT ${members.limit} `;
-				}
-				if (members.offset) {
-					sql += `OFFSET ${members.offset} `;
-				}
-				return sql;
-			}
-		},
-		InsertQuery: {
-			leave(node, members) {
-				if (members.fields) {
-					let sql = `INSERT INTO ${members.collection}`;
-					sql += `(${members.fields.map((value, key) => key).join(', ')}) VALUES `;
-					sql += `(${members.fields.map((value) => {
-						params.push(value);
-						return '?';
-					}).join(', ')})`;
-					return sql;
-				}
-				return '';
-			}
-		},
-		UpdateQuery: {
-			leave(node, members) {
-				if (members.fields) {
-					let sql = `UPDATE ${members.collection} SET `;
-					sql += `${members.fields.map((value, key) => {
-						params.push(value);
-						return `${key} = ?`;
-					}).join(', ')} `;
-					if (members.where) {
-						sql += `WHERE ${members.where} `;
-					}
-					// if (members.limit) {
-					// 	sql += `LIMIT ${members.limit} `;
-					// }
-					return sql;
-				}
-				return '';
-			}
-		},
-		DeleteQuery: {
-			leave(node, members) {
-				let sql = `DELETE FROM ${members.collection} `;
-				if (members.where) {
-					sql += `WHERE ${members.where} `;
-				}
-				// if (members.limit) {
-				// 	sql += `LIMIT ${members.limit} `;
-				// }
-				return sql;
-			}
-		},
-		CreateCollectionQuery: {
-			leave(node, { collection }) {
-				const columns = node.getColumns();
-				const indexes = node.getIndexes();
-
-				if (!columns || columns.count() === 0) {
-					throw new Error(`Expected query to have at least one column, got none.`);
-				}
-
-				const autoCol = columns.filter(col => col !== undefined && col.getAutoIncrement() === true);
-				const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === IndexType.Primary) : List<any>();
-				const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== IndexType.Primary) : List<any>();
-
-				let sql = `CREATE TABLE ${collection} (`;
-
-				if (
-					autoCol.count() > 0 &&
-					(
-						autoCol.count() != 1 ||
-						primaryKeys.count() != 1 ||
-						primaryKeys.get(0).getColumns() === undefined ||
-						primaryKeys.get(0).getColumns()!.filter(col => col!.name === autoCol.get(0).getName()).count() === 0
-					)
-				) {
-					throw new Error(`Expected a single autoincrement column with a corresponding primary index.`);
-				}
-				if (primaryKeys.count() > 1) {
-					throw new Error(`Expected a single primary key index. This index can be on multiple columns.`);
-				}
-
-				const autoColName = autoCol && autoCol.count() > 0 && autoCol.get(0).getName();
-
-				sql += `${columns.map<string>(col => {
-					if (col !== undefined) {
-						const defaultValue = col.getDefaultValue();
-
-						let def = `${col.getName()} ${columnType(col.getType())}`;
-						if (col.getName() === autoColName) {
-							def += ` PRIMARY KEY AUTOINCREMENT`;
-						}
-						if (defaultValue !== undefined && defaultValue !== null) {
-							def += ` DEFAULT ${typeof defaultValue === 'number' ? defaultValue : `'${defaultValue}'`}`;
-						}
-						return def;
-					}
-					return '';
-				}).join(', ')}`;
-
-				if (!autoColName && primaryKeys) {
-					const cols = primaryKeys.get(0).getColumns();
-					if (cols) {
-						sql += `, PRIMARY KEY (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
-					}
-				}
-
-				sql += `)`;
-
-				if (otherIndexes && otherIndexes.count() > 0) {
-					sql += `; ${otherIndexes.map<string>(idx => {
-						if (idx !== undefined) {
-							const cols = idx.getColumns();
-							if (!cols || cols.count() === 0) {
-								throw new Error(`Expected index ${idx.getName()} to contain at least 1 column.`);
-							}
-							let def = `CREATE `;
-							if (idx.getType() === IndexType.Unique) {
-								def += `UNIQUE `;
-							}
-							def += `INDEX ${idx.getName()} ON ${collection} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
-							return def;
-						}
-						return '';
-					}).join(`;`)}`;
-				}
-
-				return sql;
-			}
-		}
-	})!;
-
-	return [sql, params];
+export type Statement = {
+	sql: string
+	params: any[]
 }
 
-/*
+export function convertQueryToSQL(query: Query.Query): Statement[] {
+	return Query.traverseQuery<Statement[]>(query, {
+		SelectQuery(query) {
+			return [selectQueryToSQL(query)];
+		},
+		UnionQuery(query) {
+			const params: any[] = [];
+			let sql = ``;
 
-CREATE INDEX `foo_id` ON `foo` (
-	`id` ASC
-);
+			if (query.getSelects()) {
+				sql += `(${query.getSelects()!.map<string>(subquery => {
+					if (subquery) {
+						const stmt = convertQueryToSQL(subquery);
+						params.push(...stmt[0].params);
+						return stmt[0].sql;
+					}
+					throw new Error(`Expected a SelectQuery, got ${typeof subquery}.`);
+				}).join(') UNION (')})`;
+			} else {
+				throw new Error(`Expected UnionQuery have at least 1 SelectQuery.`);
+			}
+			if (query.getSort()) {
+				sql += ` SORT BY ${query.getSort()!.map<string>(sort => sort ? sortableFieldToSQL(sort, params) : '').join(', ')}`;
+			}
+			if (query.getLimit()) {
+				sql += ` LIMIT ${query.getLimit()!}`;
+			}
+			if (query.getOffset()) {
+				sql += ` OFFSET ${query.getOffset()!}`;
+			}
 
-CREATE UNIQUE INDEX `foo_id` ON `foo` (
-	`id` ASC,
-	`date` ASC
-);
+			return [{ sql, params }];
+		},
+		AggregateQuery(query) {
+			const params: any[] = [];
+			let sql = ``;
+			sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? calcFieldToSQL(f, params) : '') : '*'}`;
 
-*/
+			if (query.getFrom()) {
+				sql += ` FROM ${collectionToSQL(query.getFrom()!, params)}`;
+			} else {
+				throw new Error(`Expected SelectQuery to be from a collection.`);
+			}
+			if (query.getJoin()) {
+				query.getJoin()!.forEach((join, alias) => {
+					const joinStm = convertQueryToSQL(join!.query);
+					params.push(...joinStm[0].params);
+					sql += ` JOIN (${joinStm[0].sql}) AS ${alias} ON ${join!.on}`;
+				});
+			}
+			if (query.getWhere()) {
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)}`;
+			}
+			if (query.getGroup()) {
+				sql += ` GROUP BY ${query.getGroup()!.map<string>(field => field ? fieldToSQL(field, params) : '').join(', ')}`;
+			}
+			if (query.getSort()) {
+				sql += ` SORT BY ${query.getSort()!.map<string>(sort => sort ? sortableFieldToSQL(sort, params) : '').join(', ')}`;
+			}
+			if (query.getLimit()) {
+				sql += ` LIMIT ${query.getLimit()!}`;
+			}
+			if (query.getOffset()) {
+				sql += ` OFFSET ${query.getOffset()!}`;
+			}
+
+			return [{ sql, params }];
+		},
+		InsertQuery(query) {
+			const params: any[] = [];
+			let sql = ``;
+
+			if (query.getCollection()) {
+				sql += `INSERT INTO ${collectionToSQL(query.getCollection()!, params)}`;
+			} else {
+				throw new Error(`Expected InsertQuery to be from a collection.`);
+			}
+			if (query.getFields()) {
+				sql += `(${query.getFields()!.map<string>((value, key) => key!).join(', ')}) VALUES `;
+				sql += `(${query.getFields()!.map<string>((value) => {
+					params.push(value);
+					return '?';
+				}).join(', ')})`;
+			} else {
+				throw new Error(`Expected InsertQuery to have some data.`);
+			}
+
+			return [{ sql, params }];
+		},
+		UpdateQuery(query) {
+			const params: any[] = [];
+			let sql = ``;
+
+			if (query.getCollection()) {
+				sql += `UPDATE  ${collectionToSQL(query.getCollection()!, params)} SET`;
+			} else {
+				throw new Error(`Expected InsertQuery to be from a collection.`);
+			}
+			if (query.getFields()) {
+				sql += ` ${query.getFields()!.map<string>((value, key) => {
+					params.push(value);
+					return `${key} = ?`;
+				}).join(', ')}`;
+			} else {
+				throw new Error(`Expected UpdateQuery to have some data.`);
+			}
+			if (query.getWhere()) {
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)} `;
+			}
+			if (query.getLimit()) {
+				throw new Error(`SQLiteDriver does not support UpdateQuery with a limit.`);
+			}
+
+			return [{ sql, params }];
+		},
+		DeleteQuery(query) {
+			const params: any[] = [];
+			let sql = ``;
+
+			if (query.getCollection()) {
+				sql += `DELETE FROM  ${collectionToSQL(query.getCollection()!, params)}`;
+			} else {
+				throw new Error(`Expected DeleteQuery to be from a collection.`);
+			}
+			if (query.getWhere()) {
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)} `;
+			}
+			if (query.getLimit()) {
+				throw new Error(`SQLiteDriver does not support DeleteQuery with a limit.`);
+			}
+
+			return [{ sql, params }];
+		},
+		CreateCollectionQuery(query) {
+			const collection = query.getCollection();
+			const columns = query.getColumns();
+			const indexes = query.getIndexes();
+
+			let params: any[] = [];
+			let sql = '';
+
+			if (collection) {
+				sql += `CREATE TABLE ${collectionToSQL(query.getCollection()!, params)}`;
+			} else {
+				throw new Error(`Expected CreateCollectionQuery to be from a collection.`);
+			}
+
+			if (columns === undefined || columns!.count() === 0) {
+				throw new Error(`Expected CreateCollectionQuery to have at least one column, got none.`);
+			}
+
+			const autoCol = columns.filter(col => col !== undefined && col.getAutoIncrement() === true);
+			const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === Query.IndexType.Primary) : List<any>();
+			const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== Query.IndexType.Primary) : List<any>();
+
+			if (
+				autoCol.count() > 0 &&
+				(
+					autoCol.count() != 1 ||
+					primaryKeys.count() != 1 ||
+					primaryKeys.get(0).getColumns() === undefined ||
+					primaryKeys.get(0).getColumns()!.filter(col => col!.name === autoCol.get(0).getName()).count() === 0
+				)
+			) {
+				throw new Error(`Expected CreateCollectionQuery to have a single autoincrement column with a corresponding primary index.`);
+			}
+			if (primaryKeys.count() > 1) {
+				throw new Error(`Expected CreateCollectionQuery to have a single primary key index. This index can be on multiple columns.`);
+			}
+
+			const autoColName = autoCol && autoCol.count() > 0 && autoCol.get(0).getName();
+
+			sql += ` (${columns.map<string>(col => {
+				if (col !== undefined) {
+					const defaultValue = col.getDefaultValue();
+					let def = `${col.getName()} ${columnType(col.getType())}`;
+					if (col.getName() === autoColName) {
+						def += ` PRIMARY KEY AUTOINCREMENT`;
+					}
+					if (defaultValue !== undefined && defaultValue !== null) {
+						def += ` DEFAULT ${typeof defaultValue === 'number' ? defaultValue : `'${defaultValue}'`}`;
+					}
+					return def;
+				}
+				return '';
+			}).join(', ')}`;
+
+			if (!autoColName && primaryKeys) {
+				const cols = primaryKeys.get(0).getColumns();
+				if (cols) {
+					sql += `, PRIMARY KEY (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+				}
+			}
+
+			sql += `)`;
+
+			const stmts = [{ sql, params }];
+
+			if (otherIndexes && otherIndexes.count() > 0) {
+				otherIndexes.forEach(idx => {
+					if (idx !== undefined) {
+						const params: any[] = [];
+						const cols = idx.getColumns();
+						if (!cols || cols.count() === 0) {
+							throw new Error(`Expected index ${idx.getName()} to contain at least 1 column.`);
+						}
+						let def = `CREATE `;
+						if (idx.getType() === Query.IndexType.Unique) {
+							def += `UNIQUE `;
+						}
+						def += `INDEX ${idx.getName()} ON ${collectionToSQL(collection, params)} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+						
+						stmts.push({ sql: def, params });
+					}
+				});
+			}
+
+			return stmts;
+		}
+	});
+}
