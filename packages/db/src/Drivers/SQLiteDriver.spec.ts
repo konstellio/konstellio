@@ -163,7 +163,15 @@ describe('SQLite', () => {
 
 	it('alter collection', async () => {
 
+		/*
 		const alter = q.alterCollection('Moo', 'Joo')
+			.addColumn(q.column('content', ColumnType.Text))
+			.renameColumn('date', 'postDate')
+			.removeColumn('title')
+			.addIndex(q.index('Joo_Moo_content', IndexType.Index).columns(q.sort('content', 'asc')))
+			.removeIndex('Joo_Moo_date')
+			...
+		*/
 
 	});
 
