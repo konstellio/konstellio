@@ -7,6 +7,7 @@ import { SQLiteDriver } from './SQLiteDriver';
 import { q, QueryNotSupportedError } from '../Query';
 import * as QueryResult from '../QueryResult';
 import { ColumnType, IndexType } from '../index';
+import { unlinkSync } from 'fs';
 
 describe('SQLite', () => {
 
@@ -21,9 +22,11 @@ describe('SQLite', () => {
 	before(function (done) {
 		this.timeout(10000);
 
+		unlinkSync('./kdb.sqlite');
+
 		driver = new SQLiteDriver({
-			filename: ':memory:'
-			// filename: './kdb.sqlite'
+			// filename: ':memory:'
+			filename: './kdb.sqlite'
 		});
 
 		driver.connect()
@@ -178,6 +181,32 @@ describe('SQLite', () => {
 
 		const result: QueryResult.AlterCollectionQueryResult = await driver.execute(alter).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.AlterCollectionQueryResult);
+
+		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Boo')).should.be.fulfilled;
+		expect(desc.columns.length).to.be.equal(3);
+		expect(desc.columns[0].getName()).to.be.equal('id');
+		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
+		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
+		expect(desc.columns[1].getName()).to.be.equal('postDate');
+		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[2].getName()).to.be.equal('content');
+		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
+		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
+		expect(desc.indexes.length).to.be.equal(2);
+		expect(desc.indexes[0].getName()).to.be.equal('Boo_Moo_id');
+		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
+		expect(desc.indexes[0].getColumns()!.get(0).name).to.be.equal('id');
+		expect(desc.indexes[0].getColumns()!.get(0).direction).to.be.equal('asc');
+		expect(desc.indexes[1].getName()).to.be.equal('Joo_Moo_content');
+		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Index);
+		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(1);
+		expect(desc.indexes[1].getColumns()!.get(0).name).to.be.equal('content');
+		expect(desc.indexes[1].getColumns()!.get(0).direction).to.be.equal('asc');
 	});
 
 });

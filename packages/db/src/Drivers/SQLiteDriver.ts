@@ -1,6 +1,59 @@
 import { Driver } from '../Driver';
-import * as QueryResult from '../QueryResult';
-import * as Query from '../Query';
+import {
+	SelectQueryResult,
+	AggregateQueryResult,
+	DeleteQueryResult,
+	InsertQueryResult,
+	ReplaceQueryResult,
+	UpdateQueryResult,
+	DescribeCollectionQueryResult,
+	CreateCollectionQueryResult,
+	AlterCollectionQueryResult,
+	CollectionExistsQueryResult,
+	DropCollectionQueryResult
+} from '../QueryResult';
+import {
+	q,
+	Query,
+	SelectQuery,
+	UnionQuery,
+	AggregateQuery,
+	InsertQuery,
+	UpdateQuery,
+	ReplaceQuery,
+	DeleteQuery,
+	DescribeCollectionQuery,
+	CreateCollectionQuery,
+	AlterCollectionQuery,
+	CollectionExistsQuery,
+	DropCollectionQuery,
+	Collection,
+	Field,
+	SortableField,
+	CalcField,
+	CountCalcField,
+	AverageCalcField,
+	SubCalcField,
+	SumCalcField,
+	MaxCalcField,
+	MinCalcField,
+	ConcatCalcField,
+	Column,
+	ColumnType,
+	Index,
+	IndexType,
+	Comparison,
+	ComparisonSimple,
+	ComparisonIn,
+	Bitwise,
+	ChangeAddColumn,
+	ChangeAlterColumn,
+	ChangeDropColumn,
+	ChangeAddIndex,
+	ChangeDropIndex,
+	QueryNotSupportedError,
+	traverseQuery
+} from '../Query';
 import { List } from 'immutable';
 import { join } from 'path';
 let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
@@ -14,6 +67,15 @@ export type SQLiteDriverConstructor = {
 export type SQLiteQueryResult = {
 	lastId: string,
 	changes: any[]
+}
+
+function runQuery (driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<number> {
+	return new Promise((resolve, reject) => {
+		driver.driver.run(sql, params, function (err) {
+			if (err) return reject(err);
+			resolve(this.changes);
+		});
+	});
 }
 
 export class SQLiteDriver extends Driver {
@@ -42,58 +104,58 @@ export class SQLiteDriver extends Driver {
 	}
 
 	execute(query: string): Promise<SQLiteQueryResult>
-	execute<T>(query: Query.SelectQuery): Promise<QueryResult.SelectQueryResult<T>>
-	execute<T>(query: Query.AggregateQuery): Promise<QueryResult.AggregateQueryResult<T>>
-	execute<T>(query: Query.UnionQuery): Promise<QueryResult.SelectQueryResult<T>>
-	execute<T>(query: Query.InsertQuery): Promise<QueryResult.InsertQueryResult<T>>
-	execute<T>(query: Query.UpdateQuery): Promise<QueryResult.UpdateQueryResult<T>>
-	execute<T>(query: Query.ReplaceQuery): Promise<QueryResult.ReplaceQueryResult<T>>
-	execute(query: Query.DeleteQuery): Promise<QueryResult.DeleteQueryResult>
-	execute(query: Query.CreateCollectionQuery): Promise<QueryResult.CreateCollectionQueryResult>;
-	execute(query: Query.DescribeCollectionQuery): Promise<QueryResult.DescribeCollectionQueryResult>;
-	execute(query: Query.AlterCollectionQuery): Promise<QueryResult.AlterCollectionQueryResult>;
-	execute(query: Query.CollectionExistsQuery): Promise<QueryResult.CollectionExistsQueryResult>;
-	execute(query: Query.DropCollectionQuery): Promise<QueryResult.DropCollectionQueryResult>;
+	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>
+	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>
+	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>
+	execute<T>(query: InsertQuery): Promise<InsertQueryResult<T>>
+	execute<T>(query: UpdateQuery): Promise<UpdateQueryResult<T>>
+	execute<T>(query: ReplaceQuery): Promise<ReplaceQueryResult<T>>
+	execute(query: DeleteQuery): Promise<DeleteQueryResult>
+	execute(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult>;
+	execute(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult>;
+	execute(query: AlterCollectionQuery): Promise<AlterCollectionQueryResult>;
+	execute(query: CollectionExistsQuery): Promise<CollectionExistsQueryResult>;
+	execute(query: DropCollectionQuery): Promise<DropCollectionQueryResult>;
 	execute<T>(query: any): Promise<any> {
 		if (typeof query === 'string') {
 			return this.executeSQL(query);
 		}
-		else if (query instanceof Query.SelectQuery) {
+		else if (query instanceof SelectQuery) {
 			return this.executeSelect<T>(query);
 		}
-		else if (query instanceof Query.AggregateQuery) {
+		else if (query instanceof AggregateQuery) {
 			return this.executeAggregate<T>(query);
 		}
-		else if (query instanceof Query.UnionQuery) {
+		else if (query instanceof UnionQuery) {
 			return this.executeUnion<T>(query);
 		}
-		else if (query instanceof Query.InsertQuery) {
+		else if (query instanceof InsertQuery) {
 			return this.executeInsert<T>(query);
 		}
-		else if (query instanceof Query.ReplaceQuery) {
-			return Promise.reject(new Query.QueryNotSupportedError(`SQLite does not support ReplaceQuery.`));
+		else if (query instanceof ReplaceQuery) {
+			return Promise.reject(new QueryNotSupportedError(`SQLite does not support Replace`));
 		}
-		else if (query instanceof Query.UpdateQuery) {
+		else if (query instanceof UpdateQuery) {
 			return this.executeUpdate<T>(query);
 		}
-		else if (query instanceof Query.DeleteQuery) {
+		else if (query instanceof DeleteQuery) {
 			return this.executeDelete(query);
 		}
-		else if (query instanceof Query.DescribeCollectionQuery) {
+		else if (query instanceof DescribeCollectionQuery) {
 			return this.executeDescribeCollection(query);
 		}
-		else if (query instanceof Query.CreateCollectionQuery) {
+		else if (query instanceof CreateCollectionQuery) {
 			return this.executeCreateCollection(query);
 		}
-		else if (query instanceof Query.AlterCollectionQuery) {
+		else if (query instanceof AlterCollectionQuery) {
 			return this.executeAlterCollection(query);
 		}
 
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
-	private executeSQL (query: string): Promise<SQLiteQueryResult | QueryResult.SelectQueryResult<any>> {
-		return new Promise<SQLiteQueryResult | QueryResult.SelectQueryResult<any>>((resolve, reject) => {
+	private executeSQL (query: string): Promise<SQLiteQueryResult | SelectQueryResult<any>> {
+		return new Promise<SQLiteQueryResult | SelectQueryResult<any>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://github.com/mapbox/node-sqlite3/wiki/API#databaserunsql-param--callback
 			if (query.replace(/^[\s(]+/, '').substr(0, 5).toUpperCase() === 'SELECT') {
@@ -102,7 +164,7 @@ export class SQLiteDriver extends Driver {
 						return reject(err);
 					}
 
-					const result = new QueryResult.SelectQueryResult<any>(rows as any[]);
+					const result = new SelectQueryResult<any>(rows as any[]);
 
 					return resolve(result);
 				});
@@ -123,8 +185,8 @@ export class SQLiteDriver extends Driver {
 		});
 	}
 
-	private executeSelect<T> (query: Query.SelectQuery): Promise<QueryResult.SelectQueryResult<T>> {
-		return new Promise<QueryResult.SelectQueryResult<T>>((resolve, reject) => {
+	private executeSelect<T> (query: SelectQuery): Promise<SelectQueryResult<T>> {
+		return new Promise<SelectQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html
 
@@ -135,14 +197,14 @@ export class SQLiteDriver extends Driver {
 					return reject(err);
 				}
 
-				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				const results = new SelectQueryResult<T>(rows as T[]);
 				return resolve(results);
 			});
 		});
 	}
 
-	private executeAggregate<T> (query: Query.AggregateQuery): Promise<QueryResult.AggregateQueryResult<T>> {
-		return new Promise<QueryResult.AggregateQueryResult<T>>((resolve, reject) => {
+	private executeAggregate<T> (query: AggregateQuery): Promise<AggregateQueryResult<T>> {
+		return new Promise<AggregateQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_aggfunc.html
 			
@@ -153,14 +215,14 @@ export class SQLiteDriver extends Driver {
 					return reject(err);
 				}
 
-				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				const results = new SelectQueryResult<T>(rows as T[]);
 				return resolve(results);
 			});
 		});
 	}
 
-	private executeUnion<T> (query: Query.UnionQuery): Promise<QueryResult.SelectQueryResult<T>> {
-		return new Promise<QueryResult.SelectQueryResult<T>>((resolve, reject) => {
+	private executeUnion<T> (query: UnionQuery): Promise<SelectQueryResult<T>> {
+		return new Promise<SelectQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_select.html#x1326
 			
@@ -171,14 +233,14 @@ export class SQLiteDriver extends Driver {
 					return reject(err);
 				}
 
-				const results = new QueryResult.SelectQueryResult<T>(rows as T[]);
+				const results = new SelectQueryResult<T>(rows as T[]);
 				return resolve(results);
 			});
 		});
 	}
 
-	private executeInsert<T> (query: Query.InsertQuery): Promise<QueryResult.InsertQueryResult<T>> {
-		return new Promise<QueryResult.InsertQueryResult<T>>((resolve, reject) => {
+	private executeInsert<T> (query: InsertQuery): Promise<InsertQueryResult<T>> {
+		return new Promise<InsertQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_insert.html
 
@@ -190,15 +252,15 @@ export class SQLiteDriver extends Driver {
 				}
 				const fields = query.getFields();
 				const data: T = fields ? fields.toJS() : {}
-				const result = new QueryResult.InsertQueryResult<T>(this.lastId, data);
+				const result = new InsertQueryResult<T>(this.lastId, data);
 
 				return resolve(result);
 			});
 		});
 	}
 
-	private executeUpdate<T> (query: Query.UpdateQuery): Promise<QueryResult.UpdateQueryResult<T>> {
-		return new Promise<QueryResult.UpdateQueryResult<T>>((resolve, reject) => {
+	private executeUpdate<T> (query: UpdateQuery): Promise<UpdateQueryResult<T>> {
+		return new Promise<UpdateQueryResult<T>>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_update.html
 
@@ -210,15 +272,15 @@ export class SQLiteDriver extends Driver {
 				}
 				const fields = query.getFields();
 				const data: T = fields ? fields.toJS() : {}
-				const result = new QueryResult.UpdateQueryResult<T>(data);
+				const result = new UpdateQueryResult<T>(data);
 
 				return resolve(result);
 			});
 		});
 	}
 
-	private executeDelete (query: Query.DeleteQuery): Promise<QueryResult.DeleteQueryResult> {
-		return new Promise<QueryResult.DeleteQueryResult>((resolve, reject) => {
+	private executeDelete (query: DeleteQuery): Promise<DeleteQueryResult> {
+		return new Promise<DeleteQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/lang_delete.html
 
@@ -229,14 +291,14 @@ export class SQLiteDriver extends Driver {
 					return reject(err);
 				}
 
-				const result = new QueryResult.DeleteQueryResult(this.changes > 0);
+				const result = new DeleteQueryResult(this.changes > 0);
 				resolve(result);
 			});
 		});
 	}
 
-	private executeDescribeCollection(query: Query.DescribeCollectionQuery): Promise<QueryResult.DescribeCollectionQueryResult> {
-		return new Promise<QueryResult.DescribeCollectionQueryResult>((resolve, reject) => {
+	private executeDescribeCollection(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult> {
+		return new Promise<DescribeCollectionQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 			// https://sqlite.org/pragma.html
 
@@ -274,35 +336,34 @@ export class SQLiteDriver extends Driver {
 			])
 			.then(([colDefs, idxDefs, auto]) => {
 
-				const columns = colDefs.map<Query.Column>(col => {
-					let type: Query.ColumnType = Query.ColumnType.Text;
+				const columns = colDefs.map<Column>(col => {
+					let type: ColumnType = ColumnType.Text;
 					switch (col.type) {
 						case 'TEXT': break;
-						case 'INTEGER': type = Query.ColumnType.Int64; break;
+						case 'INTEGER': type = ColumnType.Int64; break;
 						case 'REAL':
-						case 'NUMERIC': type = Query.ColumnType.Float64; break;
-						case 'BLOB': type = Query.ColumnType.Blob; break;
+						case 'NUMERIC': type = ColumnType.Float64; break;
+						case 'BLOB': type = ColumnType.Blob; break;
 					}
-					return new Query.Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
+					return new Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
 				});
 
-				const indexes = idxDefs.map<Query.Index>(idx => {
-					let type: Query.IndexType = Query.IndexType.Index;
+				const indexes = idxDefs.map<Index>(idx => {
+					let type: IndexType = IndexType.Index;
 					switch (idx.type) {
-						case 'unique': type = Query.IndexType.Unique; break;
+						case 'unique': type = IndexType.Unique; break;
 					}
 					const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
-					const columns = List<Query.SortableField>(cols.map(col => {
-						return new Query.SortableField(col.name, col.desc!! ? 'desc' : 'asc');
+					const columns = List<SortableField>(cols.map(col => {
+						return new SortableField(col.name, col.desc!! ? 'desc' : 'asc');
 					}));
-					const index = new Query.Index(idx.name, type, columns);
+					const index = new Index(idx.name, type, columns);
 					
 					return index;
 				});
 
-				const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Query.Index(`${table_name}_${col.name}`, Query.IndexType.Primary).columns(col.name, 'asc'))
-
-				const result = new QueryResult.DescribeCollectionQueryResult(
+				const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(col.name, 'asc'))
+				const result = new DescribeCollectionQueryResult(
 					columns,
 					primaryKeys.concat(indexes)
 				);
@@ -312,8 +373,8 @@ export class SQLiteDriver extends Driver {
 		});
 	}
 
-	private executeCreateCollection(query: Query.CreateCollectionQuery): Promise<QueryResult.CreateCollectionQueryResult> {
-		return new Promise<QueryResult.CreateCollectionQueryResult>((resolve, reject) => {
+	private executeCreateCollection(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult> {
+		return new Promise<CreateCollectionQueryResult>((resolve, reject) => {
 			// https://sqlite.org/lang_transaction.html
 
 			// Return a list of lambda that return a promise
@@ -328,7 +389,7 @@ export class SQLiteDriver extends Driver {
 			// Run promise one after the other
 			stmts.reduce<Promise<void>>((last, stmt) => last.then(stmt), Promise.resolve())
 			.then(() => {
-				const result = new QueryResult.CreateCollectionQueryResult(true);
+				const result = new CreateCollectionQueryResult(true);
 				resolve(result);
 			})
 			.catch(reject);
@@ -337,7 +398,7 @@ export class SQLiteDriver extends Driver {
 
 	private static tmpId: number = 0;
 
-	private async executeAlterCollection(query: Query.AlterCollectionQuery): Promise<QueryResult.AlterCollectionQueryResult> {
+	private async executeAlterCollection(query: AlterCollectionQuery): Promise<AlterCollectionQueryResult> {
 		const collection = query.getCollection();
 		if (!collection) {
 			throw new Error(`Expected AlterCollectionQuery to be from a collection.`);
@@ -348,7 +409,7 @@ export class SQLiteDriver extends Driver {
 			throw new Error(`Expected AlterCollectionQuery to contains at least 1 change.`);
 		}
 
-		const description = await this.executeDescribeCollection(Query.q.describeCollection(collection.name, collection.namespace));
+		const description = await this.executeDescribeCollection(q.describeCollection(collection.name, collection.namespace));
 
 		const existingColumns = description.columns.filter(column => {
 			return changes.findIndex(c => c !== undefined && c.type === 'dropColumn' && c.column === column.getName()) === -1;
@@ -356,88 +417,58 @@ export class SQLiteDriver extends Driver {
 
 		const newColumns = changes.filter(change => {
 			return change !== undefined && change.type === 'addColumn';
-		}).map((change: Query.ChangeAddColumn) => change.column).toArray();
+		}).map((change: ChangeAddColumn) => change.column).toArray();
 
-		const renameColumns = changes.reduce<{ [key: string]: Query.Column}>((columns: { [key: string]: Query.Column}, change) => {
+		const renameColumns = changes.reduce<{ [key: string]: Column}>((columns: { [key: string]: Column}, change) => {
 			if (change && change.type === 'alterColumn') {
 				columns[change.oldColumn] = change.newColumn;
 			}
 			return columns;
-		}, {} as { [key: string]: Query.Column});
+		}, {} as { [key: string]: Column});
 
 		const tmpTable = `konstellio_db_rename_${++SQLiteDriver.tmpId}`;
-		const create = Query.q.createCollection(tmpTable).columns(...existingColumns.map(col => renameColumns[col.getName()!] ? renameColumns[col.getName()!] : col).concat(newColumns));
+		const create = q.createCollection(tmpTable).columns(...existingColumns.map(col => renameColumns[col.getName()!] ? renameColumns[col.getName()!] : col).concat(newColumns));
 		
-		await this.executeCreateCollection(create);
-
-		await new Promise((resolve, reject) => {
-			this.driver.run(`INSERT INTO ${tmpTable} (${existingColumns.map(col => renameColumns[col.getName()!] ? renameColumns[col.getName()!] : col).map(col => col.getName()!).join(', ')}) SELECT ${existingColumns.map(col => col.getName()!).join(', ')} FROM ${collectionToSQL(collection)}`, [], function (err) {
-				if (err) return reject(err);
-				resolve();
-			});
-		});
-
-		await new Promise((resolve, reject) => {
-			this.driver.run(`DROP TABLE ${collectionToSQL(collection)}`, [], function (err) {
-				if (err) return reject(err);
-				resolve();
-			});
-		});
-
 		const finalCollection = query.getRename() || collection;
 
-		await new Promise((resolve, reject) => {
-			this.driver.run(`ALTER TABLE ${tmpTable} RENAME TO ${collectionToSQL(finalCollection)}`, [], function (err) {
-				if (err) return reject(err);
-				resolve();
-			});
+		await this.executeCreateCollection(create);
+		await runQuery(this, `INSERT INTO ${tmpTable} (${existingColumns.map(col => renameColumns[col.getName()!] ? renameColumns[col.getName()!] : col).map(col => col.getName()!).join(', ')}) SELECT ${existingColumns.map(col => col.getName()!).join(', ')} FROM ${collectionToSQL(collection)}`, []);
+		await runQuery(this, `DROP TABLE ${collectionToSQL(collection)}`, []);
+		await runQuery(this, `ALTER TABLE ${tmpTable} RENAME TO ${collectionToSQL(finalCollection)}`, []);
+
+		const existingIndexes = description.indexes.filter(index => {
+			return changes.findIndex(c => c !== undefined && (index.getType() === IndexType.Primary || (c.type === 'dropIndex' && c.index === index.getName()))) === -1;
 		});
 
-		throw new Error(`Extract CreateCollectionQuery index creation to its own function so it can be reused here.`);
+		const newIndexes = changes.filter(change => {
+			return change !== undefined && change.type === 'addIndex';
+		}).map((change: ChangeAddIndex) => change.index).toArray();
 
-		// const result = new QueryResult.AlterCollectionQueryResult(true);
-		// return result;
+		await Promise.all(existingIndexes.concat(newIndexes).map<Promise<number>>(index => runQuery(this, indexToSQL(finalCollection, index))));
 
-		// CREATE TABLE`sqlitebrowser_rename_column_new_table`(
-		// 	`id`	INTEGER PRIMARY KEY AUTOINCREMENT,
-		// 	`title3`	TEXT,
-		// 	`date`	TEXT
-		// );
-		// INSERT INTO sqlitebrowser_rename_column_new_table SELECT`id`, `title2`, `date` FROM`foo`;
-		// PRAGMA defer_foreign_keys
-		// PRAGMA defer_foreign_keys = "1";
-		// DROP TABLE`foo`;
-		// ALTER TABLE`sqlitebrowser_rename_column_new_table` RENAME TO`foo`
-		// PRAGMA defer_foreign_keys = "0";
-		// CREATE UNIQUE INDEX`foo_id` ON`foo`(
-		// 	`id`
-		// );
-		// CREATE INDEX`foo_date` ON`foo`(
-		// 	`id`	ASC,
-		// 	`date`	ASC
-		// );
+		return new AlterCollectionQueryResult(true);
 	}
 }
 
-function collectionToSQL(collection: Query.Collection): string {
+function collectionToSQL(collection: Collection): string {
 	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
 }
 
-function fieldToSQL(field: Query.Field): string {
+function fieldToSQL(field: Field): string {
 	return `${field.table ? `${field.table}_` : ''}${field.name}`;
 }
 
-function sortableFieldToSQL(field: Query.SortableField): string {
+function sortableFieldToSQL(field: SortableField): string {
 	return `${field.name} ${field.direction || 'ASC'}`;
 }
 
-function calcFieldToSQL(field: Query.CalcField): string {
-	if (field instanceof Query.CountCalcField || field instanceof Query.AverageCalcField || field instanceof Query.SumCalcField || field instanceof Query.SubCalcField) {
-		return `${field.function.toUpperCase()}(${field.field instanceof Query.Field ? fieldToSQL(field.field) : calcFieldToSQL(field.field)})`;
+function calcFieldToSQL(field: CalcField): string {
+	if (field instanceof CountCalcField || field instanceof AverageCalcField || field instanceof SumCalcField || field instanceof SubCalcField) {
+		return `${field.function.toUpperCase()}(${field.field instanceof Field ? fieldToSQL(field.field) : calcFieldToSQL(field.field)})`;
 	}
-	else if (field instanceof Query.MaxCalcField || field instanceof Query.MinCalcField || field instanceof Query.ConcatCalcField) {
+	else if (field instanceof MaxCalcField || field instanceof MinCalcField || field instanceof ConcatCalcField) {
 		return `${field.function.toUpperCase()}(${field.fields.map<string>(field => {
-			return field ? (field instanceof Query.Field ? fieldToSQL(field) : calcFieldToSQL(field)) : '';
+			return field ? (field instanceof Field ? fieldToSQL(field) : calcFieldToSQL(field)) : '';
 		}).join(', ')})`;
 	}
 	else {
@@ -445,19 +476,19 @@ function calcFieldToSQL(field: Query.CalcField): string {
 	}
 }
 
-function comparisonToSQL(comparison: Query.Comparison, params: any[]): string {
-	if (comparison instanceof Query.ComparisonSimple) {
-		if (comparison.value instanceof Query.Field) {
+function comparisonToSQL(comparison: Comparison, params: any[]): string {
+	if (comparison instanceof ComparisonSimple) {
+		if (comparison.value instanceof Field) {
 			return `${comparison.field} ${comparison.operator} ${fieldToSQL(comparison.value)}`;
 		} else {
 			params.push(comparison.value);
 			return `${comparison.field} ${comparison.operator} ?`;
 		}
 	}
-	else if (comparison instanceof Query.ComparisonIn && comparison.values) {
+	else if (comparison instanceof ComparisonIn && comparison.values) {
 		return `${comparison.field} IN (${comparison.values.map<string>(value => {
 			if (value) {
-				if (value instanceof Query.Field) {
+				if (value instanceof Field) {
 					return fieldToSQL(value);
 				} else {
 					params.push(value);
@@ -472,13 +503,13 @@ function comparisonToSQL(comparison: Query.Comparison, params: any[]): string {
 	}
 }
 
-function bitwiseToSQL(bitwise: Query.Bitwise, params: any[]): string {
+function bitwiseToSQL(bitwise: Bitwise, params: any[]): string {
 	if (bitwise.operands) {
 		return `(${bitwise.operands.map<string>(op => {
-			if (op instanceof Query.Comparison) {
+			if (op instanceof Comparison) {
 				return comparisonToSQL(op, params);
 			}
-			else if (op instanceof Query.Bitwise) {
+			else if (op instanceof Bitwise) {
 				return bitwiseToSQL(op, params);
 			}
 			return '';
@@ -489,7 +520,7 @@ function bitwiseToSQL(bitwise: Query.Bitwise, params: any[]): string {
 	}
 }
 
-function selectQueryToSQL(query: Query.SelectQuery): Statement {
+function selectQueryToSQL(query: SelectQuery): Statement {
 	const params: any[] = [];
 	let sql = ``;
 	sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? fieldToSQL(f) : '') : '*'}`;
@@ -522,23 +553,37 @@ function selectQueryToSQL(query: Query.SelectQuery): Statement {
 	}
 }
 
-function columnType(type?: Query.ColumnType) {
+function indexToSQL(collection: Collection, index: Index): string {
+	const cols = index.getColumns();
+	if (!cols || cols.count() === 0) {
+		throw new Error(`Expected index ${index.getName()} to contain at least 1 column.`);
+	}
+	let def = `CREATE `;
+	if (index.getType() === IndexType.Unique) {
+		def += `UNIQUE `;
+	}
+	def += `INDEX ${index.getName()} ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+
+	return def;
+}
+
+function columnType(type?: ColumnType) {
 	switch (type) {
-		case Query.ColumnType.Bit:
-		case Query.ColumnType.Boolean:
-		case Query.ColumnType.Int8:
-		case Query.ColumnType.Int16:
-		case Query.ColumnType.Int32:
-		case Query.ColumnType.Int64:
-		case Query.ColumnType.UInt8:
-		case Query.ColumnType.UInt16:
-		case Query.ColumnType.UInt32:
-		case Query.ColumnType.UInt64:
+		case ColumnType.Bit:
+		case ColumnType.Boolean:
+		case ColumnType.Int8:
+		case ColumnType.Int16:
+		case ColumnType.Int32:
+		case ColumnType.Int64:
+		case ColumnType.UInt8:
+		case ColumnType.UInt16:
+		case ColumnType.UInt32:
+		case ColumnType.UInt64:
 			return 'INTEGER';
-		case Query.ColumnType.Float32:
-		case Query.ColumnType.Float64:
+		case ColumnType.Float32:
+		case ColumnType.Float64:
 			return 'REAL';
-		case Query.ColumnType.Blob:
+		case ColumnType.Blob:
 			return 'BLOB';
 		default:
 			return 'TEXT';
@@ -550,8 +595,8 @@ export type Statement = {
 	params: any[]
 }
 
-export function convertQueryToSQL(query: Query.Query): Statement[] {
-	return Query.traverseQuery<Statement[]>(query, {
+export function convertQueryToSQL(query: Query): Statement[] {
+	return traverseQuery<Statement[]>(query, {
 		SelectQuery(query) {
 			return [selectQueryToSQL(query)];
 		},
@@ -569,7 +614,7 @@ export function convertQueryToSQL(query: Query.Query): Statement[] {
 					throw new Error(`Expected a SelectQuery, got ${typeof subquery}.`);
 				}).join(') UNION (')})`;
 			} else {
-				throw new Error(`Expected UnionQuery have at least 1 SelectQuery.`);
+				throw new Error(`Expected UnionQuery have at least 1 Select`);
 			}
 			if (query.getSort()) {
 				sql += ` SORT BY ${query.getSort()!.map<string>(sort => sort ? sortableFieldToSQL(sort) : '').join(', ')}`;
@@ -702,8 +747,8 @@ export function convertQueryToSQL(query: Query.Query): Statement[] {
 			}
 
 			const autoCol = columns.filter(col => col !== undefined && col.getAutoIncrement() === true);
-			const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === Query.IndexType.Primary) : List<any>();
-			const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== Query.IndexType.Primary) : List<any>();
+			const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === IndexType.Primary) : List<any>();
+			const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== IndexType.Primary) : List<any>();
 
 			// if (
 			// 	autoCol.count() > 0 && (
@@ -748,18 +793,7 @@ export function convertQueryToSQL(query: Query.Query): Statement[] {
 			if (otherIndexes && otherIndexes.count() > 0) {
 				otherIndexes.forEach(idx => {
 					if (idx !== undefined) {
-						const params: any[] = [];
-						const cols = idx.getColumns();
-						if (!cols || cols.count() === 0) {
-							throw new Error(`Expected index ${idx.getName()} to contain at least 1 column.`);
-						}
-						let def = `CREATE `;
-						if (idx.getType() === Query.IndexType.Unique) {
-							def += `UNIQUE `;
-						}
-						def += `INDEX ${idx.getName()} ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
-						
-						stmts.push({ sql: def, params });
+						stmts.push({ sql: indexToSQL(collection, idx), params: [] });
 					}
 				});
 			}

@@ -18,7 +18,5 @@ export abstract class Driver {
 	abstract execute(query: Query.AlterCollectionQuery): Promise<Result.AlterCollectionQueryResult>;
 	abstract execute(query: Query.CollectionExistsQuery): Promise<Result.CollectionExistsQueryResult>;
 	abstract execute(query: Query.DropCollectionQuery): Promise<Result.DropCollectionQueryResult>;
-	abstract execute(query: Query.CreateIndexQuery): Promise<Result.CreateIndexQueryResult>;
-	abstract execute(query: Query.DropIndexQuery): Promise<Result.DropIndexQueryResult>;
 
 }
