@@ -22,8 +22,8 @@ describe('SQLite', () => {
 		this.timeout(10000);
 
 		driver = new SQLiteDriver({
-			// filename: ':memory:'
-			filename: './kdb.sqlite'
+			filename: ':memory:'
+			// filename: './kdb.sqlite'
 		});
 
 		driver.connect()
