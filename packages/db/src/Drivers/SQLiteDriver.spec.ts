@@ -22,11 +22,11 @@ describe('SQLite', () => {
 	before(function (done) {
 		this.timeout(10000);
 
-		unlinkSync('./kdb.sqlite');
+		// unlinkSync('./kdb.sqlite');
 
 		driver = new SQLiteDriver({
-			// filename: ':memory:'
-			filename: './kdb.sqlite'
+			filename: ':memory:'
+			// filename: './kdb.sqlite'
 		});
 
 		driver.connect()
