@@ -1341,28 +1341,96 @@ export class DescribeCollectionQuery extends Query {
 	}
 }
 
+export type ChangeAddColumn = {
+	type: 'addColumn'
+	column: Column
+}
+export type ChangeAlterColumn = {
+	type: 'alterColumn'
+	oldColumn: string
+	newColumn: Column
+}
+export type ChangeDropColumn = {
+	type: 'dropColumn'
+	column: string
+}
+export type ChangeAddIndex = {
+	type: 'addIndex'
+	index: Index
+}
+export type ChangeDropIndex = {
+	type: 'dropIndex'
+	index: string
+}
+
+export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
+
 export class AlterCollectionQuery extends Query {
 	private _collection?: Collection
-	private _columns?: List<Column>
+	private _rename?: Collection
+	private _changes?: List<Change>
 
-	constructor (collection?: Collection, columns?: List<Column>) {
+	constructor(collection?: Collection, changes?: List<Change>, rename?: Collection) {
 		super();
 
 		this._collection = collection;
-		this._columns = columns;
+		this._changes = changes;
+		this._rename = rename;
 	}
 
 	getCollection (): Collection | undefined {
 		return this._collection;
 	}
 
+	getRename (): Collection | undefined {
+		return this._rename;
+	}
+
+	getChanges (): List<Change> | undefined {
+		return this._changes;
+	}
+
 	collection (collection: Collection): AlterCollectionQuery
 	collection (name: string, namespace?: string): AlterCollectionQuery
 	collection (name?: any, namespace?: any): AlterCollectionQuery {
 		if (name && name instanceof Collection) {
-			return new AlterCollectionQuery(name, this._columns);
+			return new AlterCollectionQuery(name, this._changes);
 		}
-		return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns);
+		return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._changes);
+	}
+
+	rename(collection: Collection): AlterCollectionQuery
+	rename(name: string, namespace?: string): AlterCollectionQuery
+	rename(name?: any, namespace?: any): AlterCollectionQuery {
+		if (name && name instanceof Collection) {
+			return new AlterCollectionQuery(this._collection, this._changes, name);
+		}
+		return new AlterCollectionQuery(this._collection, this._changes, new Collection(name, namespace));
+	}
+
+	addColumn(column: Column): AlterCollectionQuery {
+		const changes = this._changes ? this._changes : List<Change>();
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addColumn', column }));
+	}
+
+	alterColumn(oldColumn: string, newColumn: Column): AlterCollectionQuery {
+		const changes = this._changes ? this._changes : List<Change>();
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'alterColumn', oldColumn, newColumn }));
+	}
+
+	dropColumn(column: string): AlterCollectionQuery {
+		const changes = this._changes ? this._changes : List<Change>();
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'dropColumn', column }));
+	}
+
+	addIndex(index: Index): AlterCollectionQuery {
+		const changes = this._changes ? this._changes : List<Change>();
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addIndex', index }));
+	}
+
+	dropIndex(index: string): AlterCollectionQuery {
+		const changes = this._changes ? this._changes : List<Change>();
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'dropIndex', index }));
 	}
 
 	toString (): string
@@ -1381,12 +1449,34 @@ export class AlterCollectionQuery extends Query {
 
 		query += ` (`;
 		
-
-		if (this._columns) {
-			query += `${newline}${indent}${this._columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
+		if (this._changes) {
+			query += `${newline}${indent}${this._changes.map<string>(c => {
+				if (c && c.type === 'addColumn') {
+					return `ADDCOL ${c.column.toString()}`;
+				}
+				else if (c && c.type === 'alterColumn') {
+					return `ALTERCOL ${c.oldColumn} AS ${c.newColumn.toString()}`;
+				}
+				else if (c && c.type === 'dropColumn') {
+					return `DROPCOL ${c.column}`;
+				}
+				else if (c && c.type === 'addIndex') {
+					return `ADDIDX ${c.index.toString()}`;
+				}
+				else if (c && c.type === 'dropIndex') {
+					return `DROPIDX ${c.index}`;
+				}
+				else {
+					return '';
+				}
+			}).join(`,${newline}${indent}`)}`;
 		}
 
 		query += `${newline}${indent})`;
+
+		if (this._rename) {
+			query += ` AS ${this._rename.toString()}`;
+		}
 
 		return query;
 	}
@@ -1534,36 +1624,20 @@ export class Column {
 		return this._autoIncrement;
 	}
 
-	name (name: string): Column
-	name (name?: any): any {
-		if (typeof name === 'string') {
-			return new Column(name, this._type, this._defaultValue, this._autoIncrement);
-		}
-		return this._name;
+	name (name: string): Column {
+		return this._name === name ? this : new Column(name, this._type, this._defaultValue, this._autoIncrement)
 	}
 
-	type (type: ColumnType): Column
-	type (type?: any): any {
-		if (type) {
-			return new Column(this._name, type, this._defaultValue, this._autoIncrement);
-		}
-		return this._type;
+	type (type: ColumnType): Column {
+		return this._type === type ? this : new Column(this._name, type, this._defaultValue, this._autoIncrement);
 	}
 
-	defaultValue (defaultValue: any): Column
-	defaultValue (defaultValue?: any): any {
-		if (defaultValue) {
-			return new Column(this._name, this._type, defaultValue, this._autoIncrement);
-		}
-		return this._defaultValue;
+	defaultValue (defaultValue: any): Column {
+		return this._defaultValue === defaultValue ? this : new Column(this._name, this._type, defaultValue, this._autoIncrement);
 	}
 
-	autoIncrement (autoIncrement: boolean): Column
-	autoIncrement (autoIncrement?: any): any {
-		if (typeof autoIncrement === 'boolean') {
-			return new Column(this._name, this._type, this._defaultValue, autoIncrement);
-		}
-		return this._autoIncrement;
+	autoIncrement (autoIncrement: boolean): Column {
+		return this._autoIncrement === autoIncrement ? this : new Column(this._name, this._type, this._defaultValue, autoIncrement);
 	}
 
 	public toString () {
@@ -1599,20 +1673,12 @@ export class Index {
 		return this._columns;
 	}
 
-	name (name: string): Index
-	name (name?: any): any {
-		if (typeof name === 'string') {
-			return new Index(name, this._type, this._columns);
-		}
-		return this._name;
+	name (name: string): Index {
+		return this._name === name ? this : new Index(name, this._type, this._columns);
 	}
 
-	type (type: IndexType): Index
-	type (type?: any): any {
-		if (type) {
-			return new Index(this._name, type, this._columns);
-		}
-		return this._type;
+	type (type: IndexType): Index {
+		return this._type === type ? this : new Index(this._name, type, this._columns);
 	}
 
 	columns (column: string, direction?: DirectionExpression): Index

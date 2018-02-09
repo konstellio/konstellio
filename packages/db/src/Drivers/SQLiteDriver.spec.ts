@@ -22,7 +22,8 @@ describe('SQLite', () => {
 		this.timeout(10000);
 
 		driver = new SQLiteDriver({
-			filename: ':memory:'
+			// filename: ':memory:'
+			filename: './kdb.sqlite'
 		});
 
 		driver.connect()
@@ -34,14 +35,18 @@ describe('SQLite', () => {
 
 	it('insert', async () => {
 
-		const insert = q.insert('Foo', 'Bar').fields({
+		const result: QueryResult.InsertQueryResult<any> = await driver.execute<Foo>(q.insert('Foo', 'Bar').fields({
 			title: 'Hello world',
 			postDate: new Date(),
 			likes: 10
-		});
-
-		const result: QueryResult.InsertQueryResult<any> = await driver.execute<Foo>(insert).should.be.fulfilled;
+		})).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.InsertQueryResult);
+
+		await driver.execute<Foo>(q.insert('Foo', 'Bar').fields({
+			title: 'Bye world',
+			postDate: new Date(),
+			likes: 10
+		})).should.be.fulfilled;
 	});
 
 	it('update', async () => {
@@ -163,16 +168,16 @@ describe('SQLite', () => {
 
 	it('alter collection', async () => {
 
-		/*
 		const alter = q.alterCollection('Moo', 'Joo')
 			.addColumn(q.column('content', ColumnType.Text))
-			.renameColumn('date', 'postDate')
-			.removeColumn('title')
+			.alterColumn('date', q.column('postDate', ColumnType.Date))
+			.dropColumn('title')
 			.addIndex(q.index('Joo_Moo_content', IndexType.Index).columns(q.sort('content', 'asc')))
-			.removeIndex('Joo_Moo_date')
-			...
-		*/
+			.dropIndex('Joo_Moo_date')
+			.rename('Moo', 'Boo');
 
+		const result: QueryResult.AlterCollectionQueryResult = await driver.execute(alter).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.AlterCollectionQueryResult);
 	});
 
 });
