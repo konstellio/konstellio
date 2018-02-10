@@ -7,8 +7,6 @@ import { Options, Connection, Channel as LibChannel, Message as LibMessage } fro
 let connect: (url: string, socketOptions: any, callback: (err: any, connection: Connection) => void) => void;
 try { connect = require('amqplib/callback_api').connect; } catch(e) { }
 
-// TODO Moves AMQPQueue.createReplyChannel to AMQPDriver class. Should only need 1 reply queue per connection. See RedisDriver.
-
 export class AMQPDriver extends Driver<AMQPChannel, AMQPQueue> {
 
 	public readonly client: Connection | undefined;
