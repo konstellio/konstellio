@@ -41,41 +41,41 @@ export class AMQPDriver extends Driver<AMQPChannel, AMQPQueue> {
 	}
 
 	createChannel(name: string, topic = ''): Promise<AMQPChannel> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				reject(new Error(`Expected an active connection to AMQP server. Have you tried to connect first ?`));
-			} else {
-				this.client.createChannel((err, ch) => {
-					if (err) return reject(err);
-					ch.assertExchange(name, 'topic', { durable: false });
-					ch.assertQueue('', { exclusive: true }, (err, qu) => {
-						ch.bindQueue(qu.queue, name, topic);
-						resolve(new AMQPChannel(this, name, topic, ch, qu.queue));
-					});
-				});
-			}
-		});
+		return AMQPChannel.create(this, name, topic);
 	}
 
 	createQueue(name: string): Promise<AMQPQueue> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				reject(new Error(`Expected an active connection to AMQP server. Have you tried to connect first ?`));
-			} else {
-				this.client.createChannel((err, ch) => {
-					if (err) return reject(err);
-					ch.assertQueue(name, { durable: true });
-					ch.prefetch(1);
-					resolve(new AMQPQueue(this, name, ch));
-				});
-			}
-		});
+		return AMQPQueue.create(this, name);
 	}
 
 }
 
 export class AMQPChannel extends Channel<AMQPDriver> {
+	protected emitter: EventEmitter
 	protected disposable: CompositeDisposable
+
+	public static create(
+		driver: AMQPDriver,
+		name: string,
+		topic: string
+	): Promise<AMQPChannel> {
+		return new Promise((resolve, reject) => {
+			if (driver.client === undefined) {
+				reject(new Error(`Expected an active connection to AMQP server. Have you tried to connect first ?`));
+			}
+			else {
+				driver.client.createChannel((err, channel) => {
+					if (err) return reject(err);
+					channel.assertExchange(name, 'topic', { durable: false });
+					channel.assertQueue('', { exclusive: true }, (err, qu) => {
+						if (err) return reject(err);
+						channel.bindQueue(qu.queue, name, topic);
+						resolve(new AMQPChannel(driver, name, topic, channel, qu.queue));
+					});
+				});
+			}
+		});
+	}
 
 	public constructor(
 		protected readonly driver: AMQPDriver,
@@ -85,7 +85,27 @@ export class AMQPChannel extends Channel<AMQPDriver> {
 		protected readonly queue: string
 	) {
 		super();
+		this.emitter = new EventEmitter();
 		this.disposable = new CompositeDisposable();
+		this.disposable.add(new Disposable(() => this.emitter.dispose()));
+
+		const consumerTag = uuid();
+		const disposable = new Disposable(() => {
+			this.channel.cancel(consumerTag, (err) => {
+				if (err) throw err;
+			});
+		});
+
+		this.channel.consume(this.queue, (msg) => {
+			if (msg) {
+				this.emitter.emit('consume', msg);
+			}
+		}, {
+			consumerTag: consumerTag,
+			noAck: true
+		});
+
+		this.disposable.add(disposable);
 	}
 
 	isDisposed(): boolean {
@@ -101,6 +121,59 @@ export class AMQPChannel extends Channel<AMQPDriver> {
 	}
 
 	subscribe(listener: SubscribListener): Disposable {
+		return this.emitter.on('consume', listener);
+	}
+
+}
+
+export class AMQPQueue extends Queue<AMQPDriver> {
+	protected emitter: EventEmitter
+	protected disposable: CompositeDisposable
+
+	public static async create(
+		driver: AMQPDriver,
+		name: string
+	): Promise<AMQPQueue> {
+		if (driver.client === undefined) {
+			throw new Error(`Expected an active connection to AMQP server. Have you tried to connect first ?`);
+		} else {
+			const [channel, [replyToChannel, replyToQueue]] = await Promise.all<LibChannel, [LibChannel, string]>([
+				new Promise((resolve, reject) => {
+					driver.client!.createChannel((err, channel) => {
+						if (err) return reject(err);
+						channel.assertQueue(name, { durable: true });
+						channel.prefetch(1);
+						resolve(channel);
+					});
+				}),
+				new Promise((resolve, reject) => {
+					driver.client!.createChannel((err, channel) => {
+						if (err) return reject(err);
+
+						channel.assertQueue('', { exclusive: true }, (err, queue) => {
+							if (err) return reject(err);
+							resolve([channel, queue.queue]);
+						});
+					});
+				})
+			]);
+
+			return new AMQPQueue(driver, name, channel, replyToChannel, replyToQueue);
+		}
+	}
+
+	public constructor(
+		protected readonly driver: AMQPDriver,
+		protected readonly name: string,
+		protected readonly channel: LibChannel,
+		protected readonly replyToChannel: LibChannel,
+		protected readonly replyToQueue: string
+	) {
+		super();
+		this.emitter = new EventEmitter();
+		this.disposable = new CompositeDisposable();
+		this.disposable.add(new Disposable(() => this.emitter.dispose()));
+
 		const consumerTag = uuid();
 		const disposable = new Disposable(() => {
 			this.channel.cancel(consumerTag, (err) => {
@@ -108,12 +181,11 @@ export class AMQPChannel extends Channel<AMQPDriver> {
 			});
 		});
 
-		this.channel.consume(this.queue, (msg) => {
-			if (msg) {
-				listener({
-					ts: Date.now(),
-					content: msg.content
-				});
+		this.channel.consume(replyToQueue, (msg) => {
+			if (msg && msg.properties.correlationId) {
+				const correlationId: string = msg.properties.correlationId.substr(0, -4);
+				const status: number = parseInt(msg.properties.correlationId.substr(-3));
+				this.emitter.emit(correlationId, status, msg);
 			}
 		}, {
 			consumerTag: consumerTag,
@@ -121,26 +193,6 @@ export class AMQPChannel extends Channel<AMQPDriver> {
 		});
 
 		this.disposable.add(disposable);
-		return disposable;
-	}
-
-}
-
-export class AMQPQueue extends Queue<AMQPDriver> {
-	protected disposable: CompositeDisposable
-	protected replyTo?: string
-	protected replyEmitter: EventEmitter
-
-	public constructor(
-		protected readonly driver: AMQPDriver,
-		protected readonly name: string,
-		protected readonly channel: LibChannel
-	) {
-		super();
-		this.disposable = new CompositeDisposable();
-		this.replyEmitter = new EventEmitter();
-
-		this.disposable.add(new Disposable(this.replyEmitter.disposeAsync));
 	}
 
 	isDisposed(): boolean {
@@ -157,53 +209,21 @@ export class AMQPQueue extends Queue<AMQPDriver> {
 		});
 	}
 
-	protected createReplyChannel(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (!this.driver.client) {
-				return reject(new Error(`Expected an active connection to AMQP server. Have you tried to connect first ?`));
-			}
-			else if (!this.replyTo) {
-				this.driver.client.createChannel((err, ch) => {
-					if (err) return reject(err);
-
-					ch.assertQueue('', { exclusive: true }, (err, qu) => {
-						if (err) return reject(err);
-
-						this.replyTo = qu.queue;
-
-						ch.consume(this.replyTo, (msg) => {
-							if (msg && msg.properties.correlationId) {
-								this.replyEmitter.emit(msg.properties.correlationId, msg);
-							}
-						}, { noAck: true });
-
-						resolve();
-					});
-				});
-			}
-			else {
-				resolve();
-			}
-		})
-	}
-
 	sendRPC(payload: Buffer): Promise<Message> {
-		return this.createReplyChannel().then(() => new Promise<Message>((resolve, reject) => {
+		return new Promise<Message>((resolve, reject) => {
 			const rpcID = uuid();
 
-			this.replyEmitter.once(rpcID, (msg: LibMessage) => {
-				resolve({
-					ts: Date.now(),
-					content: msg.content
-				});
+			this.emitter.once(rpcID, (status: number, msg: Message) => {
+				if (status === 200) return resolve(msg);
+				reject(new Error(msg.content.toString('utf8')));
 			});
 
 			this.channel.sendToQueue(this.name, payload, {
 				persistent: true,
-				replyTo: this.replyTo,
+				replyTo: this.replyToQueue,
 				correlationId: rpcID
 			});
-		}));
+		});
 	}
 
 	consume(listener: ConsumeListener): Disposable {
@@ -216,17 +236,37 @@ export class AMQPQueue extends Queue<AMQPDriver> {
 
 		this.channel.consume(this.name, (msg) => {
 			if (msg) {
-				Promise.resolve<void | Buffer>(listener({
-					ts: Date.now(),
-					content: msg.content
-				})).then(resp => {
-					this.channel.ack(msg);
+				let promise: Promise<void | Buffer>;
+				try {
+					const listenerResponse = listener({
+						ts: Date.now(),
+						content: msg.content
+					});
 
-					if (msg.properties.replyTo) {
-						this.channel.sendToQueue(msg.properties.replyTo, resp ? resp : Buffer.from(''), {
-							correlationId: msg.properties.correlationId
-						});
+					promise = listenerResponse instanceof Promise ? listenerResponse : Promise.resolve(listenerResponse);
+				} catch (err) {
+					promise = Promise.reject(err);
+				}
+
+				promise
+				.then(
+					resp => {
+						if (msg.properties.replyTo) {
+							this.channel.sendToQueue(msg.properties.replyTo, resp ? resp : Buffer.from(''), {
+								correlationId: `${msg.properties.correlationId}-200`
+							});
+						}
+					},
+					err => {
+						if (msg.properties.replyTo) {
+							this.channel.sendToQueue(msg.properties.replyTo, Buffer.from(err.message), {
+								correlationId: `${msg.properties.correlationId}-500`
+							});
+						}
 					}
+				)
+				.then(() => {
+					this.channel.ack(msg);
 				});
 			}
 		}, {
