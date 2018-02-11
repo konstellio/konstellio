@@ -95,10 +95,10 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 			(<Set<Disposable>>this.disposables).forEach((disposable, key, set) => {
 				promises.push(disposable.disposeAsync());
 			});
-			return Promise.all<void>(promises).then(() => {
+			resolve(Promise.all<void>(promises).then(() => {
 				this.disposed = true;
 				this.disposables = null;
-			});
+			}));
 		});
 	}
 
