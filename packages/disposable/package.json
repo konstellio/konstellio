@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/disposable",
-  "version": "0.0.8",
+  "version": "0.0.12",
   "description": "",
   "main": "dist/Disposable.js",
   "types": "dist/Disposable.d.ts",
