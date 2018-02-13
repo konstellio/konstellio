@@ -66,14 +66,26 @@ export type SQLiteDriverConstructor = {
 
 export type SQLiteQueryResult = {
 	lastId: string,
-	changes: any[]
+	changes: number
 }
 
-function runQuery (driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<number> {
+function runQuery(driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<SQLiteQueryResult> {
 	return new Promise((resolve, reject) => {
 		driver.driver.run(sql, params, function (err) {
 			if (err) return reject(err);
-			resolve(this.changes);
+			resolve({
+				changes: this.changes,
+				lastId: this.lastID
+			});
+		});
+	});
+}
+
+function allQuery<T = any> (driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<T[]> {
+	return new Promise((resolve, reject) => {
+		driver.driver.all(sql, params, function (err, results) {
+			if (err) return reject(err);
+			resolve(results as T[]);
 		});
 	});
 }
@@ -150,227 +162,117 @@ export class SQLiteDriver extends Driver {
 		else if (query instanceof AlterCollectionQuery) {
 			return this.executeAlterCollection(query);
 		}
+		else if (query instanceof CollectionExistsQuery) {
+			return this.executeCollectionExists(query);
+		}
+		else if (query instanceof DropCollectionQuery) {
+			return this.executeDropCollection(query);
+		}
 
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
-	private executeSQL (query: string): Promise<SQLiteQueryResult | SelectQueryResult<any>> {
-		return new Promise<SQLiteQueryResult | SelectQueryResult<any>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://github.com/mapbox/node-sqlite3/wiki/API#databaserunsql-param--callback
-			if (query.replace(/^[\s(]+/, '').substr(0, 5).toUpperCase() === 'SELECT') {
-				this.driver.all(query, (err, rows) => {
-					if (err) {
-						return reject(err);
-					}
+	private async executeSQL (query: string): Promise<SQLiteQueryResult | SelectQueryResult<any>> {
+		if (query.replace(/^[\s(]+/, '').substr(0, 5).toUpperCase() === 'SELECT') {
+			return new SelectQueryResult<any>(await allQuery(this, query));
+		} else {
+			return runQuery(this, query);
+		}
+	}
 
-					const result = new SelectQueryResult<any>(rows as any[]);
+	private async executeSelect<T> (query: SelectQuery): Promise<SelectQueryResult<T>> {
+		const stmts = convertQueryToSQL(query);
+		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
+		return new SelectQueryResult<T>(rows);
+	}
 
-					return resolve(result);
-				});
-			} else {
-				this.driver.run(query, function (err) {
-					if (err) {
-						return reject(err);
-					}
+	private async executeAggregate<T> (query: AggregateQuery): Promise<AggregateQueryResult<T>> {
+		const stmts = convertQueryToSQL(query);
+		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
+		return new SelectQueryResult<T>(rows);
+	}
 
-					const result: SQLiteQueryResult = {
-						lastId: this.lastId,
-						changes: this.changes
-					};
+	private async executeUnion<T> (query: UnionQuery): Promise<SelectQueryResult<T>> {
+		const stmts = convertQueryToSQL(query);
+		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
+		return new SelectQueryResult<T>(rows);
+	}
 
-					return resolve(result);
-				});
+	private async executeInsert<T> (query: InsertQuery): Promise<InsertQueryResult<T>> {
+		const stmts = convertQueryToSQL(query);
+		const { changes, lastId } = await runQuery(this, stmts[0].sql, stmts[0].params);
+		const fields = query.getFields();
+		const data: T = fields ? fields.toJS() : {}
+		return new InsertQueryResult<T>(lastId.toString(), data);
+	}
+
+	private async executeUpdate<T> (query: UpdateQuery): Promise<UpdateQueryResult<T>> {
+		const stmts = convertQueryToSQL(query);
+		const changes = await runQuery(this, stmts[0].sql, stmts[0].params);
+		const fields = query.getFields();
+		const data: T = fields ? fields.toJS() : {}
+		return new UpdateQueryResult<T>(data);
+	}
+
+	private async executeDelete (query: DeleteQuery): Promise<DeleteQueryResult> {
+		const stmts = convertQueryToSQL(query);
+		const { changes } = await runQuery(this, stmts[0].sql, stmts[0].params);
+		return new DeleteQueryResult(changes > 0);
+	}
+
+	private async executeDescribeCollection(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult> {
+		const collection = query.getCollection();
+		if (!collection) {
+			throw new Error(`Expected DescribeCollectionQuery to be from a collection.`);
+		}
+
+		const table_name = collectionToSQL(query.getCollection()!);
+
+		const [colDefs, idxDefs, auto] = await Promise.all([
+			allQuery(this, `PRAGMA table_info(${table_name})`, [])
+				.catch(err => [] as any[]),
+			allQuery(this, `PRAGMA index_list(${table_name})`, [])
+				.then(indexes => Promise.all(indexes.map(index => allQuery(this, `PRAGMA index_xinfo(${index.name})`, []).then(columns => ({
+					name: index.name as string,
+					type: index.unique!! ? 'unique' : 'index',
+					columns: columns || []
+				})))))
+				.catch(err => [] as {name: string, type: string, columns: any[]}[]),
+			allQuery(this, `SELECT "auto" FROM sqlite_master WHERE tbl_name=? AND sql LIKE "%AUTOINCREMENT%"`, [table_name])
+				.then(rows => rows.length > 0)
+				.catch(err => false)
+		]);
+		
+		const columns = colDefs.map<Column>(col => {
+			let type: ColumnType = ColumnType.Text;
+			switch (col.type) {
+				case 'TEXT': break;
+				case 'INTEGER': type = ColumnType.Int64; break;
+				case 'REAL':
+				case 'NUMERIC': type = ColumnType.Float64; break;
+				case 'BLOB': type = ColumnType.Blob; break;
 			}
+			return new Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
 		});
-	}
 
-	private executeSelect<T> (query: SelectQuery): Promise<SelectQueryResult<T>> {
-		return new Promise<SelectQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_select.html
-
-			const stmts = convertQueryToSQL(query);
-
-			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
-				if (err) {
-					return reject(err);
-				}
-
-				const results = new SelectQueryResult<T>(rows as T[]);
-				return resolve(results);
-			});
+		const indexes = idxDefs.map<Index>(idx => {
+			let type: IndexType = IndexType.Index;
+			switch (idx.type) {
+				case 'unique': type = IndexType.Unique; break;
+			}
+			const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
+			const columns = List<SortableField>(cols.map(col => {
+				return new SortableField(col.name, col.desc!! ? 'desc' : 'asc');
+			}));
+			return new Index(idx.name, type, columns);
 		});
-	}
 
-	private executeAggregate<T> (query: AggregateQuery): Promise<AggregateQueryResult<T>> {
-		return new Promise<AggregateQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_aggfunc.html
-			
-			const stmts = convertQueryToSQL(query);
+		const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(col.name, 'asc'))
 
-			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
-				if (err) {
-					return reject(err);
-				}
-
-				const results = new SelectQueryResult<T>(rows as T[]);
-				return resolve(results);
-			});
-		});
-	}
-
-	private executeUnion<T> (query: UnionQuery): Promise<SelectQueryResult<T>> {
-		return new Promise<SelectQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_select.html#x1326
-			
-			const stmts = convertQueryToSQL(query);
-
-			this.driver.all(stmts[0].sql, stmts[0].params, (err, rows) => {
-				if (err) {
-					return reject(err);
-				}
-
-				const results = new SelectQueryResult<T>(rows as T[]);
-				return resolve(results);
-			});
-		});
-	}
-
-	private executeInsert<T> (query: InsertQuery): Promise<InsertQueryResult<T>> {
-		return new Promise<InsertQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_insert.html
-
-			const stmts = convertQueryToSQL(query);
-
-			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
-				if (err) {
-					return reject(err);
-				}
-				const fields = query.getFields();
-				const data: T = fields ? fields.toJS() : {}
-				const result = new InsertQueryResult<T>(this.lastId, data);
-
-				return resolve(result);
-			});
-		});
-	}
-
-	private executeUpdate<T> (query: UpdateQuery): Promise<UpdateQueryResult<T>> {
-		return new Promise<UpdateQueryResult<T>>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_update.html
-
-			const stmts = convertQueryToSQL(query);
-
-			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
-				if (err) {
-					return reject(err);
-				}
-				const fields = query.getFields();
-				const data: T = fields ? fields.toJS() : {}
-				const result = new UpdateQueryResult<T>(data);
-
-				return resolve(result);
-			});
-		});
-	}
-
-	private executeDelete (query: DeleteQuery): Promise<DeleteQueryResult> {
-		return new Promise<DeleteQueryResult>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/lang_delete.html
-
-			const stmts = convertQueryToSQL(query);
-
-			this.driver.run(stmts[0].sql, stmts[0].params, function (err) {
-				if (err) {
-					return reject(err);
-				}
-
-				const result = new DeleteQueryResult(this.changes > 0);
-				resolve(result);
-			});
-		});
-	}
-
-	private executeDescribeCollection(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult> {
-		return new Promise<DescribeCollectionQueryResult>((resolve, reject) => {
-			// https://sqlite.org/lang_transaction.html
-			// https://sqlite.org/pragma.html
-
-			const table_name = collectionToSQL(query.getCollection()!);
-
-			Promise.all<any[], any[], boolean>([
-				new Promise(resolve => {
-					this.driver.all(`PRAGMA table_info(${table_name})`, [], (err, columns) => {
-						resolve(err ? [] : columns);
-					});
-				}),
-				new Promise(resolve => {
-					this.driver.all(`PRAGMA index_list(${table_name})`, [], (err, indexes) => {
-						if (err) return resolve([]);
-
-						Promise.all(indexes.map(index => new Promise(resolve => {
-							this.driver.all(`PRAGMA index_xinfo(${index.name})`, [], (err, columns) => {
-								if (err) return resolve();
-								resolve({
-									name: index.name,
-									type: index.unique!! ? 'unique' : 'index',
-									columns: columns || []
-								});
-							});
-						})))
-						.then((indexes) => resolve(indexes));
-					});
-				}),
-				new Promise(resolve => {
-					this.driver.all(`SELECT "auto" FROM sqlite_master WHERE tbl_name=? AND sql LIKE "%AUTOINCREMENT%"`, [table_name], (err, rows) => {
-						if (err || rows.length === 0) return resolve(false);
-						resolve(true);
-					});
-				})
-			])
-			.then(([colDefs, idxDefs, auto]) => {
-
-				const columns = colDefs.map<Column>(col => {
-					let type: ColumnType = ColumnType.Text;
-					switch (col.type) {
-						case 'TEXT': break;
-						case 'INTEGER': type = ColumnType.Int64; break;
-						case 'REAL':
-						case 'NUMERIC': type = ColumnType.Float64; break;
-						case 'BLOB': type = ColumnType.Blob; break;
-					}
-					return new Column(col.name, type, col.dflt_value, col.pk!! ? auto : false);
-				});
-
-				const indexes = idxDefs.map<Index>(idx => {
-					let type: IndexType = IndexType.Index;
-					switch (idx.type) {
-						case 'unique': type = IndexType.Unique; break;
-					}
-					const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
-					const columns = List<SortableField>(cols.map(col => {
-						return new SortableField(col.name, col.desc!! ? 'desc' : 'asc');
-					}));
-					const index = new Index(idx.name, type, columns);
-					
-					return index;
-				});
-
-				const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(col.name, 'asc'))
-				const result = new DescribeCollectionQueryResult(
-					columns,
-					primaryKeys.concat(indexes)
-				);
-
-				resolve(result);
-			});
-		});
+		return new DescribeCollectionQueryResult(
+			columns,
+			primaryKeys.concat(indexes)
+		);
 	}
 
 	private executeCreateCollection(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult> {
@@ -444,9 +346,37 @@ export class SQLiteDriver extends Driver {
 			return change !== undefined && change.type === 'addIndex';
 		}).map((change: ChangeAddIndex) => change.index).toArray();
 
-		await Promise.all(existingIndexes.concat(newIndexes).map<Promise<number>>(index => runQuery(this, indexToSQL(finalCollection, index))));
+		await Promise.all(existingIndexes.concat(newIndexes).map(index => runQuery(this, indexToSQL(finalCollection, index))));
 
 		return new AlterCollectionQueryResult(true);
+	}
+
+	private async executeCollectionExists(query: CollectionExistsQuery): Promise<CollectionExistsQueryResult> {
+		const collection = query.getCollection();
+		if (!collection) {
+			throw new Error(`Expected CollectionExistsQuery to be from a collection.`);
+		}
+
+		try {
+			const info = await allQuery(this, `PRAGMA table_info(${collectionToSQL(collection)})`, []);
+			return new CollectionExistsQueryResult(info.length > 0);
+		} catch (e) {
+			return new CollectionExistsQueryResult(false);
+		}
+	}
+
+	private async executeDropCollection(query: DropCollectionQuery): Promise<DropCollectionQueryResult> {
+		const collection = query.getCollection();
+		if (!collection) {
+			throw new Error(`Expected DropCollectionQuery to be from a collection.`);
+		}
+
+		try {
+			await runQuery(this, `DROP TABLE ${collectionToSQL(collection)}`, []);
+			return new DropCollectionQueryResult(true);
+		} catch (e) {
+			return new DropCollectionQueryResult(false);
+		}
 	}
 }
 

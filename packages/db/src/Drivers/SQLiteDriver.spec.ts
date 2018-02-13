@@ -209,4 +209,20 @@ describe('SQLite', () => {
 		expect(desc.indexes[1].getColumns()!.get(0).direction).to.be.equal('asc');
 	});
 
+	it('exists collection', async () => {
+		let result: QueryResult.CollectionExistsQueryResult = await driver.execute(q.collectionExists('Moo', 'Boo')).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.CollectionExistsQueryResult);
+		expect(result.exists).to.equal(true);
+
+		result = await driver.execute(q.collectionExists('Foo', 'Joo')).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.CollectionExistsQueryResult);
+		expect(result.exists).to.equal(false);
+	});
+
+	it('drop collection', async () => {
+		let result: QueryResult.DropCollectionQueryResult = await driver.execute(q.dropCollection('Moo', 'Boo')).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.DropCollectionQueryResult);
+		expect(result.acknowledge).to.equal(true);
+	});
+
 });
