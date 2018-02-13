@@ -21,8 +21,8 @@
     "url": "https://github.com/konstellio/eventemitter/issues"
   },
   "homepage": "https://github.com/konstellio/eventemitter#readme",
-  "dependencies": {
-    "@konstellio/disposable": "^0.0.7"
+  "peerDependencies": {
+    "@konstellio/disposable": "0.x"
   },
   "devDependencies": {
     "@types/chai-as-promised": "0.0.31",
