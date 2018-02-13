@@ -145,6 +145,6 @@ export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 				expect(err.message).to.be.equal('Oupsy');
 			}
 		});
-	})
+	});
 
 }

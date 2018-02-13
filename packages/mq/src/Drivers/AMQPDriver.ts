@@ -221,9 +221,12 @@ export class AMQPQueue extends Queue<AMQPDriver> {
 				reject(new Error(`RPC timeout (${timeout}ms).`));
 			}, timeout);
 
-			getHiddenMember<EventEmitter>(this.driver, 'emitter').once(rpcID, (status: number, msg: Message) => {
+			getHiddenMember<EventEmitter>(this.driver, 'emitter').once(rpcID, (status: number, msg: LibMessage) => {
 				clearTimeout(timer);
-				if (status === 200) return resolve(msg);
+				if (status === 200) return resolve({
+					ts: Date.now(),
+					content: msg.content
+				});
 				reject(new Error(msg.content.toString('utf8')));
 			});
 
@@ -269,6 +272,7 @@ export class AMQPQueue extends Queue<AMQPDriver> {
 					},
 					err => {
 						if (msg.properties.replyTo) {
+							this.channel.ack(msg);
 							this.channel.sendToQueue(msg.properties.replyTo, Buffer.from(err.message), {
 								correlationId: `${msg.properties.correlationId}-500`
 							});
