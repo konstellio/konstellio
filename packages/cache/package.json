@@ -30,11 +30,11 @@
     "ts-node": "^4.1.0",
     "typescript": "^2.6.2"
   },
-  "peerDependencies": {
+  "optionalDependencies": {
     "redis": "^2.8.0",
     "redis-mock": "^0.20.0"
   },
-  "dependencies": {
-    "@konstellio/disposable": "^0.0.7"
+  "peerDependencies": {
+    "@konstellio/disposable": "^0.0.12"
   }
 }
