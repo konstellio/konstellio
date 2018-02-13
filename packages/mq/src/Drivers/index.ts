@@ -1,2 +1,2 @@
-export * from './AMQPDriver';
 export * from './MemoryDriver';
+export * from './AMQPDriver';

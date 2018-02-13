@@ -1,17 +1,50 @@
 import { Disposable, CompositeDisposable } from '@konstellio/disposable';
 import { EventEmitter } from '@konstellio/eventemitter';
 import * as uuid from 'uuid/v4';
-import { Driver, Channel, Queue, SubscribListener, ConsumeListener, Message } from '../Driver';
-import { clearTimeout } from 'timers';
+import { Driver, SubscribListener, ConsumeListener, Message, Payload } from '../Driver';
+import { clearTimeout, setInterval, clearInterval } from 'timers';
 
-function getHiddenMember<T>(target: Object, member: string): T {
-	return target[member] as T;
+type ConsumerList = {
+	consumers: ConsumeListener[]
+	next: number
 }
 
-export class MemoryDriver extends Driver<MemoryChannel, MemoryQueue> {
+type PendingTask = {
+	queue: string
+	task: Payload
+	done?: (response: Error | any) => void
+}
 
-	constructor() {
+export class MemoryDriver extends Driver {
+
+	private emitter: EventEmitter
+	private disposable: CompositeDisposable
+	private consumers: Map<string, ConsumerList>
+	private pendingTasks: PendingTask[]
+
+	constructor(retryPendingTaskEvery = 2000) {
 		super();
+		this.emitter = new EventEmitter();
+		this.disposable = new CompositeDisposable();
+		this.disposable.add(new Disposable(() => this.emitter.isDisposed() && this.emitter.dispose()));
+		this.consumers = new Map();
+		this.pendingTasks = [];
+
+		const pendingTimer = setInterval(() => {
+			this.pendingTasks = this.pendingTasks.reduce<PendingTask[]>((pending, { queue, task, done }) => {
+				if (this.consumers.has(queue)) {
+					if (done !== undefined) {
+						this.rpc(queue, task).then(done, done);
+					} else {
+						this.send(queue, task)
+					}
+				} else {
+					pending.push({ queue, task, done });
+				}
+				return pending;
+			}, []);
+		}, retryPendingTaskEvery);
+		this.disposable.add(new Disposable(() => clearInterval(pendingTimer)));
 	}
 
 	async connect(): Promise<this> {
@@ -19,119 +52,107 @@ export class MemoryDriver extends Driver<MemoryChannel, MemoryQueue> {
 	}
 
 	async disconnect(): Promise<void> {
+		await this.disposable.disposeAsync();
 		return;
 	}
 
-	async createChannel(name: string, topic = ''): Promise<MemoryChannel> {
-		return new MemoryChannel(this, name, topic);
+	async publish(name: string, payload: Payload): Promise<void>
+	async publish(name: string, topic: string, payload: Payload): Promise<void>
+	async publish(name: string, topic: string | Payload, payload?: Payload): Promise<void> {
+		let event = `channel:${name}`;
+		if (typeof topic === 'string') {
+			event += `:${topic}`;
+		} else {
+			payload = topic;
+		}
+		this.emitter.emit(event, payload);
 	}
 
-	async createQueue(name: string): Promise<MemoryQueue> {
-		return new MemoryQueue(this, name);
-	}
-}
+	async subscribe(name: string, listener: SubscribListener): Promise<Disposable>
+	async subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>
+	async subscribe(name: string, topic: string | SubscribListener, listener?: SubscribListener): Promise<Disposable> {
+		let event = `channel:${name}`;
+		if (typeof topic === 'string') {
+			event += `:${topic}`;
+		} else {
+			listener = topic;
+		}
 
-export class MemoryChannel extends Channel<MemoryDriver> {
+		if (listener === undefined) {
+			throw new Error(`Expected listener to be of type SubscribListener, got ${listener}.`);
+		}
 
-	protected emitter: EventEmitter
-	protected disposable: CompositeDisposable
-
-	public constructor(
-		protected readonly driver: MemoryDriver,
-		protected readonly name: string,
-		protected readonly topic: string
-	) {
-		super();
-		this.emitter = new EventEmitter();
-		this.disposable = new CompositeDisposable();
-		this.disposable.add(new Disposable(() => this.emitter.dispose()));
+		const disposable = this.emitter.on(event, listener);
+		this.disposable.add(disposable);
+		return disposable;
 	}
 
-	isDisposed(): boolean {
-		return this.disposable.isDisposed();
-	}
-
-	disposeAsync(): Promise<void> {
-		return this.disposable.disposeAsync();
-	}
-
-	publish(payload: Buffer): void {
-		this.emitter.emit(`subscribe`, payload);
-	}
-
-	subscribe(listener: SubscribListener): Disposable {
-		return this.emitter.on(`subscribe`, listener);
-	}
-}
-
-export class MemoryQueue extends Queue<MemoryDriver> {
-
-	protected disposable: CompositeDisposable
-	protected consumers: ConsumeListener[]
-	protected nextConsumer: number
-
-	public constructor(
-		protected readonly driver: MemoryDriver,
-		protected readonly name: string
-	) {
-		super();
-		this.disposable = new CompositeDisposable();
-		this.consumers = [];
-		this.nextConsumer = -1;
-	}
-
-	isDisposed(): boolean {
-		return this.disposable.isDisposed();
-	}
-
-	disposeAsync(): Promise<void> {
-		return this.disposable.disposeAsync();
-	}
-
-	send(payload: Buffer): void {
-		const idx = (++this.nextConsumer) % this.consumers.length;
-		try {
-			this.consumers[idx]({
-				ts: Date.now(),
-				content: payload
-			});
-		} catch (err) {
-			setTimeout(() => this.send(payload), 1000);
+	async send(name: string, task: Payload): Promise<void> {
+		if (this.consumers.has(name)) {
+			const queueList = this.consumers.get(name)!;
+			const next = (++queueList.next) % queueList.consumers.length;
+			queueList.next = next;
+			try {
+				queueList.consumers[next](Object.assign({}, task, {
+					ts: Date.now(),
+				}));
+			} catch (err) {
+				this.pendingTasks.push({ queue: name, task });
+			}
+		}
+		else {
+			this.pendingTasks.push({ queue: name, task });
 		}
 	}
 
-	sendRPC(payload: Buffer, timeout = 2000): Promise<Message> {
+	rpc(name: string, task: Payload, timeout = 1000): Promise<Message> {
 		return new Promise(async (resolve, reject) => {
 			const timer = setTimeout(() => {
 				reject(new Error(`RPC timeout (${timeout}ms).`));
 			}, timeout);
 
-			const idx = (++this.nextConsumer) % this.consumers.length;
-			try {
-				const result = await this.consumers[idx]({
-					ts: Date.now(),
-					content: payload
-				});
-				clearTimeout(timer);
-				resolve({
-					ts: Date.now(),
-					content: result ? result : Buffer.from('')
-				});
-			} catch (err) {
-				clearTimeout(timer);
-				reject(err);
+			if (this.consumers.has(name)) {
+				const queueList = this.consumers.get(name)!;
+				const next = (++queueList.next) % queueList.consumers.length;
+				queueList.next = next;
+				try {
+					const result = await queueList.consumers[next](Object.assign({}, task, {
+						ts: Date.now(),
+					}));
+					clearTimeout(timer);
+					resolve(result ? result : { ts: Date.now() });
+				} catch (err) {
+					clearTimeout(timer);
+					reject(err);
+				}
+			} else {
+				this.pendingTasks.push({ queue: name, task, done: (resp) => {
+					if (resp instanceof Error) return reject(resp);
+					resolve(resp);
+				}});
 			}
 		});
 	}
 
-	consume(listener: ConsumeListener): Disposable {
+	async consume(name: string, listener: ConsumeListener): Promise<Disposable> {
 		const disposable = new Disposable(() => {
-			const idx = this.consumers.indexOf(listener);
-			if (idx > -1) {
-				this.consumers.splice(idx, 1);
+			if (this.consumers.has(name)) {
+				const queueList = this.consumers.get(name)!;
+				const idx = queueList.consumers.indexOf(listener);
+				if (idx > -1) {
+					queueList.consumers.splice(idx);
+					if (queueList.consumers.length === 0) {
+						this.consumers.delete(name);
+					}
+				}
 			}
 		});
-		this.consumers.push(listener);
+		if (this.consumers.has(name) === false) {
+			this.consumers.set(name, { consumers: [listener], next: -1 });
+		} else {
+			this.consumers.get(name)!.consumers.push(listener);
+		}
+		this.disposable.add(disposable);
 		return disposable;
 	}
 }

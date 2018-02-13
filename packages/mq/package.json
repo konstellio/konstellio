@@ -32,14 +32,16 @@
     "ts-node": "^4.1.0",
     "typescript": "^2.6.2"
   },
-  "peerDependencies": {
+  "optionalDependencies": {
     "amqplib": "^0.5.2",
     "redis": "^2.8.0",
     "redis-mock": "^0.20.0"
   },
+  "peerDependencies": {
+    "@konstellio/disposable": "^0.0.12",
+    "@konstellio/eventemitter": "^0.0.12"
+  },
   "dependencies": {
-    "@konstellio/disposable": "^0.0.7",
-    "@konstellio/eventemitter": "^0.0.10",
     "uuid": "^3.2.1"
   }
 }

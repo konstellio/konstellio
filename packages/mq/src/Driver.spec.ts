@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { Driver, Channel, Queue, Message } from './Driver';
+import { Driver, Message } from './Driver';
 import { Disposable } from '@konstellio/disposable';
 
 function wait(ms: number): Promise<void> {
@@ -11,140 +11,127 @@ function wait(ms: number): Promise<void> {
 
 export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 
-	describe('Channel', function () {
+	describe('Base driver', function () {
 		this.timeout(10000);
 
-		it('createChannel', async () => {
-			const channel = await driver.createChannel('foo1').should.be.fulfilled;
-			expect(channel).to.be.an.instanceOf(Channel);
+		it('can publish to channel', async () => {
+			await driver.publish('foo1', { foo: 'bar' }).should.be.fulfilled;
 		});
 
-		it('publish to channel', async () => {
-			const channel = await driver.createChannel('foo2');
-			expect(channel.publish).to.be.a('function');
-			expect(() => channel.publish(Buffer.from('bar'))).to.not.throw;
-		})
-
-		it('subscribe to channel', async () => {
-			const channel = await driver.createChannel('foo3');
-			expect(channel.subscribe).to.be.a('function');
-
+		it('can subscribe to channel', async () => {
 			let count = 0;
-			const subscriber1 = channel.subscribe(msg => {
-				++count;
+
+			const subscriber1 = await driver.subscribe('foo2', (msg) => {
+				count += msg.add as number;
 			});
-
 			expect(subscriber1).to.be.an.instanceOf(Disposable);
-			expect(subscriber1.isDisposed()).to.be.equal(false);
-			expect(count).to.be.equal(0);
 
-			channel.publish(Buffer.from('bar'));
+			await driver.publish('foo2', { add: 1 });
 			await wait(500);
-			expect(count).to.be.equal(1);
+			expect(count).to.equal(1);
 
-			const subscriber2 = channel.subscribe(msg => {
-				++count;
+			const subscriber2 = await driver.subscribe('foo2', (msg) => {
+				count += msg.add as number;
 			});
 			expect(subscriber2).to.be.an.instanceOf(Disposable);
-			expect(subscriber2.isDisposed()).to.be.equal(false);
-			expect(count).to.be.equal(1);
 
-			channel.publish(Buffer.from('bar'));
+			await driver.publish('foo2', { add: 2 });
 			await wait(500);
-			expect(count).to.be.equal(3);
+			expect(count).to.equal(5);
 		});
 
-		it('unsubscribe of channel', async () => {
-			const channel = await driver.createChannel('foo4');
-			expect(channel.subscribe).to.be.a('function');
-
+		it('can unsubscribe', async () => {
 			let count = 0;
-			const subscriber1 = channel.subscribe(msg => {
-				++count;
+
+			const subscriber1 = await driver.subscribe('foo3', (msg) => {
+				count += msg.add as number;
 			});
-
 			expect(subscriber1).to.be.an.instanceOf(Disposable);
-			expect(subscriber1.isDisposed()).to.be.equal(false);
-			expect(subscriber1.dispose).to.be.a('function');
-			expect(count).to.be.equal(0);
 
-			channel.publish(Buffer.from('bar'));
+			await driver.publish('foo3', { add: 1 });
 			await wait(500);
-			expect(count).to.be.equal(1);
+			expect(count).to.equal(1);
 
 			subscriber1.dispose();
 
-			channel.publish(Buffer.from('bar'));
+			await driver.publish('foo3', { add: 2 });
 			await wait(500);
-			expect(count).to.be.equal(1);
+			expect(count).to.equal(1);
 		});
 
-	});
-
-	describe('Queue', function () {
-		this.timeout(10000);
-
-		it('createQueue', async () => {
-			const queue = await driver.createQueue('bar1').should.be.fulfilled;
-			expect(queue).to.be.an.instanceOf(Queue);
+		it('can send task', async () => {
+			await driver.send('bar1', { bar: 'foo' }).should.be.fulfilled;
 		});
 
-		it('send to queue', async () => {
-			const queue = await driver.createQueue('bar2');
-			expect(queue.send).to.be.a('function');
-			expect(() => queue.send(Buffer.from('bar'))).to.not.throw;
-		});
-
-		it('consume queue', async () => {
-			const queue = await driver.createQueue('bar3');
-			expect(queue.consume).to.be.a('function');
-			
+		it('can consume task', async () => {
 			let count = 0;
-			const cosumer1 = queue.consume(msg => {
+
+			const consumer = await driver.consume('bar2', (msg) => {
 				++count;
 			});
+			expect(consumer).to.be.an.instanceOf(Disposable);
 
-			queue.send(Buffer.from('bar'));
+			await driver.send('bar2', {  });
 			await wait(500);
-			expect(count).to.be.equal(1);
+			expect(count).to.equal(1);
 		});
 
-		it('sendRPC to queue', async () => {
-			const queue = await driver.createQueue('bar4');
-			expect(queue.sendRPC).to.be.a('function');
-			expect(() => queue.sendRPC(Buffer.from('bar'))).to.not.throw;
-		});
-
-		it('respond to queue', async () => {
-			const queue = await driver.createQueue('bar5');
-			expect(queue.consume).to.be.a('function');
-
+		it('can stop consuming task', async () => {
 			let count = 0;
-			const cosumer1 = queue.consume((msg) => {
+
+			const consumer = await driver.consume('bar3', (msg) => {
 				++count;
-				return Buffer.from((count * 10).toString());
 			});
+			expect(consumer).to.be.an.instanceOf(Disposable);
 
-			const response1: Message = await queue.sendRPC(Buffer.from('bar')).should.be.fulfilled;
-			expect(response1.content).to.exist;
-			expect(response1.content.toString()).to.be.equal('10');
+			await driver.send('bar3', {  });
+			await wait(500);
+			expect(count).to.equal(1);
+
+			consumer.dispose();
+			await driver.send('bar3', {  });
+			await wait(500);
+			expect(count).to.equal(1);
 		});
 
-		it('respond to queue with error', async () => {
-			const queue = await driver.createQueue('bar6');
-			expect(queue.consume).to.be.a('function');
-
-			let count = 0;
-			const cosumer1 = queue.consume((msg) => {
-				throw new Error('Oupsy');
+		it('can get result from rpc', async () => {
+			const consumer = await driver.consume('bar4', (msg) => {
+				return { ts: Date.now(), bar: msg.bar };
 			});
+			expect(consumer).to.be.an.instanceOf(Disposable);
+
+			const result = await driver.rpc('bar4', { bar: 'Hello World' }, 2000).should.be.fulfilled;
+			expect(result.bar).to.equal('Hello World');
+		});
+
+		it('can get error from rpc', async () => {
+			const consumer = await driver.consume('bar5', (msg) => {
+				throw new Error('Fake error');
+			});
+			expect(consumer).to.be.an.instanceOf(Disposable);
 
 			try {
-				const response1: Message = await queue.sendRPC(Buffer.from('bar')).should.be.rejected;
+				const result = await driver.rpc('bar5', { bar: 'Hello World' }, 2000).should.be.rejected;
 			} catch (err) {
-				expect(err.message).to.be.equal('Oupsy');
+				expect(err.message).to.equal('Fake error');
 			}
 		});
+
+		it('can consume pending task', async () => {
+			let count = 0;
+
+			await driver.send('bar6', {  });
+			await wait(500);
+			expect(count).to.equal(0);
+
+			const consumer = await driver.consume('bar6', (msg) => {
+				++count;
+			});
+			expect(consumer).to.be.an.instanceOf(Disposable);
+			await wait(2000);
+			expect(count).to.equal(1);
+		});
+
 	});
 
 }

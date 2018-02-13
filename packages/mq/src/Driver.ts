@@ -3,32 +3,28 @@ import { IDisposableAsync, IDisposable, Disposable } from '@konstellio/disposabl
 
 export type Serializable = string | number | boolean | Date
 
-export abstract class Driver<C extends Channel<any> = Channel<any>, Q extends Queue<any> = Queue<any>> {
+export abstract class Driver {
 	abstract connect(): Promise<this>
 	abstract disconnect(): Promise<void>
-	abstract createChannel(name: string, topic?: string): Promise<C>
-	abstract createQueue(name: string): Promise<Q>
+	
+	abstract publish(name: string, payload: Payload): Promise<void>
+	abstract publish(name: string, topic: string, payload: Payload): Promise<void>
+	abstract subscribe(name: string, listener: SubscribListener): Promise<Disposable>
+	abstract subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>
+
+	abstract send(name: string, task: Payload): Promise<void>
+	abstract rpc(name: string, task: Payload, timeout: number): Promise<Message>
+	abstract consume(name: string, listener: ConsumeListener): Promise<Disposable>
 }
 
-export type Message = {
+export interface Payload {
+	[key: string]: any
+}
+
+export interface Message {
 	ts: number
-	content: Buffer
+	[key: string]: any
 }
 
 export type SubscribListener = (message: Message) => void
-export type ConsumeListener = (message: Message) => void | Buffer | Promise<Buffer>
-
-export abstract class Channel<D extends Driver<any, any> = Driver<any, any>> implements IDisposableAsync {
-	abstract isDisposed(): boolean
-	abstract disposeAsync(): Promise<void>
-	abstract publish(payload: Buffer): void
-	abstract subscribe(listener: SubscribListener): Disposable
-}
-
-export abstract class Queue<D extends Driver<any, any> = Driver<any, any>> implements IDisposableAsync {
-	abstract isDisposed(): boolean
-	abstract disposeAsync(): Promise<void>
-	abstract send(payload: Buffer): void
-	abstract sendRPC(payload: Buffer): Promise<Message>
-	abstract consume(listener: ConsumeListener): Disposable
-}
+export type ConsumeListener = (task: Message) => void | Message | Promise<Message>
