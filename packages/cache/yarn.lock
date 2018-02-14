@@ -2,9 +2,9 @@
 # yarn lockfile v1
 
 
-"@konstellio/disposable@^0.0.7":
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/@konstellio/disposable/-/disposable-0.0.7.tgz#b3ea9bb22a4d71e364029554993e492d9a393405"
+"@konstellio/disposable@^0.0.12":
+  version "0.0.12"
+  resolved "https://registry.yarnpkg.com/@konstellio/disposable/-/disposable-0.0.12.tgz#071dafce36c23152175ff2a88983f23cdce091fc"
 
 "@types/chai-as-promised@^7.1.0":
   version "7.1.0"
