@@ -5,10 +5,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "sulptor": "./dist/bin/main.js"
+    "sulptor": "./dist/bin/cli.js"
   },
   "scripts": {
-    "compile": "tsc --pretty",
+    "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
@@ -31,10 +31,12 @@
     "typescript": "^2.6.1"
   },
   "dependencies": {
-    "@konstellio/cache": "^0.0.1",
-    "@konstellio/db": "^0.0.7",
-    "@konstellio/fs": "^0.0.1",
-    "@konstellio/mq": "^0.0.1",
+    "@konstellio/cache": "^0.0.3",
+    "@konstellio/db": "^0.0.9",
+    "@konstellio/disposable": "^0.0.12",
+    "@konstellio/eventemitter": "^0.0.12",
+    "@konstellio/fs": "^0.0.3",
+    "@konstellio/mq": "^0.0.9",
     "apollo-link": "^1.0.3",
     "apollo-server-express": "^1.2.0",
     "body-parser": "^1.18.2",

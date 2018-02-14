@@ -7,7 +7,7 @@ commander
 	.command('dev')
 	.description('Start server in development mode')
 	.option(
-		'-f, --file [file]', 'Path to the sculptor file',
+		'-f, --file [file]', 'Path to the configuration file',
 		(file) => isAbsolute(file) ? file : resolve(process.cwd(), file),
 		join(process.cwd(), '.sculptor.yml')
 	)
