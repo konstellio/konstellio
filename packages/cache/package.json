@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/cache",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@konstellio/disposable": "^0.0.12",
     "@types/chai-as-promised": "^7.1.0",
     "@types/mocha": "^2.2.46",
     "@types/node": "^9.3.0",
