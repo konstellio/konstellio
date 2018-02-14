@@ -7,7 +7,7 @@ import { driverShouldBehaveLikeAMessageQueue } from '../Driver.spec';
 
 describe('AMQP', () => {
 
-	const mq: AMQPDriver = new AMQPDriver('amqp://127.0.0.1');
+	const mq: AMQPDriver = new AMQPDriver('amqp://docker');
 	before(done => {
 		mq.connect().then(() => done()).catch(done)
 	});
