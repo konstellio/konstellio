@@ -51,23 +51,26 @@ export interface ConfigFSLocal {
 	root: string
 }
 
-export type ConfigCache = ConfigCacheRedis
+export type ConfigCache = ConfigCacheRedis | ConfigCacheMemory
 
 export interface ConfigCacheRedis {
 	driver: 'redis'
 	uri: string
 }
 
-export type ConfigMQ = ConfigMQAMQP | ConfigMQRedis
+export interface ConfigCacheMemory {
+	driver: 'memory'
+}
+
+export type ConfigMQ = ConfigMQAMQP | ConfigMQMemory
 
 export interface ConfigMQAMQP {
 	driver: 'amqp'
 	uri: string
 }
 
-export interface ConfigMQRedis {
-	driver: 'redis'
-	uri: string
+export interface ConfigMQMemory {
+	driver: 'memory'
 }
 
 export interface Context {

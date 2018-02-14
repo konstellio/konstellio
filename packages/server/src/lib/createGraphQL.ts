@@ -11,8 +11,7 @@ import { GraphQLSchema } from 'graphql/type/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { IResolvers } from 'graphql-tools/dist/Interfaces';
 import { getArgumentsValues, parseSchema } from './parseSchema';
-import baseResolvers from '../base/resolvers';
-import baseSchema from '../base/schema';
+import defaultSchema from '../lib/defaultSchema';
 
 export interface Server {
 	express: Express
@@ -32,8 +31,7 @@ export async function createGraphQL(
 ): Promise<Express> {
 	const cache = new Map<string, GraphQLSchema>();
 
-	const sculptorSchema = await baseSchema();
-	const sculptorResolvers = await baseResolvers();
+	const baseSchema = await defaultSchema();
 
 	const app = express();
 	app.disable('x-powered-by');
@@ -60,8 +58,8 @@ export async function createGraphQL(
 
 			const groups = ['nobody'];
 
-			const ast = parse([sculptorSchema].join(`\n`), { noLocation: true });
-			const resolvers = [sculptorResolvers].reduce((resolvers, base) => {
+			const ast = parse([baseSchema.graphql].join(`\n`), { noLocation: true });
+			const resolvers = [baseSchema.resolvers].reduce((resolvers, base) => {
 				Object.keys(base || {}).forEach(key => {
 					resolvers[key] = resolvers[key] || {};
 					Object.assign(resolvers[key], base[key]);

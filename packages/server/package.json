@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "sulptor": "./dist/bin.js"
+    "sulptor": "./dist/bin/main.js"
   },
   "scripts": {
     "compile": "tsc --pretty",

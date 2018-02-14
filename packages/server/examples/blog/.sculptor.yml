@@ -6,12 +6,6 @@ sculptor:
     host: localhost
     port: 8080
 
-  graphql:
-    schemas:
-      - schema.gql
-    resolvers:
-      - resolvers.js
-
   database:
     driver: sqlite
     filename: mock://memory
@@ -21,9 +15,7 @@ sculptor:
     root: ./
   
   cache:
-    driver: redis
-    uri: mock://memory
+    driver: memory
 
   mq:
-    driver: redis
-    uri: mock://memory
+    driver: memory
