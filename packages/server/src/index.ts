@@ -1,5 +1,7 @@
 export * from './lib/interfaces';
 export * from './lib/parseSchema';
+export * from './lib/loadPlugin';
+export * from './lib/createExpress';
 export * from './lib/createGraphQL';
 export * from './lib/createDatabase';
 export * from './lib/createFilesystem';

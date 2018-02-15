@@ -1,7 +1,7 @@
-import { ConfigCache } from './interfaces';
+import { ConfigCache, PluginContext } from './interfaces';
 import { Driver, RedisDriver, RedisMockDriver } from '@konstellio/cache';
 
-export async function createCache(config: ConfigCache, context?: any): Promise<Driver> {
+export async function createCache(config: ConfigCache): Promise<Driver> {
 
 	if (config.driver === 'memory') {
 		return new RedisMockDriver().connect();

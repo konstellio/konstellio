@@ -1,8 +1,9 @@
 import { Driver as DB } from '@konstellio/db';
 import { Driver as FS } from '@konstellio/fs';
 import { Driver as Cache } from '@konstellio/cache';
-import { Driver as MQ } from '@konstellio/mq';
+import { Driver as MQ, Message, Payload } from '@konstellio/mq';
 import { GraphQLFieldResolver, GraphQLTypeResolver, GraphQLIsTypeOfFn, GraphQLScalarType } from 'graphql';
+import { Request, Response } from '../../node_modules/@types/express-serve-static-core/index';
 
 export interface Config {
 	version: string
@@ -12,7 +13,7 @@ export interface Config {
 			host?: string
 			port?: number
 		}
-		graphql?: ConfigGraphql
+		plugins?: string[]
 		database: ConfigDB
 		fs: ConfigFS
 		cache: ConfigCache
@@ -73,7 +74,30 @@ export interface ConfigMQMemory {
 	driver: 'memory'
 }
 
-export interface Context {
+export interface PluginContext {
+	db: DB
+	fs: FS
+	cache: Cache
+	mq: MQ
+}
+
+export interface Plugin {
+	graphql?: string
+	resolvers?: IResolvers
+	routes?: PluginRoutes
+	tasks?: PluginTasks
+}
+
+export type PluginRoutes = { [route: string]: PluginRoute }
+export type PluginRoute = {
+	get: (req: Request, res: Response) => Promise<void>
+	post: (req: Request, res: Response) => Promise<void>
+}
+
+export type PluginTasks = { [task: string]: PluginTask }
+export type PluginTask = (msg: Message) => Promise<Payload>
+
+export interface GraphQLContext {
 	db: DB
 	fs: FS
 	cache: Cache
@@ -81,13 +105,13 @@ export interface Context {
 }
 
 export interface IResolverOptions {
-	resolve?: GraphQLFieldResolver<any, Context>;
-	subscribe?: GraphQLFieldResolver<any, Context>;
-	__resolveType?: GraphQLTypeResolver<any, Context>;
-	__isTypeOf?: GraphQLIsTypeOfFn<any, Context>;
+	resolve?: GraphQLFieldResolver<any, GraphQLContext>;
+	subscribe?: GraphQLFieldResolver<any, GraphQLContext>;
+	__resolveType?: GraphQLTypeResolver<any, GraphQLContext>;
+	__isTypeOf?: GraphQLIsTypeOfFn<any, GraphQLContext>;
 }
 export declare type IResolverObject = {
-	[key: string]: GraphQLFieldResolver<any, Context> | IResolverOptions;
+	[key: string]: GraphQLFieldResolver<any, GraphQLContext> | IResolverOptions;
 };
 export interface IResolvers {
 	[key: string]: (() => any) | IResolverObject | GraphQLScalarType;

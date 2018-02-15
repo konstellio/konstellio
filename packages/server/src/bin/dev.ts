@@ -1,6 +1,6 @@
 import { dirname, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
-import { createGraphQL, parseSchema, createDatabase, createFilesystem, createCache, createMessageQueue } from '../';
+import { createExpress, createGraphQL, createDatabase, createFilesystem, createCache, createMessageQueue, loadPlugin } from '../';
 import { Config } from '../lib/interfaces';
 import { createServer } from 'http';
 import * as yaml from 'js-yaml';
@@ -16,11 +16,7 @@ export default async function ({ file }) {
 		console.error(`Configuration file ${file} is not a valid.`);
 		process.exit();
 	}
-
 	const projectDir = dirname(file);
-
-	// Add sculptor project to package search path when requiring modules
-	(require.main as any).paths.push(join(projectDir, 'node_modules'));
 
 	const [db, fs, cache, mq] = await Promise.all([
 		createDatabase(config.sculptor.database),
@@ -28,19 +24,23 @@ export default async function ({ file }) {
 		createCache(config.sculptor.cache),
 		createMessageQueue(config.sculptor.mq)
 	]);
+	
+	const app = await createExpress({});
 
-	const graphql = await createGraphQL(
-		config.sculptor.graphql,
-		{
-			db,
-			fs,
-			cache,
-			mq
-		}
-	);
+	await loadPlugin(projectDir, config, app, { db, fs, cache, mq })
+
+	// app.use(await createGraphQL(
+	// 	config.sculptor.graphql,
+	// 	{
+	// 		db,
+	// 		fs,
+	// 		cache,
+	// 		mq
+	// 	}
+	// ));
 
 	// Create server
-	const server = createServer(graphql);
+	const server = createServer(app);
 	server.listen(
 		config.sculptor.server && config.sculptor.server.port || 8080,
 		config.sculptor.server && config.sculptor.server.host || 'localhost',

@@ -1,7 +1,7 @@
-import { Driver, SQLiteDriver } from '@konstellio/db';
-import { ConfigDB } from './interfaces';
+import { Driver, SQLiteDriver, } from '@konstellio/db';
+import { ConfigDB, PluginContext } from './interfaces';
 
-export async function createDatabase(config: ConfigDB, context?: any): Promise<any> {
+export async function createDatabase(config: ConfigDB): Promise<any> {
 
 	let driver: Driver;
 	switch (config.driver) {

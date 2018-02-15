@@ -1,6 +1,6 @@
+import { Plugin, PluginContext } from './interfaces';
 
-
-export default async function () {
+export async function defaultPlugin(context: PluginContext): Promise<Plugin> {
 	return {
 		graphql: `
 			scalar Cursor
