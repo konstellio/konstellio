@@ -1,18 +1,16 @@
-import { Plugin, PluginContext } from './interfaces';
+import { Plugin, PluginContext } from './plugin';
 
-export async function defaultPlugin(context: PluginContext): Promise<Plugin> {
+export default async function (context: PluginContext): Promise<Plugin> {
 	return {
 		graphql: `
 			scalar Cursor
 			scalar Date
 			scalar DateTime
-
 			type User @model {
 				id: ID!
 				username: String! @field(label: "Username", type: "text")
 				password: String! @field(label: "Password", type: "password") @permission(group: "noone")
 			}
-
 			type File @model {
 				id: ID!
 				path: String! @field(type: "text")
@@ -21,16 +19,13 @@ export async function defaultPlugin(context: PluginContext): Promise<Plugin> {
 				creation: DateTime! @field(type: "datetime")
 				modification: DateTime! @field(type: "datetime")
 			}
-
 			type Query {
 				me: User!
 			}
-
 			type Mutation {
 				login(username: String!, password: String!): LoginResponse @permission(group: "nobody")
 				logout: LogoutResponse @permission(group: "any")
 			}
-
 			type LoginResponse {
 				token: String!
 			}
@@ -48,12 +43,12 @@ export async function defaultPlugin(context: PluginContext): Promise<Plugin> {
 				}
 			},
 			Mutation: {
-				async login(parent, { username, password }, { db, cache }) {
+				async login(parent, { username, password }, { database, cache }) {
 					return {
 						token: `${username}:${password}`
 					};
 				},
-				async logout(parent, { }, { db, cache }) {
+				async logout(parent, { }, { database, cache }) {
 					return {
 						acknowledge: true
 					};

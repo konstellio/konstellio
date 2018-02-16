@@ -9,7 +9,7 @@ commander
 	.option(
 		'-f, --file [file]', 'Path to the configuration file',
 		(file) => isAbsolute(file) ? file : resolve(process.cwd(), file),
-		join(process.cwd(), '.sculptor.yml')
+		join(process.cwd(), '.konstellio.yml')
 	)
 	.action(dev)
 ;

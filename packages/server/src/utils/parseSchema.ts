@@ -3,24 +3,25 @@ import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
 import { DirectiveNode } from 'graphql';
 
-export type Schema = {
+export interface Schema {
 	handle: string
-	label: string
-	description: string
+	label?: string
+	description?: string
 	fields: Field[]
 	indexes: Index[]
 }
 
-export type Field = {
+export interface Field {
 	handle: string
-	group: string
-	label: string
+	group?: string
+	label?: string
 	type: string
 	field: string
-	description: string
+	description?: string
+	localized: boolean
 }
 
-export type Index = {
+export interface Index {
 	handle?: string
 	type: string
 	fields: { [fieldHandle: string]: 'asc' | 'desc' }
@@ -97,7 +98,8 @@ export function parseSchema (ast: DocumentNode): Schema[] {
 							label: definition.name.value,
 							type: getNamedType(definition.type),
 							field: "text",
-							description: ""
+							description: "",
+							localized: false
 						}, args);
 					}
 					return undefined;

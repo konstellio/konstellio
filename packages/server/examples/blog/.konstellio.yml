@@ -1,6 +1,6 @@
 version: 1
 
-sculptor:
+konstellio:
 
   server:
     host: localhost
@@ -19,3 +19,6 @@ sculptor:
 
   mq:
     driver: memory
+
+  plugins:
+    - ./blog.js
