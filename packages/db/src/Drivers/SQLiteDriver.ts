@@ -237,6 +237,7 @@ export class SQLiteDriver extends Driver {
 					type: index.unique!! ? 'unique' : 'index',
 					columns: columns || []
 				})))))
+				.then(indexes => indexes.filter(idx => idx.name.substr(0, 17) !== 'sqlite_autoindex_'))
 				.catch(err => [] as {name: string, type: string, columns: any[]}[]),
 			allQuery(this, `SELECT "auto" FROM sqlite_master WHERE tbl_name=? AND sql LIKE "%AUTOINCREMENT%"`, [table_name])
 				.then(rows => rows.length > 0)
@@ -283,7 +284,7 @@ export class SQLiteDriver extends Driver {
 			const stmts = convertQueryToSQL(query).map<() => Promise<void>>(stmt => () => new Promise((resolve, reject) => {
 				this.driver.run(stmt.sql, stmt.params, function (err) {
 					if (err) return reject(err);
-					if (this.changes === 0) return reject(new Error(`No changes were made.`));
+					// if (this.changes === 0) return reject(new Error(`No changes were made.`));
 					resolve();
 				});
 			}));
@@ -677,8 +678,8 @@ export function convertQueryToSQL(query: Query): Statement[] {
 			}
 
 			const autoCol = columns.filter(col => col !== undefined && col.getAutoIncrement() === true);
-			const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === IndexType.Primary) : List<any>();
-			const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== IndexType.Primary) : List<any>();
+			const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() === IndexType.Primary) as List<Index> : List<Index>();
+			const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.getType() !== IndexType.Primary) as List<Index> : List<Index>();
 
 			// if (
 			// 	autoCol.count() > 0 && (
