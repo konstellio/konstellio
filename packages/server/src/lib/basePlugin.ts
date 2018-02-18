@@ -1,8 +1,8 @@
-import { Plugin, PluginContext } from './plugin';
+import { Plugin, PluginInitContext } from '../utils/plugin';
 
-export default async function (context: PluginContext): Promise<Plugin> {
-	return {
-		graphql: `
+export default {
+	async graphql(context) {
+		return `
 			scalar Cursor
 			scalar Date
 			scalar DateTime
@@ -32,8 +32,10 @@ export default async function (context: PluginContext): Promise<Plugin> {
 			type LogoutResponse {
 				acknowledge: Boolean!
 			}
-		`,
-		resolvers: {
+		`;
+	},
+	async resolvers() {
+		return {
 			Query: {
 				async me() {
 					return {
@@ -54,6 +56,6 @@ export default async function (context: PluginContext): Promise<Plugin> {
 					};
 				}
 			}
-		}
+		};
 	}
-}
+} as Plugin;

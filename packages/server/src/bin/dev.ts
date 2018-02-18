@@ -1,10 +1,11 @@
 import { createServer } from 'http';
-import { parseConfig } from '../lib/config';
-import { loadPlugins, PluginContext } from '../lib/plugin';
-import { createDatabase, createFilesystem, createCache, createMessageQueue } from '../lib/driver';
-import { buildSchemaDocument, buildSchemaResolvers } from '../lib/schema';
-import { buildModels } from '../lib/model';
+import { parseConfig } from '../utils/config';
+import { loadPlugins, PluginInitContext } from '../utils/plugin';
+import { createDatabase, createFilesystem, createCache, createMessageQueue } from '../utils/driver';
+import { getSchemaDocument, getSchemaResolvers, parseSchema } from '../utils/schema';
 import { dirname } from 'path';
+import { getSchemaDiff, executeSchemaDiff } from '../utils/model';
+import { ReadStream, WriteStream } from 'tty';
 
 export default async function ({ file }) {
 	const config = await parseConfig(file);
@@ -16,7 +17,7 @@ export default async function ({ file }) {
 		createMessageQueue(config.konstellio.mq)
 	]);
 
-	const context: PluginContext = {
+	const context: PluginInitContext = {
 		database,
 		fs,
 		cache,
@@ -24,10 +25,17 @@ export default async function ({ file }) {
 	}
 
 	const plugins = await loadPlugins(context, dirname(file), config.konstellio.plugins);
+	const graph = await getSchemaDocument(context, plugins);
+	const schemas = parseSchema(graph);
+	const diffs = await getSchemaDiff(context, schemas);
 
-	const graph = await buildSchemaDocument(plugins);
-	const resolvers = await buildSchemaResolvers(plugins);
-	const models = await buildModels(graph);
+	if (!!process.stdout.isTTY) {
+		await executeSchemaDiff(context, diffs, process.stdin as ReadStream, process.stdout as WriteStream);
+	} else {
+		await executeSchemaDiff(context, diffs);
+	}
+
+	// const resolvers = await buildSchemaResolvers(plugins);
 
 	// https://github.com/konstellio/konstellio/blob/b54e448222926bb58551d37b6bd25d6fb71cd8aa/src/lib/createGraphQL.ts
 }

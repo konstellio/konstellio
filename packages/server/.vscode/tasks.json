@@ -4,9 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "identifier": "Build",
+            "identifier": "Compile",
             "type": "typescript",
-            "tsconfig": "sculptor-server\\tsconfig.json",
+            "tsconfig": "konstellio\\tsconfig.json",
             "problemMatcher": [
                 "$tsc"
             ]

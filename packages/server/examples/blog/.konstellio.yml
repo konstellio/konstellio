@@ -8,7 +8,7 @@ konstellio:
 
   database:
     driver: sqlite
-    filename: mock://memory
+    filename: blog.sqlite
 
   fs:
     driver: local

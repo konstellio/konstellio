@@ -9,14 +9,15 @@
             "request": "launch",
             "name": "Launch Ex. Blog",
             "program": "${workspaceFolder}\\dist\\bin\\cli.js",
-            "preLaunchTask": "Build",
+            "preLaunchTask": "Compile",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ],
             "cwd": "${workspaceFolder}\\examples\\blog",
             "args": [
                 "dev"
-            ]
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }

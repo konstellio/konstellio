@@ -1,7 +1,7 @@
 
-module.exports = async function () {
-	return {
-		graphql: `
+module.exports = {
+	graphql() {
+		return `
 			extend type Query {
 				latestPost(first: Int, after: Cursor): [PostCursor!]!
 			}
@@ -25,8 +25,10 @@ module.exports = async function () {
 				cursor: Cursor
 				item: Post!
 			}
-		`,
-		resolvers: {
+		`;
+	},
+	resolvers() {
+		return {
 			Query: {
 				async latestPost(parent, { first, after }, context, info) {
 					return [];
@@ -40,6 +42,6 @@ module.exports = async function () {
 					}
 				}
 			}
-		}
-	};
-}
+		};
+	}
+};

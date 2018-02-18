@@ -6,23 +6,23 @@ import { Driver as MQDriver } from '@konstellio/mq';
 import basePlugin from '../lib/basePlugin';
 import * as resolvePackage from 'resolve';
 
-export async function loadPlugins(context: PluginContext, baseDir: string, plugins = [] as string[]): Promise<Plugin[]> {
-	return Promise.all([basePlugin(context)].concat(plugins.map<Promise<Plugin>>(name => new Promise<Plugin>((resolve, reject) => {
+export async function loadPlugins(context: PluginInitContext, baseDir: string, plugins = [] as string[]): Promise<Plugin[]> {
+	return Promise.all([Promise.resolve(basePlugin)].concat(plugins.map<Promise<Plugin>>(name => new Promise<Plugin>((resolve, reject) => {
 		resolvePackage(name, { basedir: baseDir }, (err, fullPath) => {
 			if (err) return reject(err);
-			resolve(require(fullPath!)(context));
+			resolve(require(fullPath!));
 		});
 	}))));
 }
 
 export interface Plugin {
-	graphql?: string
-	resolvers?: IResolvers
+	graphql?: (context: PluginInitContext) => Promise<string>
+	resolvers?: () => Promise<IResolvers>
 	// routes?: PluginRoutes
 	// tasks?: PluginTasks
 }
 
-export interface PluginContext {
+export interface PluginInitContext {
 	database: DBDriver
 	fs: FSDriver
 	cache: CacheDriver

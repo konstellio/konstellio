@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import { IResolvers } from 'graphql-tools/dist/Interfaces';
-import { parseSchema, Field } from './parseSchema';
+import { parseSchema, Field } from './schema';
 import { Kind, FieldDefinitionNode, StringValueNode } from 'graphql';
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';

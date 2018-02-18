@@ -1,7 +1,23 @@
+import { Plugin, PluginInitContext, IResolvers } from './plugin';
 import { DocumentNode, Kind, FieldDefinitionNode, ObjectTypeDefinitionNode, TypeExtensionDefinitionNode, StringValueNode, TypeNode, DefinitionNode, ArgumentNode, ValueNode, ListValueNode, ObjectValueNode, TypeDefinitionNode } from 'graphql';
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
 import { DirectiveNode } from 'graphql';
+
+export async function getSchemaDocument(context: PluginInitContext, plugins: Plugin[]): Promise<DocumentNode> {
+	const schemas = await Promise.all(plugins.map<Promise<string>>(plugin => plugin && plugin.graphql ? plugin.graphql(context) : Promise.resolve('')));
+	return parse(schemas.join(`\n`), { noLocation: true });
+}
+
+export async function getSchemaResolvers(plugins: Plugin[]): Promise<IResolvers> {
+	return plugins.reduce((resolvers, plugin) => {
+		Object.keys(plugin.resolvers || {}).forEach(key => {
+			resolvers[key] = resolvers[key] || {};
+			Object.assign(resolvers[key], plugin.resolvers![key]);
+		});
+		return resolvers;
+	}, {} as IResolvers);
+}
 
 export interface Schema {
 	handle: string
@@ -55,7 +71,7 @@ export function getArgumentsValues(nodes: ArgumentNode[]): { [key: string]: any 
 	}, {});
 }
 
-export function parseSchema (ast: DocumentNode): Schema[] {
+export function parseSchema(ast: DocumentNode): Schema[] {
 	const models: { [key: string]: Schema } = {};
 	const temps: { [key: string]: Schema } = {};
 
@@ -104,7 +120,7 @@ export function parseSchema (ast: DocumentNode): Schema[] {
 					}
 					return undefined;
 				}).filter<Field>((schema): schema is Field => schema !== undefined);
-				
+
 				const indexes = args.indexes && args.indexes.map(index => {
 					return Object.assign({
 						type: 'index',
