@@ -30,27 +30,9 @@ export default async function ({ file }) {
 	const diffs = await getSchemaDiff(context, schemas);
 
 	if (diffs.length > 0) {
-		if (!!process.stdout.isTTY) {
-			console.log('Attempting schema migration.');
-			try {
-				await executeSchemaMigration(context, diffs, process.stdin as ReadStream, process.stdout as WriteStream);
-			} catch (err) {
-				// TODO disconnect drivers
-				console.error(`Could not complete schema migration : ${err.stack}`);
-				process.exit();
-			} finally {
-				console.log('Migration completed.');
-			}
-		} else {
-			// TODO disconnect drivers
-			console.error(`Migration needs an interactive terminal.`);
-			process.exit();
-		}
+		console.error(`Schema differ from database. Please use \`dev\` command to run through migration steps.`);
+		process.exit();
 	}
 
 	debugger;
-
-	// const resolvers = await buildSchemaResolvers(plugins);
-
-	// https://github.com/konstellio/konstellio/blob/b54e448222926bb58551d37b6bd25d6fb71cd8aa/src/lib/createGraphQL.ts
 }

@@ -1,4 +1,4 @@
-import { q, Column, ColumnType, Index, IndexType } from '@konstellio/db';
+import { q, Column, ColumnType, Index, IndexType, AlterCollectionQuery } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
 import { Plugin, PluginInitContext } from './plugin';
@@ -26,13 +26,9 @@ export type SchemaDiff = {
 	collection: Schema
 	index: SchemaIndex
 } | {
-	type: 'alter_index'
-	collection: Schema
-	index: SchemaIndex
-} | {
 	type: 'drop_index'
 	collection: Schema
-	index: Index
+	index: Index | SchemaIndex
 };
 
 export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[]): Promise<SchemaDiff[]> {
@@ -59,15 +55,15 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 					const field = fields[0];
 
 					// Column found, but has new type
-					if (mapFieldTypeToColumnType(field.type) !== column.getType()) {
-						diffs.push({ type: 'alter_field', collection: schema, field: column });
-					}
+					// if (mapFieldTypeToColumnType(field.type) !== column.getType()) {
+					// 	diffs.push({ type: 'alter_field', collection: schema, field: column });
+					// }
 				}
 			});
 
 			schema.fields.forEach(field => {
 				// Add missing field from schema
-				if (desc.columns.filter(column => column.getName() === field.handle).length === 0) {
+				if (desc.columns.filter(column => column.getName() === field.handle).length === 0 && field.type !== 'relation') {
 					diffs.push({ type: 'new_field', collection: schema, field });
 				}
 			});
@@ -78,21 +74,25 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 
 				// Index not found in schema
 				if (indexes.length === 0) {
-					diffs.push({ type: 'drop_index', collection: schema, index });
+					if (indexName !== `${schema.handle}_id`) {
+						diffs.push({ type: 'drop_index', collection: schema, index });
+					}
 				}
 				else {
 					const schemaIndex = indexes[0];
 
 					// Index found, but has new type
 					if (mapIndexTypeToIndexType(schemaIndex.type) !== index.getType()) {
-						diffs.push({ type: 'alter_index', collection: schema, index: schemaIndex });
+						diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
+						diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
 					}
 					else {
 						const columns = index.getColumns();
 
 						// Index is not on the same columns as schema
 						if (columns === undefined || columns.size !== Object.keys(schemaIndex.fields).length) {
-							diffs.push({ type: 'alter_index', collection: schema, index: schemaIndex });
+							diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
+							diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
 						}
 						else if (columns !== undefined) {
 							let fieldsMatch = true;
@@ -104,7 +104,8 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 								}
 							}
 							if (fieldsMatch === false) {
-								diffs.push({ type: 'alter_index', collection: schema, index: schemaIndex });
+								diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
+								diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
 							}
 						}
 					}
@@ -116,15 +117,18 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 		}
 	}
 
-	return diffs;
+	return diffs.sort((a, b) => {
+		if (a.type === 'drop_field') return -1;
+		return 0;
+	});
 }
 
 function mapFieldTypeToColumnType(type: string): ColumnType {
 	switch (type) {
 		case 'int':
-			return ColumnType.Int32;
+			return ColumnType.Int64;
 		case 'float':
-			return ColumnType.Float32;
+			return ColumnType.Float64;
 		case 'text':
 		case 'password':
 		case 'slug':
@@ -150,13 +154,13 @@ function defaultIndexHandle(collection: string, handle: string | undefined, type
 	return handle || `${collection}_${Object.keys(fields).join('_')}_${type === IndexType.Primary ? 'pk' : (type === IndexType.Unique ? 'uniq' : 'idx')}`
 }
 
-export async function executeSchemaDiff(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
-export async function executeSchemaDiff(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
-export async function executeSchemaDiff(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
 	
-	function ErrorNeedsTTY() {
-		return new Error(`Some changes were made to the schema.`);
-	}
+	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
+
+	const muteNewField: string[] = [];
 
 	for (let i = 0, l = diffs.length; i < l; ++i) {
 		const diff = diffs[i];
@@ -193,19 +197,68 @@ export async function executeSchemaDiff(context: PluginInitContext, diffs: Schem
 			}
 		}
 
+		else if (diff.type === 'new_field') {
+			if (muteNewField.indexOf(`${diff.collection.handle}.${diff.field.handle}`) === -1) {
+				if (alterCollections.has(diff.collection.handle) === false) {
+					alterCollections.set(diff.collection.handle, q.alterCollection(diff.collection.handle));
+				}
+				alterCollections.set(diff.collection.handle, alterCollections.get(diff.collection.handle)!.addColumn(q.column(diff.field.handle, mapFieldTypeToColumnType(diff.field.type))));
+			}
+		}
+
 		else if (diff.type === 'drop_field') {
 			if (stdin && stdout) {
-				const handle = `${diff.collection.handle}.${diff.field.getName()}`;
-				const choice = await promptSelection(stdin, stdout, `Field ${handle} is no longer defined in the schema, but still present in the database. How do I proceed ?`, new Map<string, string>([
-					['drop', `Drop ${handle}`],
-					['rename1', `Rename ${handle} to...`],
-					['rename2', `Rename ${handle} to...`]
-				]));
-				debugger;
+				const collectionHandle = diff.collection.handle;
+				const fieldHandle = diff.field.getName()!;
+				const handle = `${collectionHandle}.${fieldHandle}`;
+
+				const newFields = diffs.filter(d => d.type === 'new_field' && d.collection === diff.collection);
+
+				const options = newFields.map<[string, string]>((rename: any) => {
+					return [rename.field.handle, `Rename ${handle} to ${collectionHandle}.${rename.field.handle} in database`]
+				}).concat([
+					['drop', `Drop ${handle} from database`],
+					['leave', `Abort migration`]
+				])
+
+				let choice: string;
+				try {
+					choice = await promptSelection(stdin, stdout, `Field ${handle} is no longer defined in the schema, but still present in the database.`, new Map<string, string>(options));
+				} catch (err) {
+					throw new Error(`User aborted migration.`);
+				}
+
+				if (choice === 'leave') {
+					throw new Error(`User aborted migration.`);
+				}
+				else if (choice === 'drop') {
+					if (alterCollections.has(collectionHandle) === false) {
+						alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+					}
+					alterCollections.set(collectionHandle, alterCollections.get(collectionHandle)!.dropColumn(fieldHandle));
+				}
+				else {
+					muteNewField.push(`${collectionHandle}.${choice}`);
+					const renameTo = newFields.find((d: any) => d.field.handle === choice);
+					if (renameTo && renameTo.type === 'new_field') {
+						if (alterCollections.has(collectionHandle) === false) {
+							alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+						}
+						alterCollections.set(collectionHandle, alterCollections.get(collectionHandle)!.alterColumn(fieldHandle, q.column(renameTo.field.handle, mapFieldTypeToColumnType(renameTo.field.type))));
+					}
+				}
 			}
 			else {
-				throw ErrorNeedsTTY();
+				throw new Error(`Some changes were made to the schema.`);
 			}
+		}
+
+		else if (diff.type === 'new_index') {
+			debugger;
+		}
+
+		else if (diff.type === 'drop_index') {
+			debugger;
 		}
 
 		else {
@@ -213,6 +266,9 @@ export async function executeSchemaDiff(context: PluginInitContext, diffs: Schem
 		}
 	}
 
+	const alterQueries = Array.from(alterCollections.values());
+
+	await Promise.all(alterQueries.map(alter => context.database.execute(alter)));
 }
 
 function promptSelection(stdin: ReadStream, stdout: WriteStream, question: string, selections: Map<string, string>): Promise<string> {
@@ -264,7 +320,7 @@ function promptSelection(stdin: ReadStream, stdout: WriteStream, question: strin
 				stdin.pause();
 				stdin.setRawMode(false);
 
-				reject(new Error(`User did not made a choice.`));
+				reject(new Error(`User aborted selection.`));
 			}
 		});
 
