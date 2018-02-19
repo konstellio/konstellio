@@ -212,7 +212,7 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 				const fieldHandle = diff.field.getName()!;
 				const handle = `${collectionHandle}.${fieldHandle}`;
 
-				const newFields = diffs.filter(d => d.type === 'new_field' && d.collection === diff.collection);
+				const newFields = diffs.filter(d => d.type === 'new_field' && d.collection === diff.collection && muteNewField.indexOf(`${d.collection.handle}.${d.field.handle}`) === -1);
 
 				const options = newFields.map<[string, string]>((rename: any) => {
 					return [rename.field.handle, `Rename ${handle} to ${collectionHandle}.${rename.field.handle} in database`]
