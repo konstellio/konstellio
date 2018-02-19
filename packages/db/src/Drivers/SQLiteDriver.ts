@@ -710,7 +710,7 @@ export function convertQueryToSQL(query: Query): Statement[] {
 				return '';
 			}).join(', ')}`;
 
-			if (!autoColName && primaryKeys) {
+			if (!autoColName && primaryKeys.count() > 0) {
 				const cols = primaryKeys.get(0).getColumns();
 				if (cols) {
 					sql += `, PRIMARY KEY (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
