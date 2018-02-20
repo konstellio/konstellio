@@ -1,4 +1,4 @@
-import { q, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField } from '@konstellio/db';
+import { q, Compare, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
 import { Plugin, PluginInitContext } from './plugin';
@@ -37,6 +37,7 @@ export type SchemaDiffAddColumn = {
 	action: 'add_column'
 	collection: SchemaDescription
 	column: SchemaDescriptionColumn
+	copyColumn: string[]
 }
 
 export type SchemaDiffDropColumn = {
@@ -95,7 +96,7 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 						column: dbColumn
 					});
 				}
-				else if (column.type !== dbColumn.type) {
+				else if ((database.compareTypes(mapStringToColumnType(column.type), mapStringToColumnType(dbColumn.type)) & Compare.Castable) === 0) {
 					mutedFields.push(column.handle);
 					diffs.push({
 						action: 'alter_column',
@@ -113,7 +114,8 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 					diffs.push({
 						action: 'add_column',
 						collection: schemaDesc,
-						column: column
+						column: column,
+						copyColumn: dbSchemaDesc.columns.map(column => column.handle)
 					});
 				}
 			});
@@ -154,12 +156,16 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
 	const muteNewColumn: string[] = [];
 
+	diffs = diffs.sort((a, b) => {
+
+		return 0;
+	});
+
 	for (let i = 0, l = diffs.length; i < l; ++i) {
 		const diff = diffs[i];
 
 		if (diff.action === 'add_collection') {
 			const columns = diff.collection.columns
-				.filter(column => column.type !== 'relation')
 				.map<Column>(column => q.column(column.handle, mapStringToColumnType(column.type)));
 			
 			const indexes = diff.collection.indexes
@@ -173,17 +179,37 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 			createCollections.push(q.createCollection(diff.collection.handle).columns(...columns).indexes(...indexes));
 		}
 		else if (diff.action === 'add_column') {
-			if (muteNewColumn.indexOf(`${diff.collection.handle}.${diff.column.handle}`) === -1) {
-				if (alterCollections.has(diff.collection.handle) === false) {
+			if (stdin && stdout) {
+				const collectionHandle = diff.collection.handle;
+				const columnName = `${collectionHandle}.${diff.column.handle}`;
+				if (muteNewColumn.indexOf(columnName) === -1) {
+					if (alterCollections.has(collectionHandle) === false) {
+						alterCollections.set(
+							collectionHandle,
+							q.alterCollection(collectionHandle)
+						);
+					}
+
+					const choices = ([['empty', `Leave empty`]] as [string, string][]).concat(diff.copyColumn.map<[string, string]>(copy => ([copy, `Copy content from \`${collectionHandle}.${copy}\``])));
+					let choice: string | undefined;
+
+					try {
+						choice = await promptSelection(stdin, stdout, `Schema has a new field \`${columnName}\`, how do we initialize it?`, new Map(choices));
+					} catch (err) {
+						throw new Error(`User aborted migration.`);
+					}
+
+					if (choice === 'empty') {
+						choice = undefined;
+					}
+
 					alterCollections.set(
-						diff.collection.handle,
-						q.alterCollection(diff.collection.handle)
+						collectionHandle,
+						alterCollections.get(collectionHandle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)), choice)
 					);
 				}
-				alterCollections.set(
-					diff.collection.handle,
-					alterCollections.get(diff.collection.handle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)))
-				);
+			} else {
+				throw new Error(`Schema has some new additions that requires your intervention. Please use a TTY terminal.`);
 			}
 		}
 		else if (diff.action === 'alter_column') {
@@ -210,9 +236,11 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 	return {
 		handle: schema.handle,
 		columns: schema.fields.reduce((columns, field) => {
-			if (field.localized) {
+			if (field.type === 'relation') {
+				return columns;
+			} else if (field.localized) {
 				locales.forEach(code => {
-					columns.push({ handle: `${field.handle}_${code}`, type: field.type })
+					columns.push({ handle: `${field.handle}__${code}`, type: field.type })
 				});
 			} else {
 				columns.push({ handle: field.handle, type: field.type });
@@ -228,12 +256,12 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 			if (localized) {
 				locales.forEach(code => {
 					indexes.push({
-						handle: `${index.handle}_${code}`,
+						handle: `${index.handle}__${code}`,
 						type: index.type,
 						columns: Object.keys(index.fields).reduce((fields, name) => {
 							const field = schema.fields.find(f => f.handle === name);
 							if (field !== undefined && field.localized === true) {
-								fields[`${name}_${code}`] = index.fields[name];
+								fields[`${name}__${code}`] = index.fields[name];
 							} else {
 								fields[name] = index.fields[name];
 							}
@@ -259,30 +287,10 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 	return {
 		handle: description.collection.toString(),
 		columns: description.columns.reduce((columns, column) => {
-			const type = mapColumnTypeToFieldType(column.getType()!);
-			let handle = column.getName()!;
-			let localized = false;
-			const match = handle.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
-			if (match) {
-				handle = match[1];
-				if (columns.find(column => column.handle === handle)) {
-					return columns;
-				}
-				localized = true;
-			}
-			if (localized) {
-				locales.forEach(code => {
-					columns.push({
-						handle: `${handle}_${code}`,
-						type: type
-					});
-				})
-			} else {
-				columns.push({
-					handle: handle,
-					type: type
-				});
-			}
+			columns.push({
+				handle: column.getName()!,
+				type: mapColumnTypeToFieldType(column.getType()!)
+			});
 			return columns;
 		}, [] as SchemaDescriptionColumn[]),
 		indexes: description.indexes.reduce((indexes, index) => {
@@ -290,7 +298,7 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 			const columns = index.getColumns()!;
 			let handle = index.getName()!;
 			const localized = columns.reduce((localized: boolean, column: SortableField) => {
-				const match = column.name.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+				const match = column.name.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
 				return localized || match !== null;
 			}, false);
 			indexes.push({
@@ -298,7 +306,7 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 				type: type,
 				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: SortableField) => {
 					if (localized) {
-						const match = field.name.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+						const match = field.name.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
 						if (match) {
 							columns[match[1]] = field.direction || 'asc';
 						} else {

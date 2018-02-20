@@ -4,8 +4,8 @@ import { loadPlugins, PluginInitContext } from '../utils/plugin';
 import { createDatabase, createFilesystem, createCache, createMessageQueue } from '../utils/driver';
 import { getSchemaDocument, getSchemaResolvers, parseSchema } from '../utils/schema';
 import { dirname } from 'path';
-import { getSchemaDiff } from '../utils/model';
-import { ReadStream, WriteStream } from 'tty';
+// import { getSchemaDiff } from '../utils/migration';
+// import { ReadStream, WriteStream } from 'tty';
 
 export default async function ({ file }) {
 	// const config = await parseConfig(file);

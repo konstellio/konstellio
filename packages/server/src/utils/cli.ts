@@ -1,10 +1,34 @@
 import { EOL } from 'os';
-import { emitKeypressEvents, clearScreenDown, moveCursor } from 'readline';
+import { emitKeypressEvents, clearScreenDown, moveCursor, createInterface } from 'readline';
 import { WriteStream, ReadStream } from 'tty';
+
+export function promptQuestion(stdin: ReadStream, stdout: WriteStream, question: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const rl = createInterface({
+			input: stdin,
+			output: stdout
+		});
+
+		function onClose() {
+			rl.removeListener('close', onClose);
+			rl.close();
+			reject(new Error(`User aborted question.`));
+		}
+
+		rl.question(question, (response) => {
+			rl.removeListener('close', onClose);
+			rl.close();
+			resolve(response);
+		});
+
+		rl.on('close', onClose);
+	})
+}
 
 export function promptSelection(stdin: ReadStream, stdout: WriteStream, question: string, selections: Map<string, string>): Promise<string> {
 	return new Promise((resolve, reject) => {
 		emitKeypressEvents(stdin);
+		stdin.resume();
 		stdin.setRawMode(true);
 
 		stdout.write(question + EOL);
@@ -30,7 +54,7 @@ export function promptSelection(stdin: ReadStream, stdout: WriteStream, question
 			resetSelection = -(out.split(EOL).length - 1);
 		}
 
-		stdin.on('keypress', (chunk, key) => {
+		function onKeyPress(chunk, key) {
 			if (key.name === 'up') {
 				selectedIndex = Math.max(0, selectedIndex - 1);
 				drawSelections();
@@ -40,6 +64,7 @@ export function promptSelection(stdin: ReadStream, stdout: WriteStream, question
 				drawSelections();
 			}
 			else if (key.name === 'return') {
+				stdin.removeListener('keypress', onKeyPress);
 				stdin.pause();
 				stdin.setRawMode(false);
 
@@ -48,12 +73,15 @@ export function promptSelection(stdin: ReadStream, stdout: WriteStream, question
 				resolve(choice);
 			}
 			else if (key.sequence === "\u0003") {
+				stdin.removeListener('keypress', onKeyPress);
 				stdin.pause();
 				stdin.setRawMode(false);
 
 				reject(new Error(`User aborted selection.`));
 			}
-		});
+		}
+
+		stdin.on('keypress', onKeyPress);
 
 		drawSelections();
 	});

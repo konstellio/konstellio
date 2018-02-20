@@ -4,7 +4,7 @@ import { loadPlugins, PluginInitContext } from '../utils/plugin';
 import { createDatabase, createFilesystem, createCache, createMessageQueue } from '../utils/driver';
 import { getSchemaDocument, getSchemaResolvers, parseSchema } from '../utils/schema';
 import { dirname } from 'path';
-import { getSchemaDiff, executeSchemaMigration } from '../utils/model';
+import { getSchemaDiff, executeSchemaMigration } from '../utils/migration';
 import { ReadStream, WriteStream } from 'tty';
 
 export default async function ({ file }) {
