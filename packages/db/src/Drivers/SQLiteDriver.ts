@@ -271,6 +271,7 @@ export class SQLiteDriver extends Driver {
 		const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(col.name, 'asc'))
 
 		return new DescribeCollectionQueryResult(
+			collection,
 			columns,
 			primaryKeys.concat(indexes)
 		);
