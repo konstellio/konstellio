@@ -23,6 +23,7 @@ export interface Plugin {
 }
 
 export interface PluginInitContext {
+	locales: { [code: string]: string }
 	database: DBDriver
 	fs: FSDriver
 	cache: CacheDriver

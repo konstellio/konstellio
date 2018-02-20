@@ -20,5 +20,9 @@ konstellio:
   mq:
     driver: memory
 
+  locales:
+    en: 'English'
+    fr: 'French'
+
   plugins:
     - ./blog.js

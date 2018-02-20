@@ -27,6 +27,7 @@ export interface Config {
 			host?: string
 			port?: number
 		}
+		locales?: { [code: string]: string }
 		plugins?: string[]
 		database: DBConfig
 		fs: FSConfig

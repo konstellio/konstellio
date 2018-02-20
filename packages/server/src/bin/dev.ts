@@ -10,6 +10,8 @@ import { ReadStream, WriteStream } from 'tty';
 export default async function ({ file }) {
 	const config = await parseConfig(file);
 
+	const locales = config.konstellio.locales || { 'en': 'English' };
+
 	const [database, fs, cache, message] = await Promise.all([
 		createDatabase(config.konstellio.database),
 		createFilesystem(config.konstellio.fs),
@@ -18,6 +20,7 @@ export default async function ({ file }) {
 	]);
 
 	const context: PluginInitContext = {
+		locales,
 		database,
 		fs,
 		cache,
@@ -35,14 +38,12 @@ export default async function ({ file }) {
 			try {
 				await executeSchemaMigration(context, diffs, process.stdin as ReadStream, process.stdout as WriteStream);
 			} catch (err) {
-				// TODO disconnect drivers
 				console.error(`Could not complete schema migration : ${err.stack}`);
 				process.exit();
 			} finally {
 				console.log('Migration completed.');
 			}
 		} else {
-			// TODO disconnect drivers
 			console.error(`Migration needs an interactive terminal.`);
 			process.exit();
 		}

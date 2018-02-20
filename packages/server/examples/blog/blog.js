@@ -11,14 +11,13 @@ module.exports = {
 				displayName: String!
 			}
 
-			type Post @model {
+			type Post @model(indexes: [{ handle: "Post_slug", type: "unique", fields: { slug: "asc" } }]) {
 				id: ID!
-				title: String! @field(label: "Title", type: "text")
-				slug: String! @field(type: "slug", on: "title")
+				title: String! @field(label: "Title", type: "text", localized: true)
+				slug: String! @field(type: "text", field: "slug", on: "title", localized: true)
 				postDate: DateTime! @field(label: "Post date", type: "datetime")
-				expireDate: DateTime @field(label: "Expire date", type: "datetime")
 				author: User! @field(label: "Author", type: "relation")
-				content: String! @field(label: "Content", type: "html")
+				content: String! @field(label: "Content", type: "html", localized: true)
 			}
 
 			type PostCursor {

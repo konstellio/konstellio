@@ -1,129 +1,321 @@
-import { q, Column, ColumnType, Index, IndexType, AlterCollectionQuery } from '@konstellio/db';
+import { q, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
 import { Plugin, PluginInitContext } from './plugin';
 import { WriteStream, ReadStream } from 'tty';
-import { EOL } from 'os';
-import { emitKeypressEvents, clearScreenDown, moveCursor } from 'readline';
+import { promptSelection } from './cli';
 
-export type SchemaDiff = {
-	type: 'new_collection'
-	collection: Schema
-} | {
-	type: 'new_field'
-	collection: Schema
-	field: Field
-} | {
-	type: 'alter_field'
-	collection: Schema
-	field: Column
-} | {
-	type: 'drop_field'
-	collection: Schema
-	field: Column
-} | {
-	type: 'new_index'
-	collection: Schema
-	index: SchemaIndex
-} | {
-	type: 'drop_index'
-	collection: Schema
-	index: Index | SchemaIndex
-};
+function defaultIndexHandle(collection: string, handle: string | undefined, type: IndexType, fields: { [fieldHandle: string]: 'asc' | 'desc' }) {
+	return handle || `${collection}_${Object.keys(fields).join('_')}_${type === IndexType.Primary ? 'pk' : (type === IndexType.Unique ? 'uniq' : 'idx')}`
+}
+
+export type SchemaDescription = {
+	handle: string
+	columns: SchemaDescriptionColumn[]
+	indexes: SchemaDescriptionIndex[]
+}
+
+export type SchemaDescriptionColumn = {
+	handle: string,
+	type: string
+}
+
+export type SchemaDescriptionIndex = {
+	handle: string
+	type: string
+	columns: { [handle: string]: 'asc' | 'desc' }
+}
+
+export type SchemaDiff = SchemaDiffAddCollection | SchemaDiffAddColumn | SchemaDiffDropColumn | SchemaDiffAlterColumn | SchemaDiffAddIndex | SchemaDiffDropIndex;
+
+export type SchemaDiffAddCollection = {
+	action: 'add_collection'
+	collection: SchemaDescription
+}
+
+export type SchemaDiffAddColumn = {
+	action: 'add_column'
+	collection: SchemaDescription
+	column: SchemaDescriptionColumn
+}
+
+export type SchemaDiffDropColumn = {
+	action: 'drop_column'
+	collection: SchemaDescription
+	column: SchemaDescriptionColumn
+}
+
+export type SchemaDiffAlterColumn = {
+	action: 'alter_column'
+	collection: SchemaDescription
+	column: SchemaDescriptionColumn
+	type: string
+}
+
+export type SchemaDiffAddIndex = {
+	action: 'add_index'
+	collection: SchemaDescription
+	index: SchemaDescriptionIndex
+}
+
+export type SchemaDiffDropIndex = {
+	action: 'drop_index'
+	collection: SchemaDescription
+	index: SchemaDescriptionIndex
+}
+
 
 export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[]): Promise<SchemaDiff[]> {
-	const db = context.database;
+
+	const { database } = context;
 	const diffs: SchemaDiff[] = [];
 
 	for (let i = 0, l = schemas.length; i < l; ++i) {
 		const schema = schemas[i];
-		const exists = await db.execute(q.collectionExists(schema.handle));
-		if (exists.exists) {
-			const desc = await db.execute(q.describeCollection(schema.handle));
+		const schemaDesc = schemaToSchemaDescription(context, schema);
+		const exists = await database.execute(q.collectionExists(schema.handle));
 
-			desc.columns.forEach(column => {
-				const columnName = column.getName();
-				const fields = schema.fields.filter(field => field.handle === columnName);
+		if (exists.exists === false) {
+			diffs.push({
+				action: 'add_collection',
+				collection: schemaDesc
+			});
+		} else {
+			const desc = await database.execute(q.describeCollection(schema.handle));
+			const dbSchemaDesc = databaseDescriptionToSchemaDescription(context, desc);
+			const mutedFields: string[] = [];
+			const mutedIndexes: string[] = [];
 
-				// Column not found in schema
-				if (fields.length === 0) {
-					if (column.getName() !== 'id') {
-						diffs.push({ type: 'drop_field', collection: schema, field: column });
-					}
+			dbSchemaDesc.columns.forEach(dbColumn => {
+				const column = schemaDesc.columns.find(column => column.handle === dbColumn.handle);
+				if (column === undefined) {
+					diffs.push({
+						action: 'drop_column',
+						collection: schemaDesc,
+						column: dbColumn
+					});
+				}
+				else if (column.type !== dbColumn.type) {
+					mutedFields.push(column.handle);
+					diffs.push({
+						action: 'alter_column',
+						collection: schemaDesc,
+						column: column,
+						type: dbColumn.type
+					});
 				}
 				else {
-					const field = fields[0];
-
-					// Column found, but has new type
-					// if (mapFieldTypeToColumnType(field.type) !== column.getType()) {
-					// 	diffs.push({ type: 'alter_field', collection: schema, field: column });
-					// }
+					mutedFields.push(column.handle);
 				}
 			});
-
-			schema.fields.forEach(field => {
-				// Add missing field from schema
-				if (desc.columns.filter(column => column.getName() === field.handle).length === 0 && field.type !== 'relation') {
-					diffs.push({ type: 'new_field', collection: schema, field });
+			schemaDesc.columns.forEach(column => {
+				if (mutedFields.indexOf(column.handle) === -1) {
+					diffs.push({
+						action: 'add_column',
+						collection: schemaDesc,
+						column: column
+					});
 				}
 			});
-
-			desc.indexes.forEach(index => {
-				const indexName = index.getName();
-				const indexes = schema.indexes.filter(index => index.handle === indexName);
-
-				// Index not found in schema
-				if (indexes.length === 0) {
-					if (indexName !== `${schema.handle}_id`) {
-						diffs.push({ type: 'drop_index', collection: schema, index });
-					}
+			
+			dbSchemaDesc.indexes.forEach(dbIndex => {
+				const index = schemaDesc.indexes.find(index => index.handle === dbIndex.handle);
+				if (index === undefined) {
+					mutedIndexes.push(dbIndex.handle);
+					diffs.push({
+						action: 'drop_index',
+						collection: schemaDesc,
+						index: dbIndex
+					});
 				}
 				else {
-					const schemaIndex = indexes[0];
-
-					// Index found, but has new type
-					if (mapIndexTypeToIndexType(schemaIndex.type) !== index.getType()) {
-						diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
-						diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
-					}
-					else {
-						const columns = index.getColumns();
-
-						// Index is not on the same columns as schema
-						if (columns === undefined || columns.size !== Object.keys(schemaIndex.fields).length) {
-							diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
-							diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
-						}
-						else if (columns !== undefined) {
-							let fieldsMatch = true;
-							for (let j = 0, m = schema.indexes.length; j < m; ++j) {
-								const handle = defaultIndexHandle(schema.handle, schema.indexes[j].handle, mapIndexTypeToIndexType(schema.indexes[j].type), schema.indexes[j].fields);
-								if (columns.find(column => column!.name === handle) === undefined) {
-									fieldsMatch = false;
-									break;
-								}
-							}
-							if (fieldsMatch === false) {
-								diffs.push({ type: 'drop_index', collection: schema, index: schemaIndex });
-								diffs.push({ type: 'new_index', collection: schema, index: schemaIndex });
-							}
-						}
-					}
+					mutedIndexes.push(dbIndex.handle);
 				}
 			});
-		}
-		else {
-			diffs.push({ type: 'new_collection', collection: schema });
+			schemaDesc.indexes.forEach(index => {
+				if (mutedIndexes.indexOf(index.handle) === -1) {
+					diffs.push({
+						action: 'add_index',
+						collection: schemaDesc,
+						index: index
+					});
+				}
+			});
 		}
 	}
 
-	return diffs.sort((a, b) => {
-		if (a.type === 'drop_field') return -1;
-		return 0;
-	});
+	return diffs;
 }
 
-function mapFieldTypeToColumnType(type: string): ColumnType {
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
+export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
+	const createCollections: CreateCollectionQuery[] = [];
+	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
+	const muteNewColumn: string[] = [];
+
+	for (let i = 0, l = diffs.length; i < l; ++i) {
+		const diff = diffs[i];
+
+		if (diff.action === 'add_collection') {
+			const columns = diff.collection.columns
+				.filter(column => column.type !== 'relation')
+				.map<Column>(column => q.column(column.handle, mapStringToColumnType(column.type)));
+			
+			const indexes = diff.collection.indexes
+				.map<Index>(index => {
+					const columns = Object.keys(index.columns).map(name => {
+						return q.sort(name, index.columns[name]);
+					});
+					return q.index(index.handle, mapStringToIndexType(index.type)).columns(...columns);
+				});
+			
+			createCollections.push(q.createCollection(diff.collection.handle).columns(...columns).indexes(...indexes));
+		}
+		else if (diff.action === 'add_column') {
+			if (muteNewColumn.indexOf(`${diff.collection.handle}.${diff.column.handle}`) === -1) {
+				if (alterCollections.has(diff.collection.handle) === false) {
+					alterCollections.set(
+						diff.collection.handle,
+						q.alterCollection(diff.collection.handle)
+					);
+				}
+				alterCollections.set(
+					diff.collection.handle,
+					alterCollections.get(diff.collection.handle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)))
+				);
+			}
+		}
+		else if (diff.action === 'alter_column') {
+			debugger;
+		}
+		else if (diff.action === 'drop_column') {
+			debugger;
+		}
+		else if (diff.action === 'add_index') {
+			debugger;
+		}
+		else if (diff.action === 'drop_index') {
+			debugger;
+		}
+	}
+
+	const queries: Promise<CreateCollectionQueryResult | AlterCollectionQueryResult>[] = createCollections.map(create => context.database.execute(create)).concat(Array.from(alterCollections.values()).map(alter => context.database.execute(alter)));
+
+	await Promise.all(queries);
+}
+
+function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): SchemaDescription {
+	const locales = Object.keys(context.locales);
+	return {
+		handle: schema.handle,
+		columns: schema.fields.reduce((columns, field) => {
+			if (field.localized) {
+				locales.forEach(code => {
+					columns.push({ handle: `${field.handle}_${code}`, type: field.type })
+				});
+			} else {
+				columns.push({ handle: field.handle, type: field.type });
+			}
+			return columns;
+		}, [] as SchemaDescriptionColumn[]),
+		indexes: schema.indexes.reduce((indexes, index) => {
+			let localized = false;
+			Object.keys(index.fields).forEach(name => {
+				const field = schema.fields.find(f => f.handle === name);
+				localized = localized || (field !== undefined && field.localized === true);
+			});
+			if (localized) {
+				locales.forEach(code => {
+					indexes.push({
+						handle: `${index.handle}_${code}`,
+						type: index.type,
+						columns: Object.keys(index.fields).reduce((fields, name) => {
+							const field = schema.fields.find(f => f.handle === name);
+							if (field !== undefined && field.localized === true) {
+								fields[`${name}_${code}`] = index.fields[name];
+							} else {
+								fields[name] = index.fields[name];
+							}
+							return fields;
+						}, {})
+					});
+				});
+			} else {
+				indexes.push({
+					handle: index.handle,
+					type: index.type,
+					columns: index.fields
+				})
+			}
+			return indexes;
+		}, [] as SchemaDescriptionIndex[])
+	};
+}
+
+function databaseDescriptionToSchemaDescription(context: PluginInitContext, description: DescribeCollectionQueryResult): SchemaDescription {
+	const locales = Object.keys(context.locales);
+
+	return {
+		handle: description.collection.toString(),
+		columns: description.columns.reduce((columns, column) => {
+			const type = mapColumnTypeToFieldType(column.getType()!);
+			let handle = column.getName()!;
+			let localized = false;
+			const match = handle.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+			if (match) {
+				handle = match[1];
+				if (columns.find(column => column.handle === handle)) {
+					return columns;
+				}
+				localized = true;
+			}
+			if (localized) {
+				locales.forEach(code => {
+					columns.push({
+						handle: `${handle}_${code}`,
+						type: type
+					});
+				})
+			} else {
+				columns.push({
+					handle: handle,
+					type: type
+				});
+			}
+			return columns;
+		}, [] as SchemaDescriptionColumn[]),
+		indexes: description.indexes.reduce((indexes, index) => {
+			const type = index.getType()!;
+			const columns = index.getColumns()!;
+			let handle = index.getName()!;
+			const localized = columns.reduce((localized: boolean, column: SortableField) => {
+				const match = column.name.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+				return localized || match !== null;
+			}, false);
+			indexes.push({
+				handle: handle,
+				type: type,
+				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: SortableField) => {
+					if (localized) {
+						const match = field.name.match(/^([a-zA-Z0-9_-]+)_([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+						if (match) {
+							columns[match[1]] = field.direction || 'asc';
+						} else {
+							columns[field.name] = field.direction || 'asc';
+						}
+					} else {
+						columns[field.name] = field.direction || 'asc';
+					}
+					return columns!;
+				}, {} as { [handle: string]: 'asc' | 'desc' })
+			});
+			return indexes;
+		}, [] as SchemaDescriptionIndex[])
+	};
+}
+
+function mapStringToColumnType(type: string): ColumnType {
 	switch (type) {
 		case 'int':
 			return ColumnType.Int64;
@@ -143,187 +335,49 @@ function mapFieldTypeToColumnType(type: string): ColumnType {
 	}
 }
 
-function mapIndexTypeToIndexType(type: string): IndexType {
+function mapStringToIndexType(type: string): IndexType {
 	switch (type) {
+		case 'primary':
+			return IndexType.Primary;
+		case 'unique':
+			return IndexType.Unique;
+		case 'index':
+			return IndexType.Index;
 		default:
 			throw new Error(`Unknown index type ${type}.`);
 	}
 }
 
-function defaultIndexHandle(collection: string, handle: string | undefined, type: IndexType, fields: { [fieldHandle: string]: 'asc' | 'desc' }) {
-	return handle || `${collection}_${Object.keys(fields).join('_')}_${type === IndexType.Primary ? 'pk' : (type === IndexType.Unique ? 'uniq' : 'idx')}`
-}
-
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
-	
-	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
-
-	const muteNewField: string[] = [];
-
-	for (let i = 0, l = diffs.length; i < l; ++i) {
-		const diff = diffs[i];
-
-		if (diff.type === 'new_collection') {
-			const collectionName = diff.collection.handle;
-			const columns = [q.column('id', ColumnType.Text)]
-				.concat(
-					diff.collection.fields
-					.filter(field => field.type !== 'relation')
-					.map<Column>(field => {
-						return q.column(field.handle, mapFieldTypeToColumnType(field.type));
-					})
-				);
-			
-			const indexes = [q.index(`${collectionName}_id_pk`, IndexType.Primary).columns('id', 'asc')]
-				.concat(
-					diff.collection.indexes
-					.map<Index>(index => {
-						const type = mapIndexTypeToIndexType(index.type);
-						const handle = defaultIndexHandle(collectionName, index.handle, type, index.fields);
-						const fields = Object.keys(index.fields).map(field => {
-							return q.sort(field, index.fields[field]);
-						});
-						return q.index(handle, type).columns(...fields);
-					})
-				);
-
-			const createCollection = q.createCollection(collectionName).columns(...columns).indexes(...indexes);
-			
-			const result = await context.database.execute(createCollection);
-			if (result.acknowledge === false) {
-				throw new Error(`Could not create collection ${diff.collection.handle}.`);
-			}
-		}
-
-		else if (diff.type === 'new_field') {
-			if (muteNewField.indexOf(`${diff.collection.handle}.${diff.field.handle}`) === -1) {
-				if (alterCollections.has(diff.collection.handle) === false) {
-					alterCollections.set(diff.collection.handle, q.alterCollection(diff.collection.handle));
-				}
-				alterCollections.set(diff.collection.handle, alterCollections.get(diff.collection.handle)!.addColumn(q.column(diff.field.handle, mapFieldTypeToColumnType(diff.field.type))));
-			}
-		}
-
-		else if (diff.type === 'drop_field') {
-			if (stdin && stdout) {
-				const collectionHandle = diff.collection.handle;
-				const fieldHandle = diff.field.getName()!;
-				const handle = `${collectionHandle}.${fieldHandle}`;
-
-				const newFields = diffs.filter(d => d.type === 'new_field' && d.collection === diff.collection && muteNewField.indexOf(`${d.collection.handle}.${d.field.handle}`) === -1);
-
-				const options = newFields.map<[string, string]>((rename: any) => {
-					return [rename.field.handle, `Rename ${handle} to ${collectionHandle}.${rename.field.handle} in database`]
-				}).concat([
-					['drop', `Drop ${handle} from database`],
-					['leave', `Abort migration`]
-				])
-
-				let choice: string;
-				try {
-					choice = await promptSelection(stdin, stdout, `Field ${handle} is no longer defined in the schema, but still present in the database.`, new Map<string, string>(options));
-				} catch (err) {
-					throw new Error(`User aborted migration.`);
-				}
-
-				if (choice === 'leave') {
-					throw new Error(`User aborted migration.`);
-				}
-				else if (choice === 'drop') {
-					if (alterCollections.has(collectionHandle) === false) {
-						alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
-					}
-					alterCollections.set(collectionHandle, alterCollections.get(collectionHandle)!.dropColumn(fieldHandle));
-				}
-				else {
-					muteNewField.push(`${collectionHandle}.${choice}`);
-					const renameTo = newFields.find((d: any) => d.field.handle === choice);
-					if (renameTo && renameTo.type === 'new_field') {
-						if (alterCollections.has(collectionHandle) === false) {
-							alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
-						}
-						alterCollections.set(collectionHandle, alterCollections.get(collectionHandle)!.alterColumn(fieldHandle, q.column(renameTo.field.handle, mapFieldTypeToColumnType(renameTo.field.type))));
-					}
-				}
-			}
-			else {
-				throw new Error(`Some changes were made to the schema.`);
-			}
-		}
-
-		else if (diff.type === 'new_index') {
-			debugger;
-		}
-
-		else if (diff.type === 'drop_index') {
-			debugger;
-		}
-
-		else {
-			throw new Error(`Could not handle diff ${diff.type}.`);
-		}
+function mapColumnTypeToFieldType(type: ColumnType): string {
+	switch (type) {
+		case ColumnType.Int8:
+		case ColumnType.Int16:
+		case ColumnType.Int32:
+		case ColumnType.Int64:
+			return 'int';
+		case ColumnType.Float32:
+		case ColumnType.Float64:
+			return 'float';
+		case ColumnType.Text:
+			return 'text';
+		case ColumnType.Date:
+			return 'date';
+		case ColumnType.DateTime:
+			return 'datetime';
+		case ColumnType.Blob:
+			return 'blob';
+		default:
+			throw new Error(`Unknown field type ${type}.`);
 	}
-
-	const alterQueries = Array.from(alterCollections.values());
-
-	await Promise.all(alterQueries.map(alter => context.database.execute(alter)));
 }
 
-function promptSelection(stdin: ReadStream, stdout: WriteStream, question: string, selections: Map<string, string>): Promise<string> {
-	return new Promise((resolve, reject) => {
-		emitKeypressEvents(stdin);
-		stdin.setRawMode(true);
-
-		stdout.write(question + EOL);
-		stdout.write(EOL);
-
-		let selectedIndex = 0;
-		let resetSelection = 0;
-
-		function drawSelections() {
-			let out = '';
-			let i = -1;
-			selections.forEach((label, key) => {
-				const idx = ++i;
-				out += `  [${idx === selectedIndex ? 'x' : ' '}] ${label}${EOL}`;
-			});
-			out += EOL;
-
-			moveCursor(stdout, 0, resetSelection);
-			clearScreenDown(stdout);
-			stdout.write(out);
-
-			// resetSelection = -out.length;
-			resetSelection = -(out.split(EOL).length - 1);
-		}
-
-		stdin.on('keypress', (chunk, key) => {
-			if (key.name === 'up') {
-				selectedIndex = Math.max(0, selectedIndex - 1);
-				drawSelections();
-			}
-			else if (key.name === 'down') {
-				selectedIndex = Math.min(selections.size - 1, selectedIndex + 1);
-				drawSelections();
-			}
-			else if (key.name === 'return') {
-				stdin.pause();
-				stdin.setRawMode(false);
-
-				const choice = Array.from(selections.keys())[selectedIndex];
-
-				resolve(choice);
-			}
-			else if (key.sequence === "\u0003") {
-				stdin.pause();
-				stdin.setRawMode(false);
-
-				reject(new Error(`User aborted selection.`));
-			}
-		});
-
-		drawSelections();
-	});
+function mapIndexTypeToString(type: IndexType): string {
+	switch (type) {
+		case IndexType.Primary:
+			return 'primary';
+		case IndexType.Unique:
+			return 'unique';
+		case IndexType.Index:
+			return 'index';
+	}
 }

@@ -8,8 +8,8 @@ export default {
 			scalar DateTime
 			type User @model {
 				id: ID!
-				username: String! @field(label: "Username", type: "text")
-				password: String! @field(label: "Password", type: "password") @permission(group: "noone")
+				username: String! @field(label: "Username", type: "text", field: "text")
+				password: String! @field(label: "Password", type: "text", field: "password") @permission(group: "noone")
 			}
 			type File @model {
 				id: ID!

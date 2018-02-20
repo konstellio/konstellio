@@ -3,6 +3,7 @@ import { DocumentNode, Kind, FieldDefinitionNode, ObjectTypeDefinitionNode, Type
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
 import { DirectiveNode } from 'graphql';
+import { DescribeCollectionQueryResult, ColumnType, IndexType } from '@konstellio/db';
 
 export async function getSchemaDocument(context: PluginInitContext, plugins: Plugin[]): Promise<DocumentNode> {
 	const schemas = await Promise.all(plugins.map<Promise<string>>(plugin => plugin && plugin.graphql ? plugin.graphql(context) : Promise.resolve('')));
@@ -29,16 +30,16 @@ export interface Schema {
 
 export interface Field {
 	handle: string
-	group?: string
-	label?: string
 	type: string
 	field: string
+	group?: string
+	label?: string
 	description?: string
-	localized: boolean
+	localized?: boolean
 }
 
 export interface Index {
-	handle?: string
+	handle: string
 	type: string
 	fields: { [fieldHandle: string]: 'asc' | 'desc' }
 }
@@ -110,12 +111,10 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 						const args = field.arguments ? getArgumentsValues(field.arguments) : {};
 						return Object.assign({
 							handle: definition.name.value,
-							group: "default",
-							label: definition.name.value,
 							type: getNamedType(definition.type),
 							field: "text",
-							description: "",
-							localized: false
+							group: "default",
+							label: definition.name.value
 						}, args);
 					}
 					return undefined;
@@ -123,6 +122,7 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 
 				const indexes = args.indexes && args.indexes.map(index => {
 					return Object.assign({
+						handle: '',
 						type: 'index',
 						fields: []
 					}, index);
@@ -148,8 +148,16 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 						handle: name,
 						label: args.label || name,
 						description: args.description || typeof temps[name] !== "undefined" && temps[name].description || "",
-						fields: typeof temps[name] !== "undefined" ? fields.concat(temps[name].fields) : fields,
-						indexes: typeof temps[name] !== "undefined" ? indexes.concat(temps[name].indexes) : indexes
+						fields: (typeof temps[name] !== "undefined" ? fields.concat(temps[name].fields) : fields).concat([{
+							handle: 'id',
+							type: 'text',
+							field: 'text'
+						}]),
+						indexes: (typeof temps[name] !== "undefined" ? indexes.concat(temps[name].indexes) : indexes).concat([{
+							handle: `${name}_id`,
+							type: 'primary',
+							fields: { id: 'asc' }
+						}])
 					};
 				}
 			}
