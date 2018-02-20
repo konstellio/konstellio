@@ -1,4 +1,4 @@
-import { Driver } from '../Driver';
+import { Driver, Compare } from '../Driver';
 import {
 	SelectQueryResult,
 	AggregateQueryResult,
@@ -170,6 +170,13 @@ export class SQLiteDriver extends Driver {
 		}
 
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
+	}
+
+	compareTypes(a: ColumnType, b: ColumnType): Compare {
+		if (columnType(a) === columnType(b)) {
+			return Compare.Castable;
+		}
+		return Compare.Different;
 	}
 
 	private async executeSQL (query: string): Promise<SQLiteQueryResult | SelectQueryResult<any>> {

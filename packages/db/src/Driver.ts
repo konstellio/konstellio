@@ -1,6 +1,11 @@
 import * as Query from './Query';
 import * as Result from './QueryResult';
 
+export enum Compare {
+	Different = 0 << 0,
+	Castable = 1 << 1
+}
+
 export abstract class Driver {
 
 	abstract connect(): Promise<Driver>;
@@ -19,4 +24,6 @@ export abstract class Driver {
 	abstract execute(query: Query.CollectionExistsQuery): Promise<Result.CollectionExistsQueryResult>;
 	abstract execute(query: Query.DropCollectionQuery): Promise<Result.DropCollectionQueryResult>;
 
+
+	abstract compareTypes(a: Query.ColumnType, b: Query.ColumnType): Compare;
 }
