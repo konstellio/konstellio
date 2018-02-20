@@ -1344,6 +1344,7 @@ export class DescribeCollectionQuery extends Query {
 export type ChangeAddColumn = {
 	type: 'addColumn'
 	column: Column
+	copyColumn?: string
 }
 export type ChangeAlterColumn = {
 	type: 'alterColumn'
@@ -1408,9 +1409,9 @@ export class AlterCollectionQuery extends Query {
 		return new AlterCollectionQuery(this._collection, this._changes, new Collection(name, namespace));
 	}
 
-	addColumn(column: Column): AlterCollectionQuery {
+	addColumn(column: Column, copyColumn?: string): AlterCollectionQuery {
 		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addColumn', column }));
+		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addColumn', column, copyColumn }));
 	}
 
 	alterColumn(oldColumn: string, newColumn: Column): AlterCollectionQuery {

@@ -330,6 +330,10 @@ export class SQLiteDriver extends Driver {
 			return change !== undefined && change.type === 'addColumn';
 		}).map((change: ChangeAddColumn) => change.column).toArray();
 
+		const copyColumns = changes.filter(change => {
+			return change !== undefined && change.type === 'addColumn' && change.copyColumn !== undefined;
+		}).toArray() as ChangeAddColumn[];
+
 		const renameColumns = changes.reduce<{ [key: string]: Column}>((columns: { [key: string]: Column}, change) => {
 			if (change && change.type === 'alterColumn') {
 				columns[change.oldColumn] = change.newColumn;
@@ -342,8 +346,24 @@ export class SQLiteDriver extends Driver {
 		
 		const finalCollection = query.getRename() || collection;
 
+		const insertColumns = existingColumns.map(col => {
+			const source = col.getName()!;
+			const renamed = renameColumns[source] ? renameColumns[source] : col;
+			return {
+				target: renamed.getName()!,
+				source: source
+			}
+		}).concat(
+			copyColumns.map(change => {
+				return {
+					target: change.column.getName()!,
+					source: change.copyColumn!
+				};
+			})
+		);
+
 		await this.executeCreateCollection(create);
-		await runQuery(this, `INSERT INTO ${tmpTable} (${existingColumns.map(col => renameColumns[col.getName()!] ? renameColumns[col.getName()!] : col).map(col => col.getName()!).join(', ')}) SELECT ${existingColumns.map(col => col.getName()!).join(', ')} FROM ${collectionToSQL(collection)}`, []);
+		await runQuery(this, `INSERT INTO ${tmpTable} (${insertColumns.map(col => col.target).join(', ')}) SELECT ${insertColumns.map(col => col.source).join(', ')} FROM ${collectionToSQL(collection)}`, []);
 		await runQuery(this, `DROP TABLE ${collectionToSQL(collection)}`, []);
 		await runQuery(this, `ALTER TABLE ${tmpTable} RENAME TO ${collectionToSQL(finalCollection)}`, []);
 
