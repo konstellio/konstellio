@@ -65,6 +65,9 @@ export type SchemaDiffDropIndex = {
 	index: SchemaDescriptionIndex
 }
 
+function matchLocalizedHandle(handle: string): RegExpMatchArray | null {
+	return handle.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+}
 
 export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[]): Promise<SchemaDiff[]> {
 
@@ -101,8 +104,8 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 					diffs.push({
 						action: 'alter_column',
 						collection: schemaDesc,
-						column: column,
-						type: dbColumn.type
+						column: dbColumn,
+						type: column.type
 					});
 				}
 				else {
@@ -111,11 +114,14 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 			});
 			schemaDesc.columns.forEach(column => {
 				if (mutedFields.indexOf(column.handle) === -1) {
+					const match = matchLocalizedHandle(column.handle);
 					diffs.push({
 						action: 'add_column',
 						collection: schemaDesc,
 						column: column,
-						copyColumn: dbSchemaDesc.columns.map(column => column.handle)
+						copyColumn: match
+							? dbSchemaDesc.columns.map(column => column.handle).filter(handle => { const m2 = matchLocalizedHandle(handle); return m2 && m2[1] === match[1]; })
+							: dbSchemaDesc.columns.map(column => column.handle)
 					});
 				}
 			});
@@ -179,50 +185,112 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 			createCollections.push(q.createCollection(diff.collection.handle).columns(...columns).indexes(...indexes));
 		}
 		else if (diff.action === 'add_column') {
-			if (stdin && stdout) {
-				const collectionHandle = diff.collection.handle;
-				const columnName = `${collectionHandle}.${diff.column.handle}`;
-				if (muteNewColumn.indexOf(columnName) === -1) {
-					if (alterCollections.has(collectionHandle) === false) {
-						alterCollections.set(
-							collectionHandle,
-							q.alterCollection(collectionHandle)
-						);
-					}
-
-					const choices = ([['empty', `Leave empty`]] as [string, string][]).concat(diff.copyColumn.map<[string, string]>(copy => ([copy, `Copy content from \`${collectionHandle}.${copy}\``])));
-					let choice: string | undefined;
-
-					try {
-						choice = await promptSelection(stdin, stdout, `Schema has a new field \`${columnName}\`, how do we initialize it?`, new Map(choices));
-					} catch (err) {
-						throw new Error(`User aborted migration.`);
-					}
-
-					if (choice === 'empty') {
-						choice = undefined;
-					}
-
+			const collectionHandle = diff.collection.handle;
+			const columnName = `${collectionHandle}.${diff.column.handle}`;
+			if (muteNewColumn.indexOf(columnName) === -1) {
+				if (alterCollections.has(collectionHandle) === false) {
 					alterCollections.set(
 						collectionHandle,
-						alterCollections.get(collectionHandle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)), choice)
+						q.alterCollection(collectionHandle)
 					);
 				}
-			} else {
-				throw new Error(`Schema has some new additions that requires your intervention. Please use a TTY terminal.`);
+
+				let choice: string | undefined;
+
+				if (diff.copyColumn.length > 0) {
+					if (stdin && stdout) {
+						const choices = ([['empty', `Leave \`${columnName}\` empty`]] as [string, string][])
+							.concat(
+								diff.copyColumn.map<[string, string]>(copy => ([copy, `Copy content from \`${collectionHandle}.${copy}\``])),
+								[['abort', `Abort migration`]]
+							);
+
+						try {
+							choice = await promptSelection(stdin, stdout, `Schema has a new field \`${columnName}\`, how do we initialize it?`, new Map(choices));
+						} catch (err) {
+							throw new Error(`User aborted migration.`);
+						}
+
+						if (choice === 'abort') {
+							throw new Error(`User aborted migration.`);
+						}
+
+						else if (choice === 'empty') {
+							choice = undefined;
+						}
+					} else {
+						throw new Error(`Schema has some new additions that requires your intervention. Please use a TTY terminal.`);
+					}
+				}
+
+				alterCollections.set(
+					collectionHandle,
+					alterCollections.get(collectionHandle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)), choice)
+				);
 			}
 		}
 		else if (diff.action === 'alter_column') {
-			debugger;
+			const collectionHandle = diff.collection.handle;
+
+			if (alterCollections.has(collectionHandle) === false) {
+				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+			}
+			alterCollections.set(
+				collectionHandle,
+				alterCollections.get(collectionHandle)!.alterColumn(diff.column.handle, q.column(diff.column.handle, mapStringToColumnType(diff.type)))
+			);
 		}
 		else if (diff.action === 'drop_column') {
-			debugger;
+			if (stdin && stdout) {
+				const collectionHandle = diff.collection.handle;
+				const columnName = `${collectionHandle}.${diff.column.handle}`;
+
+				const choices: [string, string][] = [['drop', `Drop \`${columnName}\``], ['abort', `Abort migration`]];
+				let choice: string | undefined;
+
+				try {
+					choice = await promptSelection(stdin, stdout, `Field \`${columnName}\` is no longer defined in schema, confirm deletion?`, new Map(choices));
+				} catch (err) {
+					throw new Error(`User aborted migration.`);
+				}
+
+				if (choice === 'abort') {
+					throw new Error(`User aborted migration.`);
+				}
+
+				if (alterCollections.has(collectionHandle) === false) {
+					alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+				}
+				alterCollections.set(
+					collectionHandle,
+					alterCollections.get(collectionHandle)!.dropColumn(diff.column.handle)
+				);
+			} else {
+				throw new Error(`Schema has some new deletions that requires your intervention. Please use a TTY terminal.`);
+			}
 		}
 		else if (diff.action === 'add_index') {
-			debugger;
+			const collectionHandle = diff.collection.handle;
+			const columns = Object.keys(diff.index.columns).map<SortableField>(handle => q.sort(handle, diff.index.columns[handle]));
+
+			if (alterCollections.has(collectionHandle) === false) {
+				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+			}
+			alterCollections.set(
+				collectionHandle,
+				alterCollections.get(collectionHandle)!.addIndex(q.index(diff.index.handle, mapStringToIndexType(diff.index.type)).columns(...columns))
+			);
 		}
 		else if (diff.action === 'drop_index') {
-			debugger;
+			const collectionHandle = diff.collection.handle;
+
+			if (alterCollections.has(collectionHandle) === false) {
+				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
+			}
+			alterCollections.set(
+				collectionHandle,
+				alterCollections.get(collectionHandle)!.dropIndex(diff.index.handle)
+			);
 		}
 	}
 
@@ -298,7 +366,7 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 			const columns = index.getColumns()!;
 			let handle = index.getName()!;
 			const localized = columns.reduce((localized: boolean, column: SortableField) => {
-				const match = column.name.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+				const match = matchLocalizedHandle(column.name);
 				return localized || match !== null;
 			}, false);
 			indexes.push({
@@ -306,7 +374,7 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 				type: type,
 				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: SortableField) => {
 					if (localized) {
-						const match = field.name.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
+						const match = matchLocalizedHandle(field.name);
 						if (match) {
 							columns[match[1]] = field.direction || 'asc';
 						} else {
