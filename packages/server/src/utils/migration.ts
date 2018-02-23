@@ -1,4 +1,4 @@
-import { q, Compare, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField } from '@konstellio/db';
+import { q, Compare, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField, DropCollectionQuery, DropCollectionQueryResult } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
 import { Plugin, PluginInitContext } from './plugin';
@@ -26,11 +26,16 @@ export type SchemaDescriptionIndex = {
 	columns: { [handle: string]: 'asc' | 'desc' }
 }
 
-export type SchemaDiff = SchemaDiffAddCollection | SchemaDiffAddColumn | SchemaDiffDropColumn | SchemaDiffAlterColumn | SchemaDiffAddIndex | SchemaDiffDropIndex;
+export type SchemaDiff = SchemaDiffAddCollection | SchemaDiffDropCollection | SchemaDiffAddColumn | SchemaDiffDropColumn | SchemaDiffAlterColumn | SchemaDiffAddIndex | SchemaDiffDropIndex;
 
 export type SchemaDiffAddCollection = {
 	action: 'add_collection'
 	collection: SchemaDescription
+}
+
+export type SchemaDiffDropCollection = {
+	action: 'drop_collection'
+	collection: string
 }
 
 export type SchemaDiffAddColumn = {
@@ -74,10 +79,15 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 	const { database } = context;
 	const diffs: SchemaDiff[] = [];
 
+	const mutedCollections: string[] = [];
+	const result = await database.execute(q.showCollection());
+
 	for (let i = 0, l = schemas.length; i < l; ++i) {
 		const schema = schemas[i];
 		const schemaDesc = schemaToSchemaDescription(context, schema);
 		const exists = await database.execute(q.collectionExists(schema.handle));
+
+		mutedCollections.push(schema.handle);
 
 		if (exists.exists === false) {
 			diffs.push({
@@ -152,6 +162,16 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 		}
 	}
 
+	for (let i = 0, l = result.collections.length; i < l; ++i) {
+		const collection = result.collections[i];
+		if (mutedCollections.indexOf(collection.toString()) === -1) {
+			diffs.push({
+				action: 'drop_collection',
+				collection: collection.toString()
+			});
+		}
+	}
+
 	return diffs;
 }
 
@@ -159,12 +179,18 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
 export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
 	const createCollections: CreateCollectionQuery[] = [];
+	const dropCollections: DropCollectionQuery[] = [];
 	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
 	const muteNewColumn: string[] = [];
 
-	diffs = diffs.sort((a, b) => {
+	const actionOrder = ['drop_collection', 'drop_column'];
 
-		return 0;
+	diffs = diffs.sort((a, b) => {
+		let ai = actionOrder.indexOf(a.action);
+		ai = ai === -1 ? actionOrder.length : ai;
+		let bi = actionOrder.indexOf(b.action);
+		bi = bi === -1 ? actionOrder.length : bi;
+		return ai - bi;
 	});
 
 	for (let i = 0, l = diffs.length; i < l; ++i) {
@@ -183,6 +209,26 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 				});
 			
 			createCollections.push(q.createCollection(diff.collection.handle).columns(...columns).indexes(...indexes));
+		}
+		else if (diff.action === 'drop_collection') {
+			const collectionName = diff.collection;
+			if (stdin && stdout) {
+				const choices = ([['drop', `Drop \`${collectionName}\``], ['abort', `Abort migration`]] as [string, string][])
+				let choice: string;
+				try {
+					choice = await promptSelection(stdin, stdout, `\`${collectionName}\` is no longer in schema, confirm deletion?`, new Map(choices));
+				} catch (err) {
+					throw new Error(`User aborted migration.`);
+				}
+
+				if (choice === 'abort') {
+					throw new Error(`User aborted migration.`);
+				}
+
+				dropCollections.push(q.dropCollection(collectionName));
+			} else {
+				throw new Error(`Schema has some new additions that requires your intervention. Please use a TTY terminal.`);
+			}
 		}
 		else if (diff.action === 'add_column') {
 			const collectionHandle = diff.collection.handle;
@@ -294,7 +340,11 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 		}
 	}
 
-	const queries: Promise<CreateCollectionQueryResult | AlterCollectionQueryResult>[] = createCollections.map(create => context.database.execute(create)).concat(Array.from(alterCollections.values()).map(alter => context.database.execute(alter)));
+	const queries: Promise<CreateCollectionQueryResult | DropCollectionQueryResult | AlterCollectionQueryResult>[] = ([] as Promise<CreateCollectionQueryResult | DropCollectionQueryResult | AlterCollectionQueryResult>[]).concat(
+		dropCollections.map(drop => context.database.execute(drop)),
+		createCollections.map(create => context.database.execute(create)),
+		Array.from(alterCollections.values()).map(alter => context.database.execute(alter))
+	);
 
 	await Promise.all(queries);
 }
@@ -453,7 +503,7 @@ function mapIndexTypeToString(type: IndexType): string {
 			return 'primary';
 		case IndexType.Unique:
 			return 'unique';
-		case IndexType.Index:
+		default:
 			return 'index';
 	}
 }
