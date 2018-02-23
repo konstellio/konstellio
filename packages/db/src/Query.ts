@@ -34,6 +34,10 @@ export class q {
 		return new DeleteQuery().collection(name, namespace);
 	}
 
+	public static showCollection() {
+		return new ShowCollectionQuery();
+	}
+
 	public static createCollection (name: string, namespace?: string) {
 		return new CreateCollectionQuery().collection(name, namespace);
 	}
@@ -1221,6 +1225,22 @@ export class DeleteQuery extends Query {
 		if (this._limit !== undefined) {
 			query += `${newline}${indent}LIMIT ${this._limit}`;
 		}
+
+		return query;
+	}
+}
+
+export class ShowCollectionQuery extends Query {
+
+	toString(): string
+	toString(multiline: boolean): string
+	toString(multiline: boolean, indent: string): string
+	toString(multiline?: boolean, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}SHOW COLLECTIONS`;
 
 		return query;
 	}

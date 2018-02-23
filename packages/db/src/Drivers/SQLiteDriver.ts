@@ -6,6 +6,7 @@ import {
 	InsertQueryResult,
 	ReplaceQueryResult,
 	UpdateQueryResult,
+	ShowCollectionQueryResult,
 	DescribeCollectionQueryResult,
 	CreateCollectionQueryResult,
 	AlterCollectionQueryResult,
@@ -22,6 +23,7 @@ import {
 	UpdateQuery,
 	ReplaceQuery,
 	DeleteQuery,
+	ShowCollectionQuery,
 	DescribeCollectionQuery,
 	CreateCollectionQuery,
 	AlterCollectionQuery,
@@ -115,19 +117,20 @@ export class SQLiteDriver extends Driver {
 		});
 	}
 
-	execute(query: string): Promise<SQLiteQueryResult>
-	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>
-	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>
-	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>
-	execute<T>(query: InsertQuery): Promise<InsertQueryResult<T>>
-	execute<T>(query: UpdateQuery): Promise<UpdateQueryResult<T>>
-	execute<T>(query: ReplaceQuery): Promise<ReplaceQueryResult<T>>
-	execute(query: DeleteQuery): Promise<DeleteQueryResult>
+	execute(query: string): Promise<SQLiteQueryResult>;
+	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>;
+	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>;
+	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>;
+	execute<T>(query: InsertQuery): Promise<InsertQueryResult<T>>;
+	execute<T>(query: UpdateQuery): Promise<UpdateQueryResult<T>>;
+	execute<T>(query: ReplaceQuery): Promise<ReplaceQueryResult<T>>;
+	execute(query: DeleteQuery): Promise<DeleteQueryResult>;
 	execute(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult>;
 	execute(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult>;
 	execute(query: AlterCollectionQuery): Promise<AlterCollectionQueryResult>;
 	execute(query: CollectionExistsQuery): Promise<CollectionExistsQueryResult>;
 	execute(query: DropCollectionQuery): Promise<DropCollectionQueryResult>;
+	execute(query: ShowCollectionQuery): Promise<ShowCollectionQueryResult>;
 	execute<T>(query: any): Promise<any> {
 		if (typeof query === 'string') {
 			return this.executeSQL(query);
@@ -168,7 +171,10 @@ export class SQLiteDriver extends Driver {
 		else if (query instanceof DropCollectionQuery) {
 			return this.executeDropCollection(query);
 		}
-
+		else if (query instanceof ShowCollectionQuery) {
+			return this.executeShowCollection(query);
+		}
+		
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
@@ -225,6 +231,18 @@ export class SQLiteDriver extends Driver {
 		const stmts = convertQueryToSQL(query);
 		const { changes } = await runQuery(this, stmts[0].sql, stmts[0].params);
 		return new DeleteQueryResult(changes > 0);
+	}
+
+	private async executeShowCollection(query: ShowCollectionQuery): Promise<ShowCollectionQueryResult> {
+		return allQuery<{ name: string }>(this, `SELECT name FROM sqlite_master WHERE type="table"`).then((tables) => {
+			return new ShowCollectionQueryResult(tables.filter(({ name }) => name !== 'sqlite_sequence').map<Collection>(({ name }) => {
+				const match = name.match(/^([^_]+)_(.*)$/);
+				if (match) {
+					return q.collection(match[2], match[1]);
+				}
+				return q.collection(name);
+			}));
+		});
 	}
 
 	private async executeDescribeCollection(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult> {

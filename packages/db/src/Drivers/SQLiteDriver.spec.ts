@@ -219,6 +219,16 @@ describe('SQLite', () => {
 		expect(result.exists).to.equal(false);
 	});
 
+	it('describe collection', async () => {
+
+		let result: QueryResult.ShowCollectionQueryResult = await driver.execute(q.showCollection()).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.ShowCollectionQueryResult);
+		expect(result.collections.length).to.equal(2);
+		expect(result.collections[0].toString()).to.equal('Bar.Foo');
+		expect(result.collections[1].toString()).to.equal('Boo.Moo');
+
+	});
+
 	it('drop collection', async () => {
 		let result: QueryResult.DropCollectionQueryResult = await driver.execute(q.dropCollection('Moo', 'Boo')).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.DropCollectionQueryResult);

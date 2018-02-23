@@ -23,6 +23,7 @@ export abstract class Driver {
 	abstract execute(query: Query.AlterCollectionQuery): Promise<Result.AlterCollectionQueryResult>;
 	abstract execute(query: Query.CollectionExistsQuery): Promise<Result.CollectionExistsQueryResult>;
 	abstract execute(query: Query.DropCollectionQuery): Promise<Result.DropCollectionQueryResult>;
+	abstract execute(query: Query.ShowCollectionQuery): Promise<Result.ShowCollectionQueryResult>;
 
 
 	abstract compareTypes(a: Query.ColumnType, b: Query.ColumnType): Compare;

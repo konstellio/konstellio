@@ -52,6 +52,12 @@ export class AlterCollectionQueryResult extends QueryResult {
 	}
 }
 
+export class ShowCollectionQueryResult extends QueryResult {
+	constructor(public readonly collections: Query.Collection[]) {
+		super();
+	}
+}
+
 export class DescribeCollectionQueryResult extends QueryResult {
 	constructor(public readonly collection: Query.Collection, public readonly columns: Query.Column[], public readonly indexes: Query.Index[]) {
 		super();
