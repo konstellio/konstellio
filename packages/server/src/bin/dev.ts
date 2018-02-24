@@ -6,6 +6,7 @@ import { getSchemaDocument, getSchemaResolvers, parseSchema } from '../utils/sch
 import { dirname } from 'path';
 import { getSchemaDiff, executeSchemaMigration } from '../utils/migration';
 import { ReadStream, WriteStream } from 'tty';
+import { getModels } from '../utils/model';
 
 export default async function ({ file }) {
 	const config = await parseConfig(file);
@@ -49,9 +50,7 @@ export default async function ({ file }) {
 		}
 	}
 
+	const models = await getModels(context, schemas);
+
 	debugger;
-
-	// const resolvers = await buildSchemaResolvers(plugins);
-
-	// https://github.com/konstellio/konstellio/blob/b54e448222926bb58551d37b6bd25d6fb71cd8aa/src/lib/createGraphQL.ts
 }

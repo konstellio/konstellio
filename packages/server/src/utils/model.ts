@@ -1,97 +1,186 @@
-import { Driver, q, Collection, Bitwise, SortableField, CalcField, FieldExpression, ValueExpression } from "@konstellio/db";
+import { Driver, q, Collection, Bitwise, SortableField, CalcField, FieldExpression, ValueExpression, Comparison, SelectQuery, Expression } from "@konstellio/db";
+import { Schema } from "./schema";
+import { PluginInitContext } from "./plugin";
+import ObjectID from "bson-objectid"
+import * as Dataloader from "dataloader";
 
+export async function getModels(context: PluginInitContext, schemas: Schema[]): Promise<Map<string, Model>> {
+	const models = new Map<string, Model>();
 
-export class ModelFactory<T extends { [field: string]: ValueExpression } = any> {
+	for (let i = 0, l = schemas.length; i < l; ++i) {
+		const schema = schemas[i];
+
+		models.set(schema.handle, new Model(context.database, schema, models));
+	}
+
+	return models;
+}
+
+export class Model<T extends { id: string, [field: string]: ValueExpression } = { id: string }> {
 	
 	protected readonly collection: Collection;
 
-	constructor(protected database: Driver, protected handle: string) {
-		this.collection = q.collection(handle);
+	constructor(
+		protected readonly database: Driver,
+		protected readonly schema: Schema,
+		protected readonly models: Map<string, Model>
+	) {
+		this.collection = q.collection(schema.handle);
 	}
 
-	async findById(id: string): Promise<Model<T>> {
-		const result = await this.database.execute<T>(q.select().from(this.collection).eq('id', id));
-		if (result.results.length === 0) {
-			throw new Error(`Could not find id ${id} in ${this.handle}.`);
+	// TODO "localize" results and queries
+
+	async findById(
+		id: string,
+		options?: {
+			fields?: string[]
+			locale?: string
 		}
+	): Promise<T> {
+		// TODO Dataloader.load https://github.com/facebook/dataloader#loadkey
+		let query = q.select().from(this.collection).eq('id', id).limit(1);
+
+		if (options && options.fields) {
+			query = query.select(...options.fields);
+		}
+
+		const result = await this.database.execute<T>(query);
+		if (result.results.length === 0) {
+			throw new Error(`Could not find id ${id} in ${this.schema.handle}.`);
+		}
+
 		return result.results[0];
 	}
 
-	async find(option: {
-		condition?: Bitwise,
-		sort?: [string, 'asc' | 'desc'][],
-		offset?: number,
+	async findByIds(
+		ids: string[],
+		options?: {
+			fields?: string[]
+			locale?: string
+		}
+	): Promise<T[]> {
+		// TODO Dataloader.loadMany https://github.com/facebook/dataloader#loadmanykeys
+
+		let query = q.select().from(this.collection).in('id', ids);
+
+		if (options && options.fields) {
+			query = query.select(...options.fields);
+		}
+
+		const result = await this.database.execute<T>(query);
+
+		return result.results;
+	}
+
+	async findOne(options?: {
+		locale?: string
+		fields?: string[]
+		condition?: Bitwise | Comparison
+		sort?: SortableField[]
+		offset?: number
+	}): Promise<T> {
+		let query = q.select().from(this.collection).limit(1);
+
+		if (options) {
+			if (options.fields) {
+				query = query.select(...options.fields);
+			}
+			if (options.condition) {
+				query = query.where(options.condition instanceof Bitwise ? options.condition : q.and(options.condition));
+			}
+			if (options.sort) {
+				query = query.sort(...options.sort);
+			}
+			if (typeof options.offset === 'number') {
+				query = query.offset(options.offset);
+			}
+		}
+
+		const result = await this.database.execute<T>(query);
+		if (result.results.length === 0) {
+			throw new Error(`Could not find anything matching query in ${this.schema.handle}.`);
+		}
+
+		return result.results[0];
+	}
+
+	async find(options?: {
+		locale?: string
+		fields?: string[]
+		condition?: Bitwise | Comparison
+		sort?: SortableField[]
+		offset?: number
 		limit?: number
-	}): Promise<Model<T>[]> {
+	}): Promise<T[]> {
 		let query = q.select().from(this.collection);
-		if (option.condition) {
-			query = query.where(option.condition);
+
+		if (options) {
+			if (options.fields) {
+				query = query.select(...options.fields);
+			}
+			if (options.condition) {
+				query = query.where(options.condition instanceof Bitwise ? options.condition : q.and(options.condition));
+			}
+			if (options.sort) {
+				query = query.sort(...options.sort);
+			}
+			if (typeof options.offset === 'number') {
+				query = query.offset(options.offset);
+			}
+			if (typeof options.limit === 'number') {
+				query = query.limit(options.limit);
+			}
 		}
-		if (option.sort) {
-			query = query.sort(...option.sort.map<SortableField>(([name, dir]) => q.sort(name, dir)));
-		}
-		if (typeof option.offset === 'number') {
-			query = query.offset(option.offset);
-		}
-		if (typeof option.limit === 'number') {
-			query = query.limit(option.limit);
-		}
+
 		const result = await this.database.execute<T>(query);
+
 		return result.results;
 	}
 
-	async aggregate(option: {
-		fields: { [column: string]: CalcField },
-		condition?: Bitwise,
-		group?: FieldExpression[],
-		sort?: [string, 'asc' | 'desc'][],
-		offset?: number,
+	async aggregate<R>(options?: {
+		locale?: string
+		fields?: (string | CalcField)[]
+		joins?: { [alias: string]: { query: SelectQuery, on: Expression } }
+		condition?: Bitwise | Comparison
+		group?: FieldExpression[]
+		sort?: SortableField[]
+		offset?: number
 		limit?: number
-	}): Promise<Model<T>[]> {
-		let query = q.aggregate(option.fields).from(this.collection);
-		if (option.condition) {
-			query = query.where(option.condition);
-		}
-		if (option.group) {
-			query = query.group(...option.group);
-		}
-		if (option.sort) {
-			query = query.sort(...option.sort.map<SortableField>(([name, dir]) => q.sort(name, dir)));
-		}
-		if (typeof option.offset === 'number') {
-			query = query.offset(option.offset);
-		}
-		if (typeof option.limit === 'number') {
-			query = query.limit(option.limit);
-		}
-		const result = await this.database.execute<T>(query);
-		return result.results;
+	}): Promise<R[]> {
+		throw new Error(`Model.aggregate not implemented yet.`);
 	}
 
-	async create(data: T): Promise<Model<T>> {
-		const query = q.insert(this.collection.name, this.collection.namespace).fields(data);
+	async create(data: T, locale?: string): Promise<T> {
+		const id = ObjectID.generate();
+		const obj: T = Object.assign({}, data, { id });
+
+		const query = q.insert(this.collection.name, this.collection.namespace).fields(obj);
 		const result = await this.database.execute(query);
-		return result.id;
+
+		return obj;
 	}
 
-	async update(id: string, data: T): Promise<boolean> {
-		const query = q.update(this.collection.name, this.collection.namespace).fields(data).eq('id', id);
-		const result = await this.database.execute(query);
-		return true;
+	async update(id: string, data: T, locale?: string): Promise<T> {
+		throw new Error(`Model.update not implemented yet.`);
 	}
 
-	async delete(condition: Bitwise): Promise<boolean> {
-		let query = q.delete(this.collection.name, this.collection.namespace).where(condition);
-		const result = await this.database.execute(query);
-		return result.acknowledge;
+	async delete(...ids: string[]): Promise<boolean> {
+		// TODO Dataloader.clear https://github.com/facebook/dataloader#clearkey
+		throw new Error(`Model.delete not implemented yet.`);
 	}
 
-}
-
-export class Model<T extends { [field: string]: ValueExpression } = any> {
-
-	constructor(public properties: { [field: string]: ValueExpression }) {
-
+	async relation<R>(
+		field: string,
+		options: {
+			locale?: string
+			fields?: (string | CalcField)[]
+			condition?: Bitwise | Comparison
+			offset?: number
+			limit?: number
+		}
+	): Promise<R[]> {
+		// TODO Dataloader.loadMany https://github.com/facebook/dataloader#loadmanykeys
+		throw new Error(`Model.relation not implemented yet.`);
 	}
 
 }
