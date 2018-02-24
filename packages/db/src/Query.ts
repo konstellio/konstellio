@@ -121,6 +121,10 @@ export class q {
 		return new Field(name);
 	}
 
+	public static var (name: string) {
+		return new Variable(name);
+	}
+
 	public static sort (name: string, direction?: DirectionExpression) {
 		return new SortableField(name, direction);
 	}
@@ -185,7 +189,7 @@ export enum IndexType {
 
 export type FieldExpression = string | Field
 export type CalcFieldExpression = string | Field | CalcField
-export type ValueExpression = Field | string | number | boolean | Date | null
+export type ValueExpression = Field | Variable | string | number | boolean | Date | null
 export type BitwiseOperatorExpression = "and" | "or" | "xor"
 export type ComparisonOperatorExpression = "=" | "!=" | ">" | ">=" | "<" | "<=" | "beginsWith" | "in"
 export type DirectionExpression = "asc" | "desc"
@@ -193,17 +197,6 @@ export type AggregateExpression = Map<string, CalcField>
 export type DataExpression = Map<string, ValueExpression>
 export type JoinExpression = Map<string, { query: SelectQuery, on: Expression }>
 export type Expression = Comparison | Bitwise;
-
-export type QueryReducer<I, O> = (node: I, accumulator: O) => void;
-export type QueryReducers<T> = {
-	Query?: QueryReducer<Query, T>
-	Collection?: QueryReducer<Collection, T>
-	Field?: QueryReducer<Field, T>
-	SortableField?: QueryReducer<SortableField, T>
-	CalcField?: QueryReducer<CalcField, T>
-	Comparison?: QueryReducer<Comparison, T>
-	Bitwise?: QueryReducer<Bitwise, T>
-}
 
 export class Query {
 
@@ -1806,6 +1799,13 @@ export class CalcField {
 
 	public toString () {
 		return `${this._function.toLocaleUpperCase()}()`;
+	}
+}
+
+export type Variables = { [key: string]: string | number | boolean | Date | null };
+
+export class Variable {
+	constructor(public readonly name: string) {
 	}
 }
 

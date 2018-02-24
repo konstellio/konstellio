@@ -40,6 +40,8 @@ import {
 	MaxCalcField,
 	MinCalcField,
 	ConcatCalcField,
+	Variable,
+	Variables,
 	Column,
 	ColumnType,
 	Index,
@@ -117,44 +119,44 @@ export class SQLiteDriver extends Driver {
 		});
 	}
 
-	execute(query: string): Promise<SQLiteQueryResult>;
-	execute<T>(query: SelectQuery): Promise<SelectQueryResult<T>>;
-	execute<T>(query: AggregateQuery): Promise<AggregateQueryResult<T>>;
-	execute<T>(query: UnionQuery): Promise<SelectQueryResult<T>>;
-	execute<T>(query: InsertQuery): Promise<InsertQueryResult<T>>;
-	execute<T>(query: UpdateQuery): Promise<UpdateQueryResult<T>>;
-	execute<T>(query: ReplaceQuery): Promise<ReplaceQueryResult<T>>;
-	execute(query: DeleteQuery): Promise<DeleteQueryResult>;
+	execute(query: string, variables?: (string | number | boolean | Date | null)[]): Promise<SQLiteQueryResult>;
+	execute<T>(query: SelectQuery, variables?: Variables): Promise<SelectQueryResult<T>>;
+	execute<T>(query: AggregateQuery, variables?: Variables): Promise<AggregateQueryResult<T>>;
+	execute<T>(query: UnionQuery, variables?: Variables): Promise<SelectQueryResult<T>>;
+	execute<T>(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult<T>>;
+	execute<T>(query: UpdateQuery, variables?: Variables): Promise<UpdateQueryResult<T>>;
+	execute<T>(query: ReplaceQuery, variables?: Variables): Promise<ReplaceQueryResult<T>>;
+	execute(query: DeleteQuery, variables?: Variables): Promise<DeleteQueryResult>;
 	execute(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult>;
 	execute(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult>;
 	execute(query: AlterCollectionQuery): Promise<AlterCollectionQueryResult>;
 	execute(query: CollectionExistsQuery): Promise<CollectionExistsQueryResult>;
 	execute(query: DropCollectionQuery): Promise<DropCollectionQueryResult>;
 	execute(query: ShowCollectionQuery): Promise<ShowCollectionQueryResult>;
-	execute<T>(query: any): Promise<any> {
+	execute<T>(query: any, variables?: any): Promise<any> {
 		if (typeof query === 'string') {
-			return this.executeSQL(query);
+			return this.executeSQL(query, variables);
 		}
 		else if (query instanceof SelectQuery) {
-			return this.executeSelect<T>(query);
+			return this.executeSelect<T>(query, variables);
 		}
 		else if (query instanceof AggregateQuery) {
-			return this.executeAggregate<T>(query);
+			return this.executeAggregate<T>(query, variables);
 		}
 		else if (query instanceof UnionQuery) {
-			return this.executeUnion<T>(query);
+			return this.executeUnion<T>(query, variables);
 		}
 		else if (query instanceof InsertQuery) {
-			return this.executeInsert<T>(query);
+			return this.executeInsert<T>(query, variables);
 		}
 		else if (query instanceof ReplaceQuery) {
 			return Promise.reject(new QueryNotSupportedError(`SQLite does not support Replace`));
 		}
 		else if (query instanceof UpdateQuery) {
-			return this.executeUpdate<T>(query);
+			return this.executeUpdate<T>(query, variables);
 		}
 		else if (query instanceof DeleteQuery) {
-			return this.executeDelete(query);
+			return this.executeDelete(query, variables);
 		}
 		else if (query instanceof DescribeCollectionQuery) {
 			return this.executeDescribeCollection(query);
@@ -185,50 +187,50 @@ export class SQLiteDriver extends Driver {
 		return Compare.Different;
 	}
 
-	private async executeSQL (query: string): Promise<SQLiteQueryResult | SelectQueryResult<any>> {
+	private async executeSQL(query: string, variables?: (string | number | boolean | Date | null)[]): Promise<SQLiteQueryResult | SelectQueryResult<any>> {
 		if (query.replace(/^[\s(]+/, '').substr(0, 5).toUpperCase() === 'SELECT') {
-			return new SelectQueryResult<any>(await allQuery(this, query));
+			return new SelectQueryResult<any>(await allQuery(this, query, variables));
 		} else {
 			return runQuery(this, query);
 		}
 	}
 
-	private async executeSelect<T> (query: SelectQuery): Promise<SelectQueryResult<T>> {
-		const stmts = convertQueryToSQL(query);
+	private async executeSelect<T>(query: SelectQuery, variables?: Variables): Promise<SelectQueryResult<T>> {
+		const stmts = convertQueryToSQL(query, variables);
 		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
 		return new SelectQueryResult<T>(rows);
 	}
 
-	private async executeAggregate<T> (query: AggregateQuery): Promise<AggregateQueryResult<T>> {
-		const stmts = convertQueryToSQL(query);
+	private async executeAggregate<T>(query: AggregateQuery, variables?: Variables): Promise<AggregateQueryResult<T>> {
+		const stmts = convertQueryToSQL(query, variables);
 		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
 		return new SelectQueryResult<T>(rows);
 	}
 
-	private async executeUnion<T> (query: UnionQuery): Promise<SelectQueryResult<T>> {
-		const stmts = convertQueryToSQL(query);
+	private async executeUnion<T>(query: UnionQuery, variables?: Variables): Promise<SelectQueryResult<T>> {
+		const stmts = convertQueryToSQL(query, variables);
 		const rows = await allQuery<T>(this, stmts[0].sql, stmts[0].params);
 		return new SelectQueryResult<T>(rows);
 	}
 
-	private async executeInsert<T> (query: InsertQuery): Promise<InsertQueryResult<T>> {
-		const stmts = convertQueryToSQL(query);
+	private async executeInsert<T>(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult<T>> {
+		const stmts = convertQueryToSQL(query, variables);
 		const { changes, lastId } = await runQuery(this, stmts[0].sql, stmts[0].params);
 		const fields = query.getFields();
 		const data: T = fields ? fields.toJS() : {}
 		return new InsertQueryResult<T>(lastId.toString(), data);
 	}
 
-	private async executeUpdate<T> (query: UpdateQuery): Promise<UpdateQueryResult<T>> {
-		const stmts = convertQueryToSQL(query);
+	private async executeUpdate<T>(query: UpdateQuery, variables?: Variables): Promise<UpdateQueryResult<T>> {
+		const stmts = convertQueryToSQL(query, variables);
 		const changes = await runQuery(this, stmts[0].sql, stmts[0].params);
 		const fields = query.getFields();
 		const data: T = fields ? fields.toJS() : {}
 		return new UpdateQueryResult<T>(data);
 	}
 
-	private async executeDelete (query: DeleteQuery): Promise<DeleteQueryResult> {
-		const stmts = convertQueryToSQL(query);
+	private async executeDelete(query: DeleteQuery, variables?: Variables): Promise<DeleteQueryResult> {
+		const stmts = convertQueryToSQL(query, variables);
 		const { changes } = await runQuery(this, stmts[0].sql, stmts[0].params);
 		return new DeleteQueryResult(changes > 0);
 	}
@@ -439,13 +441,13 @@ function sortableFieldToSQL(field: SortableField): string {
 	return `${field.name} ${field.direction || 'ASC'}`;
 }
 
-function calcFieldToSQL(field: CalcField): string {
+function calcFieldToSQL(field: CalcField, variables?: Variables): string {
 	if (field instanceof CountCalcField || field instanceof AverageCalcField || field instanceof SumCalcField || field instanceof SubCalcField) {
-		return `${field.function.toUpperCase()}(${field.field instanceof Field ? fieldToSQL(field.field) : calcFieldToSQL(field.field)})`;
+		return `${field.function.toUpperCase()}(${field.field instanceof Field ? fieldToSQL(field.field) : calcFieldToSQL(field.field, variables)})`;
 	}
 	else if (field instanceof MaxCalcField || field instanceof MinCalcField || field instanceof ConcatCalcField) {
 		return `${field.function.toUpperCase()}(${field.fields.map<string>(field => {
-			return field ? (field instanceof Field ? fieldToSQL(field) : calcFieldToSQL(field)) : '';
+			return field ? (field instanceof Field ? fieldToSQL(field) : calcFieldToSQL(field, variables)) : '';
 		}).join(', ')})`;
 	}
 	else {
@@ -453,10 +455,16 @@ function calcFieldToSQL(field: CalcField): string {
 	}
 }
 
-function comparisonToSQL(comparison: Comparison, params: any[]): string {
+function comparisonToSQL(comparison: Comparison, params: any[], variables?: Variables): string {
 	if (comparison instanceof ComparisonSimple) {
 		if (comparison.value instanceof Field) {
 			return `${comparison.field} ${comparison.operator} ${fieldToSQL(comparison.value)}`;
+		} else if (comparison.value instanceof Variable) {
+			if (variables === undefined) {
+				throw new Error(`Could not find query variable ${comparison.value.name}.`);
+			}
+			params.push(variables[comparison.value.name]);
+			return `${comparison.field} ${comparison.operator} ?`;
 		} else {
 			params.push(comparison.value);
 			return `${comparison.field} ${comparison.operator} ?`;
@@ -467,6 +475,12 @@ function comparisonToSQL(comparison: Comparison, params: any[]): string {
 			if (value) {
 				if (value instanceof Field) {
 					return fieldToSQL(value);
+				} else if (value instanceof Variable) {
+					if (variables === undefined) {
+						throw new Error(`Could not find query variable ${value.name}.`);
+					}
+					params.push(variables[value.name]);
+					return '?';
 				} else {
 					params.push(value);
 					return '?';
@@ -480,14 +494,14 @@ function comparisonToSQL(comparison: Comparison, params: any[]): string {
 	}
 }
 
-function bitwiseToSQL(bitwise: Bitwise, params: any[]): string {
+function bitwiseToSQL(bitwise: Bitwise, params: any[], variables?: Variables): string {
 	if (bitwise.operands) {
 		return `(${bitwise.operands.map<string>(op => {
 			if (op instanceof Comparison) {
-				return comparisonToSQL(op, params);
+				return comparisonToSQL(op, params, variables);
 			}
 			else if (op instanceof Bitwise) {
-				return bitwiseToSQL(op, params);
+				return bitwiseToSQL(op, params, variables);
 			}
 			return '';
 		}).join(` ${bitwise.operator.toUpperCase()} `)})`;
@@ -497,7 +511,7 @@ function bitwiseToSQL(bitwise: Bitwise, params: any[]): string {
 	}
 }
 
-function selectQueryToSQL(query: SelectQuery): Statement {
+function selectQueryToSQL(query: SelectQuery, variables?: Variables): Statement {
 	const params: any[] = [];
 	let sql = ``;
 	sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? fieldToSQL(f) : '') : '*'}`;
@@ -509,13 +523,13 @@ function selectQueryToSQL(query: SelectQuery): Statement {
 	}
 	if (query.getJoin()) {
 		query.getJoin()!.forEach((join, alias) => {
-			const joinStm = convertQueryToSQL(join!.query);
+			const joinStm = convertQueryToSQL(join!.query, variables);
 			params.push(...joinStm[0].params);
 			sql += ` JOIN (${joinStm[0].sql}) AS ${alias} ON ${join!.on}`;
 		});
 	}
 	if (query.getWhere()) {
-		sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)}`;
+		sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params, variables)}`;
 	}
 	if (query.getLimit()) {
 		sql += ` LIMIT ${query.getLimit()!}`;
@@ -572,10 +586,10 @@ export type Statement = {
 	params: any[]
 }
 
-export function convertQueryToSQL(query: Query): Statement[] {
+export function convertQueryToSQL(query: Query, variables?: Variables): Statement[] {
 	return traverseQuery<Statement[]>(query, {
 		SelectQuery(query) {
-			return [selectQueryToSQL(query)];
+			return [selectQueryToSQL(query, variables)];
 		},
 		UnionQuery(query) {
 			const params: any[] = [];
@@ -584,7 +598,7 @@ export function convertQueryToSQL(query: Query): Statement[] {
 			if (query.getSelects()) {
 				sql += `(${query.getSelects()!.map<string>(subquery => {
 					if (subquery) {
-						const stmt = convertQueryToSQL(subquery);
+						const stmt = convertQueryToSQL(subquery, variables);
 						params.push(...stmt[0].params);
 						return stmt[0].sql;
 					}
@@ -608,7 +622,7 @@ export function convertQueryToSQL(query: Query): Statement[] {
 		AggregateQuery(query) {
 			const params: any[] = [];
 			let sql = ``;
-			sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? calcFieldToSQL(f) : '') : '*'}`;
+			sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? calcFieldToSQL(f, variables) : '') : '*'}`;
 
 			if (query.getFrom()) {
 				sql += ` FROM ${collectionToSQL(query.getFrom()!)}`;
@@ -617,13 +631,13 @@ export function convertQueryToSQL(query: Query): Statement[] {
 			}
 			if (query.getJoin()) {
 				query.getJoin()!.forEach((join, alias) => {
-					const joinStm = convertQueryToSQL(join!.query);
+					const joinStm = convertQueryToSQL(join!.query, variables);
 					params.push(...joinStm[0].params);
 					sql += ` JOIN (${joinStm[0].sql}) AS ${alias} ON ${join!.on}`;
 				});
 			}
 			if (query.getWhere()) {
-				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)}`;
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params, variables)}`;
 			}
 			if (query.getGroup()) {
 				sql += ` GROUP BY ${query.getGroup()!.map<string>(field => field ? fieldToSQL(field) : '').join(', ')}`;
@@ -679,7 +693,7 @@ export function convertQueryToSQL(query: Query): Statement[] {
 				throw new Error(`Expected UpdateQuery to have some data.`);
 			}
 			if (query.getWhere()) {
-				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)} `;
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params, variables)} `;
 			}
 			if (query.getLimit()) {
 				throw new Error(`SQLiteDriver does not support UpdateQuery with a limit.`);
@@ -697,7 +711,7 @@ export function convertQueryToSQL(query: Query): Statement[] {
 				throw new Error(`Expected DeleteQuery to be from a collection.`);
 			}
 			if (query.getWhere()) {
-				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params)} `;
+				sql += ` WHERE ${bitwiseToSQL(query.getWhere()!, params, variables)} `;
 			}
 			if (query.getLimit()) {
 				throw new Error(`SQLiteDriver does not support DeleteQuery with a limit.`);

@@ -75,6 +75,14 @@ describe('SQLite', () => {
 		expect(result).to.be.an.instanceOf(QueryResult.SelectQueryResult);
 	});
 
+	it('variable', async () => {
+		const select = q.select().from('Foo', 'Bar').eq('title', q.var('title'));
+		await driver.execute<Foo>(select).should.be.rejected;
+
+		const result: QueryResult.SelectQueryResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.SelectQueryResult);
+	});
+
 	it('delete', async () => {
 
 		const remove = q.delete('Foo', 'Bar').eq('title', 'Hello world');//.limit(1);

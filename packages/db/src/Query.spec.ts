@@ -35,6 +35,14 @@ describe('Query', () => {
 			expect(() => { (<any>a).function = 'avg'; }).to.throw(Error);
 		});
 
+		it('variable', () => {
+			const a = q.var('foo');
+			const b = q.var('bar');
+			expect(a.name).to.equal('foo');
+			expect(b.name).to.equal('bar');
+			expect(a).to.not.equal(b);
+		});
+
 		it('collection', () => {
 			const a = q.collection('foo', 'bar');
 			expect(() => { (<any>a).name = 'moo'; }).to.throw(Error);
