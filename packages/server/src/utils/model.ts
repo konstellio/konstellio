@@ -191,7 +191,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 		const { id, ...obj } = this.localizeInput<any>(data);
 
-		const query = q.update(this.collection.name, this.collection.namespace).fields(data);
+		const query = q.update(this.collection.name, this.collection.namespace).fields(data).eq('id', id);
 		const result = await this.database.execute(query);
 
 		return id;
