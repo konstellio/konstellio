@@ -4,13 +4,13 @@ import { PluginInitContext } from "./plugin";
 import ObjectID from "bson-objectid"
 import * as Dataloader from "dataloader";
 
-export async function getModels(context: PluginInitContext, schemas: Schema[]): Promise<Map<string, Model>> {
+export async function getModels(context: PluginInitContext, schemas: Schema[], locales: string[]): Promise<Map<string, Model>> {
 	const models = new Map<string, Model>();
 
 	for (let i = 0, l = schemas.length; i < l; ++i) {
 		const schema = schemas[i];
 
-		models.set(schema.handle, new Model(context.database, schema, models));
+		models.set(schema.handle, new Model(context.database, schema, locales, models));
 	}
 
 	return models;
@@ -29,6 +29,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 	constructor(
 		protected readonly database: Driver,
 		protected readonly schema: Schema,
+		protected readonly locales: string[],
 		protected readonly models: Map<string, Model>
 	) {
 		this.collection = q.collection(schema.handle);
@@ -56,7 +57,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		try {
 			const result = await this.loader.load(id);
 			if (result) {
-				return this.reduceResult<WithID<O>>(
+				return this.localizeResult<WithID<O>>(
 					result,
 					options && options.locale,
 					options && options.fields && ['id'].concat(options.fields.filter(key => key !== 'id'))
@@ -73,11 +74,13 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 			locale?: string
 		}
 	): Promise<WithID<O>[]> {
+		// TODO localize fields
+
 		try {
 			const results = await this.loader.loadMany(ids);
 			const realResults = results.filter((result): result is WithID<O> => result !== undefined);
 			if (realResults.length === ids.length) {
-				return realResults.map((result: WithID<O>) => this.reduceResult<WithID<O>>(
+				return realResults.map((result: WithID<O>) => this.localizeResult<WithID<O>>(
 					result,
 					options && options.locale,
 					options && options.fields && ['id'].concat(options.fields.filter(key => key !== 'id')))
@@ -94,6 +97,8 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		sort?: SortableField[]
 		offset?: number
 	}): Promise<WithID<O>> {
+		// TODO localize fields, condition, sort
+
 		let query = q.select().from(this.collection).limit(1);
 
 		if (options) {
@@ -116,7 +121,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 			throw new Error(`Could not find anything matching query in ${this.schema.handle}.`);
 		}
 
-		return this.reduceResult<WithID<O>>(result.results[0], options && options.locale);
+		return this.localizeResult<WithID<O>>(result.results[0], options && options.locale);
 	}
 
 	async find(options?: {
@@ -127,6 +132,8 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		offset?: number
 		limit?: number
 	}): Promise<WithID<O>[]> {
+		// TODO localize fields, condition, sort
+
 		let query = q.select().from(this.collection);
 
 		if (options) {
@@ -149,7 +156,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 		const result = await this.database.execute<WithID<O>>(query);
 
-		return result.results.map(result => this.reduceResult<WithID<O>>(result, options && options.locale));
+		return result.results.map(result => this.localizeResult<WithID<O>>(result, options && options.locale));
 	}
 
 	async aggregate<O>(options?: {
@@ -162,16 +169,14 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		offset?: number
 		limit?: number
 	}): Promise<O[]> {
-		// TODO localized fields, condition, group, sort and results
+		// TODO localized fields, joins, condition, group, sort and results
+		
 		throw new Error(`Model.aggregate not implemented yet.`);
 	}
 
 	async create(data: I): Promise<string> {
 		const id = ObjectID.generate();
-		const obj: WithID<I> = Object.assign({}, data, { id });
-
-		// TODO localized fields
-		debugger;
+		const obj: WithID<I> = Object.assign({}, this.localizeInput<I>(data), { id });
 		
 		const query = q.insert(this.collection.name, this.collection.namespace).fields(obj);
 		const result = await this.database.execute(query);
@@ -184,10 +189,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 			throw new Error(`Could not retrieve property id of data.`);
 		}
 
-		const { id, ...obj } = data as any;
-
-		// TODO localized fields
-		debugger;
+		const { id, ...obj } = this.localizeInput<any>(data);
 
 		const query = q.update(this.collection.name, this.collection.namespace).fields(data);
 		const result = await this.database.execute(query);
@@ -217,23 +219,51 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		throw new Error(`Model.relation not implemented yet.`);
 	}
 
-	private reduceResult<O>(data: O, locale?: string, fields?: string[]): O {
+	private localizeInput<I>(data: any): I {
+		return Object.keys(data).reduce((obj, key) => {
+			const val = data[key];
+
+			let localized = false;
+			for (let i = 0, l = this.schema.fields.length; i < l; ++i) {
+				if (this.schema.fields[i].handle === key && this.schema.fields[i].localized === true) {
+					localized = true;
+					break;
+				}
+			}
+
+			if (localized) {
+				this.locales.forEach(code => {
+					obj[`${key}__${code}`] = typeof val[code] !== undefined ? val[code] : undefined;
+				});
+			} else {
+				obj[key] = val;
+			}
+
+			return obj;
+		}, {} as I);
+	}
+
+	private localizeResult<O>(data: O, locale?: string, fields?: string[]): O {
 		if (locale || fields) {
-			const localized = locale
-				? this.schema.fields.reduce((fields, field) => {
-					if (field.localized === true) {
-						fields.push(field.handle);
-					}
-					return fields;
-				}, [] as string[])
-				: [];
+			const localized = new Map<string, string>(
+				locale
+					? this.schema.fields.reduce((fields, field) => {
+						if (field.localized === true) {
+							this.locales.forEach(code => {
+								fields.push([`${field.handle}__${code}`, field.handle])
+							})
+						}
+						return fields;
+					}, [] as [string, string][])
+					: [] as [string, string][]
+			);
 			
 			return Object.keys(data).reduce((filtered, source) => {
 				let target: string = source;
-				if (localized.indexOf(source) > -1) {
-					target = source.replace(/__([a-z]{2}(-[a-zA-Z]{2})?)$/, '');
+				if (localized.has(source)) {
+					target = localized.get(source)!;
 				}
-				if (fields && fields.indexOf(target) > -1) {
+				if (fields === undefined || fields.indexOf(target) > -1) {
 					filtered[target] = data[source];
 				}
 				return filtered;

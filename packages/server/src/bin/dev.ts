@@ -51,7 +51,7 @@ export default async function ({ file }) {
 		}
 	}
 
-	const models = await getModels(context, schemas);
+	const models = await getModels(context, schemas, Object.keys(locales));
 
 	type User = {
 		username: string
@@ -101,12 +101,12 @@ export default async function ({ file }) {
 	// ])
 	// const us = await user.find();
 
-	const p = await post.create({
-		title: { fr: 'Premier post', en: 'First post' },
-		slug: { fr: 'premier-post', en: 'first-post' },
-		postDate: new Date(),
-		content: { fr: '...', en: '...' }
-	});
+	// const p = await post.create({
+	// 	title: { fr: 'Premier post', en: 'First post' },
+	// 	slug: { fr: 'premier-post', en: 'first-post' },
+	// 	postDate: new Date(),
+	// 	content: { fr: '...', en: '...' }
+	// });
 
 	const ps = await post.find({ locale: 'fr' });
 
