@@ -739,7 +739,6 @@ export class InsertQuery extends Query {
 
 		this._objects = objects;
 		this._collection = collection;
-		console.log('Objects', objects && objects.count());
 	}
 
 	getObjects(): List<DataExpression> | undefined {
@@ -787,8 +786,8 @@ export class InsertQuery extends Query {
 						return `"${value}"`;
 					}
 					return `${value}`;
-				}).join(', ')}`;
-			}).join(', ')})`;
+				}).join(', ')})`;
+			}).join(', ')}`;
 		}
 
 		return query;
