@@ -16,8 +16,8 @@ export class AggregateQueryResult<T> extends QueryResult {
 	}
 }
 
-export class InsertQueryResult<T> extends QueryResult {
-	constructor(public readonly id: string, public readonly data: T) {
+export class InsertQueryResult extends QueryResult {
+	constructor(public readonly id: string) {
 		super();
 	}
 }

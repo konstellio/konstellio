@@ -38,14 +38,14 @@ describe('SQLite', () => {
 
 	it('insert', async () => {
 
-		const result: QueryResult.InsertQueryResult<any> = await driver.execute<Foo>(q.insert('Foo', 'Bar').fields({
+		const result: QueryResult.InsertQueryResult = await driver.execute(q.insert('Foo', 'Bar').object({
 			title: 'Hello world',
 			postDate: new Date(),
 			likes: 10
 		})).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.InsertQueryResult);
 
-		await driver.execute<Foo>(q.insert('Foo', 'Bar').fields({
+		await driver.execute(q.insert('Foo', 'Bar').object({
 			title: 'Bye world',
 			postDate: new Date(),
 			likes: 10

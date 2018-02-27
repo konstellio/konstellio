@@ -14,9 +14,9 @@ export abstract class Driver {
 	abstract execute<T>(query: Query.SelectQuery, variables?: Query.Variables): Promise<Result.SelectQueryResult<T>>;
 	abstract execute<T>(query: Query.AggregateQuery, variables?: Query.Variables): Promise<Result.AggregateQueryResult<T>>;
 	abstract execute<T>(query: Query.UnionQuery, variables?: Query.Variables): Promise<Result.SelectQueryResult<T>>;
-	abstract execute<T>(query: Query.InsertQuery, variables?: Query.Variables): Promise<Result.InsertQueryResult<T>>;
 	abstract execute<T>(query: Query.UpdateQuery, variables?: Query.Variables): Promise<Result.UpdateQueryResult<T>>;
 	abstract execute<T>(query: Query.ReplaceQuery, variables?: Query.Variables): Promise<Result.ReplaceQueryResult<T>>;
+	abstract execute(query: Query.InsertQuery, variables?: Query.Variables): Promise<Result.InsertQueryResult>;
 	abstract execute(query: Query.DeleteQuery, variables?: Query.Variables): Promise<Result.DeleteQueryResult>;
 	abstract execute(query: Query.CreateCollectionQuery): Promise<Result.CreateCollectionQueryResult>;
 	abstract execute(query: Query.DescribeCollectionQuery): Promise<Result.DescribeCollectionQueryResult>;

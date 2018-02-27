@@ -123,9 +123,9 @@ export class SQLiteDriver extends Driver {
 	execute<T>(query: SelectQuery, variables?: Variables): Promise<SelectQueryResult<T>>;
 	execute<T>(query: AggregateQuery, variables?: Variables): Promise<AggregateQueryResult<T>>;
 	execute<T>(query: UnionQuery, variables?: Variables): Promise<SelectQueryResult<T>>;
-	execute<T>(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult<T>>;
 	execute<T>(query: UpdateQuery, variables?: Variables): Promise<UpdateQueryResult<T>>;
 	execute<T>(query: ReplaceQuery, variables?: Variables): Promise<ReplaceQueryResult<T>>;
+	execute(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult>;
 	execute(query: DeleteQuery, variables?: Variables): Promise<DeleteQueryResult>;
 	execute(query: CreateCollectionQuery): Promise<CreateCollectionQueryResult>;
 	execute(query: DescribeCollectionQuery): Promise<DescribeCollectionQueryResult>;
@@ -213,12 +213,10 @@ export class SQLiteDriver extends Driver {
 		return new SelectQueryResult<T>(rows);
 	}
 
-	private async executeInsert<T>(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult<T>> {
+	private async executeInsert<T>(query: InsertQuery, variables?: Variables): Promise<InsertQueryResult> {
 		const stmts = convertQueryToSQL(query, variables);
 		const { changes, lastId } = await runQuery(this, stmts[0].sql, stmts[0].params);
-		const fields = query.getFields();
-		const data: T = fields ? fields.toJS() : {}
-		return new InsertQueryResult<T>(lastId.toString(), data);
+		return new InsertQueryResult(lastId.toString());
 	}
 
 	private async executeUpdate<T>(query: UpdateQuery, variables?: Variables): Promise<UpdateQueryResult<T>> {
@@ -663,12 +661,16 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 			} else {
 				throw new Error(`Expected InsertQuery to be from a collection.`);
 			}
-			if (query.getFields()) {
-				sql += `(${query.getFields()!.map<string>((value, key) => key!).join(', ')}) VALUES `;
-				sql += `(${query.getFields()!.map<string>((value) => {
-					params.push(value);
-					return '?';
-				}).join(', ')})`;
+
+			const objects = query.getObjects();
+			if (objects !== undefined && objects.count() > 0) {
+				sql += `(${objects.get(0).map<string>((value, key) => key!).join(', ')}) `;
+				sql += `VALUES ${objects.map<string>(obj => {
+					return `(${obj!.map<string>(value => {
+						params.push(value);
+						return '?';
+					}).join(', ')})`;
+				}).join(', ')}`;
 			} else {
 				throw new Error(`Expected InsertQuery to have some data.`);
 			}
