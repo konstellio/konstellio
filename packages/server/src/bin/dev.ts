@@ -53,41 +53,8 @@ export default async function ({ file }) {
 
 	const models = await getModels(context, schemas, Object.keys(locales));
 
-	type User = {
-		username: string
-	}
-	type UserInput = {
-		username: string
-		password: string
-	}
-
-	type Post = {
-		title: string
-		slug: string
-		postDate: Date
-		expireDate?: Date
-		content: string
-	}
-	type PostInput = {
-		title: {
-			fr: string
-			en: string
-		}
-		slug: {
-			fr: string
-			en: string
-		}
-		author: string[]
-		postDate: Date
-		expireDate?: Date
-		content: {
-			fr: string
-			en: string
-		}
-	}
-
-	const User = models.get('User')! as Model<User, UserInput>;
-	const Post = models.get('Post')! as Model<Post, PostInput>;
+	const User = models.get('User')!;
+	const Post = models.get('Post')!;
 
 	// const u = await User.create({ username: 'lpaudet', password: 'bleh' });
 	// const u = await User.findOne({ condition: q.eq('id', '5a90c8373d116f05dca8fc5c') });
@@ -110,8 +77,10 @@ export default async function ({ file }) {
 	// 	content: { fr: '...', en: '...' }
 	// });
 
-	const p = await Post.findById('5a959dda04eaf84f40e5592a', { locale: 'fr' });
-	const as = await Post.relation(p.id, 'author', { locale: 'fr', fields: ['username'] });
+	// const p = await Post.findById('5a959dda04eaf84f40e5592a', { locale: 'fr' });
+	// const as = await Post.relation(p.id, 'author', { locale: 'fr', fields: ['username'] });
+
+	const p = await Post.find({ condition: q.eq('slug', 'premier-post'), locale: 'fr' });
 
 	debugger;
 }
