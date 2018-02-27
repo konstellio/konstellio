@@ -117,16 +117,16 @@ export class q {
 		return new Index(name, type, columns);
 	}
 
-	public static field(name: string) {
-		return new Field(name);
+	public static field(name: string, table?: string) {
+		return new Field(name, table);
 	}
 
 	public static var(name: string) {
 		return new Variable(name);
 	}
 
-	public static sort(name: string, direction?: DirectionExpression) {
-		return new SortableField(name, direction);
+	public static sort(field: Field, direction?: DirectionExpression) {
+		return new SortableField(field, direction);
 	}
 
 	// https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html
@@ -352,14 +352,14 @@ export class SelectQuery extends Query {
 		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._sort, this._offset, this._limit);
 	}
 
-	sort(field: string, direction?: DirectionExpression): SelectQuery
+	sort(field: Field, direction?: DirectionExpression): SelectQuery
 	sort(...fields: SortableField[]): SelectQuery
 	sort(): SelectQuery {
-		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
+		if (arguments.length <= 2 && arguments[0] instanceof Field) {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>arguments[0];
+			const field = <Field>arguments[0];
 			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new SelectQuery(this._select, this._from, this._join, this._where, sort.push(new SortableField(name, direction)), this._offset, this._limit);
+			return new SelectQuery(this._select, this._from, this._join, this._where, sort.push(new SortableField(field, direction)), this._offset, this._limit);
 		}
 		return new SelectQuery(this._select, this._from, this._join, this._where, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
 	}
@@ -463,14 +463,14 @@ export class UnionQuery extends Query {
 		return new UnionQuery(this._selects, this._sort, this._offset, limit);
 	}
 
-	sort(field: string, direction?: DirectionExpression): UnionQuery
+	sort(field: Field, direction?: DirectionExpression): UnionQuery
 	sort(...fields: SortableField[]): UnionQuery
 	sort(): UnionQuery {
-		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
+		if (arguments.length <= 2 && arguments[0] instanceof Field) {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>arguments[0];
+			const field = <Field>arguments[0];
 			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new UnionQuery(this._selects, sort.push(new SortableField(name, direction)), this._offset, this._limit);
+			return new UnionQuery(this._selects, sort.push(new SortableField(field, direction)), this._offset, this._limit);
 		}
 
 		return new UnionQuery(this._selects, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
@@ -661,14 +661,14 @@ export class AggregateQuery extends Query {
 		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._group, this._sort, this._offset, this._limit);
 	}
 
-	sort(field: string, direction?: DirectionExpression): AggregateQuery
+	sort(field: Field, direction?: DirectionExpression): AggregateQuery
 	sort(...fields: SortableField[]): AggregateQuery
 	sort(): AggregateQuery {
-		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
+		if (arguments.length <= 2 && arguments[0] instanceof Field) {
 			const sort = this._sort ? this._sort : List<SortableField>();
-			const name = <string>arguments[0];
+			const field = <Field>arguments[0];
 			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, sort.push(new SortableField(name, direction)), this._offset, this._limit);
+			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, sort.push(new SortableField(field, direction)), this._offset, this._limit);
 		}
 		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
 	}
@@ -1697,14 +1697,14 @@ export class Index {
 		return this._type === type ? this : new Index(this._name, type, this._columns);
 	}
 
-	columns(column: string, direction?: DirectionExpression): Index
+	columns(column: Field, direction?: DirectionExpression): Index
 	columns(...columns: SortableField[]): Index
 	columns(): any {
-		if (arguments.length <= 2 && typeof arguments[0] === 'string') {
+		if (arguments.length <= 2 && arguments[0] instanceof Field) {
 			const sort = this._columns ? this._columns : List<SortableField>();
-			const name = <string>arguments[0];
+			const field = <Field>arguments[0];
 			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new Index(this._name, this._type, sort.push(new SortableField(name, direction)));
+			return new Index(this._name, this._type, sort.push(new SortableField(field, direction)));
 		}
 		else if (arguments.length > 0) {
 			return new Index(this._name, this._type, List<SortableField>(Array.from<SortableField>(arguments)));
@@ -1750,41 +1750,34 @@ export class Field {
 }
 
 export class SortableField {
-	private _name: string
+	private _field: Field
 	private _direction?: DirectionExpression
 
-	constructor(name: string, direction?: DirectionExpression) {
-		this._name = name;
+	constructor(field: Field, direction?: DirectionExpression) {
+		this._field = field;
 		this._direction = direction;
 	}
 
-	public get name() {
-		return this._name;
+	public get field() {
+		return this._field;
 	}
 
 	public get direction() {
 		return this._direction;
 	}
 
-	public rename(name: string) {
-		if (name === this._name) {
-			return this;
-		}
-		return new SortableField(name, this._direction);
-	}
-
 	public sort(direction: DirectionExpression) {
 		if (direction === this._direction) {
 			return this;
 		}
-		return new SortableField(this._name, direction);
+		return new SortableField(this._field, direction);
 	}
 
 	public toString() {
 		if (this._direction) {
-			return `${this._name} ${this._direction}`;
+			return `${this._field.toString()} ${this._direction}`;
 		}
-		return this._name;
+		return this._field.toString();
 	}
 }
 

@@ -288,12 +288,12 @@ export class SQLiteDriver extends Driver {
 			}
 			const cols = idx.columns.filter(col => col.cid > -1).sort((a, b) => a.seqno - b.seqno);
 			const columns = List<SortableField>(cols.map(col => {
-				return new SortableField(col.name, col.desc!! ? 'desc' : 'asc');
+				return new SortableField(q.field(col.name), col.desc!! ? 'desc' : 'asc');
 			}));
 			return new Index(idx.name, type, columns);
 		});
 
-		const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(col.name, 'asc'))
+		const primaryKeys = colDefs.filter(col => col.pk!!).map(col => new Index(`${table_name}_${col.name}`, IndexType.Primary).columns(new Field(col.name), 'asc'))
 
 		return new DescribeCollectionQueryResult(
 			collection,
@@ -432,11 +432,11 @@ function collectionToSQL(collection: Collection): string {
 }
 
 function fieldToSQL(field: Field): string {
-	return `${field.table ? `${field.table}_` : ''}${field.name}`;
+	return `${field.table ? `${field.table}.` : ''}${field.name}`;
 }
 
 function sortableFieldToSQL(field: SortableField): string {
-	return `${field.name} ${field.direction || 'ASC'}`;
+	return `${field.field.toString()} ${field.direction || 'ASC'}`;
 }
 
 function calcFieldToSQL(field: CalcField, variables?: Variables): string {
@@ -512,7 +512,7 @@ function bitwiseToSQL(bitwise: Bitwise, params: any[], variables?: Variables): s
 function selectQueryToSQL(query: SelectQuery, variables?: Variables): Statement {
 	const params: any[] = [];
 	let sql = ``;
-	sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? fieldToSQL(f) : '') : '*'}`;
+	sql += `SELECT ${query.getSelect() ? query.getSelect()!.map<string>(f => f ? fieldToSQL(f) : '').join(', ') : '*'}`;
 
 	if (query.getFrom()) {
 		sql += ` FROM ${collectionToSQL(query.getFrom()!)}`;
