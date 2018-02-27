@@ -71,7 +71,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 	async findByIds(
 		ids: string[],
 		options?: {
-			fields?: string[]
+			fields?: FieldExpression[]
 			locale?: string
 		}
 	): Promise<WithID<O>[]> {
@@ -84,7 +84,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 				return realResults.map((result: WithID<O>) => this.reduceOutput<WithID<O>>(
 					result,
 					options && options.locale,
-					options && options.fields && ['id'].concat(options.fields.filter(key => key !== 'id')))
+					options && options.fields && (['id'] as FieldExpression[]).concat(options.fields.filter(key => typeof key === 'string' ? key !== 'id' : key.name !== 'id')))
 				) as WithID<O>[];
 			}
 		} catch (err) {}
@@ -93,7 +93,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 	async findOne(options?: {
 		locale?: string
-		fields?: string[]
+		fields?: FieldExpression[]
 		condition?: Bitwise | Comparison
 		sort?: SortableField[]
 		offset?: number
@@ -104,7 +104,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 		if (options) {
 			if (options.fields) {
-				query = query.select(...['id'].concat(options.fields.filter(key => key !== 'id')));
+				query = query.select(...(['id'] as FieldExpression[]).concat(options.fields.filter(key => typeof key === 'string' ? key !== 'id' : key.name !== 'id')));
 			}
 			if (options.condition) {
 				query = query.where(options.condition instanceof Bitwise ? options.condition : q.and(options.condition));
@@ -127,7 +127,19 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 	async find(options?: {
 		locale?: string
-		fields?: string[]
+		fields?: FieldExpression[]
+		condition?: Bitwise | Comparison
+		sort?: SortableField[]
+		offset?: number
+		limit?: number
+	}): Promise<WithID<O>[]> {
+		return this.select(options);
+	}
+
+	async select(options?: {
+		locale?: string
+		fields?: FieldExpression[]
+		joins?: { [alias: string]: { query: SelectQuery, on: Expression } }
 		condition?: Bitwise | Comparison
 		sort?: SortableField[]
 		offset?: number
@@ -139,7 +151,13 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 
 		if (options) {
 			if (options.fields) {
-				query = query.select(...['id'].concat(options.fields.filter(key => key !== 'id')));
+				query = query.select(...(['id'] as FieldExpression[]).concat(options.fields.filter(key => typeof key === 'string' ? key !== 'id' : key.name !== 'id')));
+			}
+			if (options.joins) {
+				Object.keys(options.joins).forEach(alias => {
+					const { query: select, on } = options.joins![alias];
+					query = query.join(alias, select, on);
+				});
 			}
 			if (options.condition) {
 				query = query.where(options.condition instanceof Bitwise ? options.condition : q.and(options.condition));
@@ -176,7 +194,8 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 				targetIds.forEach((targetId, idx) => {
 					insert = insert.object({
 						id: ObjectID.generate(),
-						handle: `${this.schema.handle}.${handle}`,
+						collection: this.schema.handle,
+						field: handle,
 						source: id,
 						target: targetId,
 						seq: idx
@@ -217,18 +236,69 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 	}
 
 	async relation<O>(
-		field: string,
-		options: {
+		id: string,
+		handle: string,
+		options?: {
 			locale?: string
-			fields?: string[]
+			fields?: FieldExpression[]
 			condition?: Bitwise | Comparison
 			offset?: number
 			limit?: number
 		}
 	): Promise<WithID<O>[]> {
-		// TODO Dataloader.loadMany https://github.com/facebook/dataloader#loadmanykeys
-		// TODO localized fields, condition and results
-		throw new Error(`Model.relation not implemented yet.`);
+		const field = this.schema.fields.find(field => field.handle === handle && field.field === 'relation');
+		if (field && this.models.has(field.type)) {
+			const model = this.models.get(field.type)!;
+
+			if (options && options.locale) {
+				handle = this.localizeFields([handle], options.locale)[0] as string;
+			}
+
+			// const query = q.select('target').from('Relation').where(q.and(q.eq('collection', this.schema.handle), q.eq('field', handle), q.eq('source', id))).sort('seq', 'asc');
+			// const targetIds = await this.database.execute<{ target: string }>(query);
+			// const results = await model.findByIds(
+			// 	targetIds.results.map<string>(result => result.target),
+			// 	{
+			// 		fields: options && options.fields,
+			// 		locale: options && options.locale
+			// 	}
+			// );
+			// return results as WithID<O>[];
+
+			const results = await model.select({
+				fields: options && options.fields,
+				joins: {
+					relation: {
+						query: q.select('collection', 'field', 'source', 'target', 'seq').from('Relation').where(q.and(q.eq('collection', this.schema.handle), q.eq('field', handle), q.eq('source', id))),
+						on: q.eq(q.field('target', 'relation'), q.field('id'))
+					}
+				},
+				condition: options && options.condition,
+				sort: [q.sort(q.field('seq', 'relation'), 'asc')],
+				offset: options && options.offset,
+				limit: options && options.limit
+			});
+			return results.map(result => this.reduceOutput<WithID<O>>(result as WithID<O>, options && options.locale));
+		}
+		throw new Error(`Relation ${handle} is not defined in ${this.schema.handle}.`);
+	}
+
+	private localizeFields(fields: FieldExpression[], locale: string): FieldExpression[] {
+		const localized: FieldExpression[] = [];
+
+		fields.forEach(field => {
+			const handle = typeof field === 'string' ? field : field.name;
+			const schemaField = this.schema.fields.find(f => f.handle === handle);
+			if (schemaField) {
+				if (schemaField.localized === true) {
+					localized.push(typeof field === 'string' ? `${field}__${locale}` : field.rename(`${field}__${locale}`));
+				} else {
+					localized.push(field);
+				}
+			}
+		});
+
+		return localized;
 	}
 
 	private reduceInput<I>(data: any): [I, Map<string, string[]>] {
@@ -241,14 +311,14 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 			if (field) {
 
 				if (field.localized !== true) {
-					if (field.type === 'relation') {
+					if (field.field === 'relation') {
 						relations.set(key, isArray(val) ? val as string[] : [val as string]);
 					} else {
 						obj[key] = val;
 					}
 				}
 				else {
-					if (field.type === 'relation') {
+					if (field.field === 'relation') {
 						this.locales.forEach(code => {
 							relations.set(`${key}__${code}`, isArray(val) ? val as string[] : [val as string]);
 						});
@@ -267,7 +337,7 @@ export class Model<O extends ModelType = {}, I extends ModelInputType = {}> {
 		return [obj, relations];
 	}
 
-	private reduceOutput<O>(data: O, locale?: string, fields?: string[]): O {
+	private reduceOutput<O>(data: O, locale?: string, fields?: FieldExpression[]): O {
 		if (locale || fields) {
 			const localized = new Map<string, string>(
 				locale

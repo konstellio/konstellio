@@ -19,6 +19,19 @@ export default {
 				creation: DateTime! @field(type: "datetime")
 				modification: DateTime! @field(type: "datetime")
 			}
+			type Relation @model(indexes: [
+				{ handle: "Relation_collection", type: "index", fields: { id: "asc", collection: "asc" } },
+				{ handle: "Relation_field", type: "index", fields: { id: "asc", collection: "asc", field: "asc" } },
+				{ handle: "Relation_source", type: "index", fields: { id: "asc", source: "asc", seq: "asc" } },
+				{ handle: "Relation_target", type: "index", fields: { id: "asc", target: "asc" } }
+			]) {
+				id: ID!
+				collection: String! @field(type: "text")
+				field: String! @field(type: "text")
+				source: ID! @field(type: "text")
+				target: ID! @field(type: "text")
+				seq: String! @field(type: "int")
+			}
 			type Query {
 				me: User!
 			}

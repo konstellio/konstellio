@@ -86,31 +86,32 @@ export default async function ({ file }) {
 		}
 	}
 
-	const user = models.get('User')! as Model<User, UserInput>;
-	const post = models.get('Post')! as Model<Post, PostInput>;
+	const User = models.get('User')! as Model<User, UserInput>;
+	const Post = models.get('Post')! as Model<Post, PostInput>;
 
-	// const u = await user.create({ username: 'lpaudet', password: 'bleh' });
-	// const u = await user.findOne({ condition: q.eq('id', '5a90c8373d116f05dca8fc5c') });
-	// const u = await user.findById('5a90c8373d116f05dca8fc5c');
+	// const u = await User.create({ username: 'lpaudet', password: 'bleh' });
+	// const u = await User.findOne({ condition: q.eq('id', '5a90c8373d116f05dca8fc5c') });
+	// const u = await User.findById('5a90c8373d116f05dca8fc5c');
 	// console.log(JSON.stringify(u));
 
-	// const us = await user.findByIds(['5a90c8373d116f05dca8fc5c', '5a91ab4b52ff84191c1ae33c'], { fields: ['username'] });
+	// const us = await User.findByIds(['5a90c8373d116f05dca8fc5c', '5a91ab4b52ff84191c1ae33c'], { fields: ['username'] });
 	// const us = await Promise.all([
-	// 	user.findById('5a90c8373d116f05dca8fc5c'),
-	// 	user.findById('5a90c8373d116f05dca8fc5c', { fields: ['username'] }),
-	// 	user.findById('5a91ab4b52ff84191c1ae33c', { fields: ['id'] })
+	// 	User.findById('5a90c8373d116f05dca8fc5c'),
+	// 	User.findById('5a90c8373d116f05dca8fc5c', { fields: ['username'] }),
+	// 	User.findById('5a91ab4b52ff84191c1ae33c', { fields: ['id'] })
 	// ])
-	// const us = await user.find();
+	// const us = await User.find();
 
-	const p = await post.create({
-		title: { fr: 'Premier post', en: 'First post' },
-		slug: { fr: 'premier-post', en: 'first-post' },
-		author: ['5a90c8373d116f05dca8fc5c'],
-		postDate: new Date(),
-		content: { fr: '...', en: '...' }
-	});
+	// const pid = await Post.create({
+	// 	title: { fr: 'Premier post', en: 'First post' },
+	// 	slug: { fr: 'premier-post', en: 'first-post' },
+	// 	author: ['5a90c8373d116f05dca8fc5c'],
+	// 	postDate: new Date(),
+	// 	content: { fr: '...', en: '...' }
+	// });
 
-	// const ps = await post.find({ locale: 'fr' });
+	const p = await Post.findById('5a959dda04eaf84f40e5592a', { locale: 'fr' });
+	const as = await Post.relation(p.id, 'author', { locale: 'fr', fields: ['username'] });
 
 	debugger;
 }

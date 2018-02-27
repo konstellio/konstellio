@@ -172,29 +172,6 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 		}
 	}
 
-	const exists = await database.execute(q.collectionExists('Relation'));
-	if (exists.exists === false) {
-		diffs.push({
-			action: 'add_collection',
-			collection: {
-				handle: 'Relation',
-				columns: [
-					{ handle: 'id', type: 'text' },
-					{ handle: 'handle', type: 'text' },
-					{ handle: 'source', type: 'text' },
-					{ handle: 'target', type: 'text' },
-					{ handle: 'seq', type: 'int' }
-				],
-				indexes: [
-					{ type: 'primary', handle: 'Relation_id', columns: { id: 'asc' } },
-					{ type: 'index', handle: 'Relation_handle', columns: { id: 'asc', handle: 'asc' } },
-					{ type: 'index', handle: 'Relation_source', columns: { id: 'asc', source: 'asc', seq: 'asc' } },
-					{ type: 'index', handle: 'Relation_target', columns: { id: 'asc', target: 'asc' } }
-				]
-			}
-		});
-	}
-
 	return diffs;
 }
 
@@ -226,7 +203,7 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 			const indexes = diff.collection.indexes
 				.map<Index>(index => {
 					const columns = Object.keys(index.columns).map(name => {
-						return q.sort(name, index.columns[name]);
+						return q.sort(q.field(name), index.columns[name]);
 					});
 					return q.index(index.handle, mapStringToIndexType(index.type)).columns(...columns);
 				});
@@ -340,7 +317,7 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 		}
 		else if (diff.action === 'add_index') {
 			const collectionHandle = diff.collection.handle;
-			const columns = Object.keys(diff.index.columns).map<SortableField>(handle => q.sort(handle, diff.index.columns[handle]));
+			const columns = Object.keys(diff.index.columns).map<SortableField>(handle => q.sort(q.field(handle), diff.index.columns[handle]));
 
 			if (alterCollections.has(collectionHandle) === false) {
 				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
@@ -377,7 +354,7 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 	return {
 		handle: schema.handle,
 		columns: schema.fields.reduce((columns, field) => {
-			if (field.type === 'relation') {
+			if (field.field === 'relation') {
 				return columns;
 			} else if (field.localized) {
 				locales.forEach(code => {
@@ -439,7 +416,7 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 			const columns = index.getColumns()!;
 			let handle = index.getName()!;
 			const localized = columns.reduce((localized: boolean, column: SortableField) => {
-				const match = matchLocalizedHandle(column.name);
+				const match = matchLocalizedHandle(column.field.name);
 				return localized || match !== null;
 			}, false);
 			indexes.push({
@@ -447,14 +424,14 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 				type: type,
 				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: SortableField) => {
 					if (localized) {
-						const match = matchLocalizedHandle(field.name);
+						const match = matchLocalizedHandle(field.field.name);
 						if (match) {
 							columns[match[1]] = field.direction || 'asc';
 						} else {
-							columns[field.name] = field.direction || 'asc';
+							columns[field.field.name] = field.direction || 'asc';
 						}
 					} else {
-						columns[field.name] = field.direction || 'asc';
+						columns[field.field.name] = field.direction || 'asc';
 					}
 					return columns!;
 				}, {} as { [handle: string]: 'asc' | 'desc' })
