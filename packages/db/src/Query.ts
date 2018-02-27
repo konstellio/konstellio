@@ -97,7 +97,7 @@ export class q {
 	}
 
 	public static in(field: FieldExpression, values: ValueExpression[]) {
-		return new ComparisonIn(field, values);
+		return new ComparisonIn(field).set(...values);
 	}
 
 	public static beginsWith(field: FieldExpression, value: string) {
@@ -344,7 +344,7 @@ export class SelectQuery extends Query {
 
 	in(field: string, values: ValueExpression[]) {
 		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field, values)), this._sort, this._offset, this._limit);
+		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field).set(...values)), this._sort, this._offset, this._limit);
 	}
 
 	beginsWith(field: string, value: string) {
@@ -653,7 +653,7 @@ export class AggregateQuery extends Query {
 
 	in(field: string, values: ValueExpression[]) {
 		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field, values)), this._group, this._sort, this._offset, this._limit);
+		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field).set(...values)), this._group, this._sort, this._offset, this._limit);
 	}
 
 	beginsWith(field: string, value: string) {
@@ -901,7 +901,7 @@ export class UpdateQuery extends Query {
 
 	in(field: string, values: ValueExpression[]) {
 		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonIn(field, values)), this._limit);
+		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
 	}
 
 	beginsWith(field: string, value: string) {
@@ -1052,7 +1052,7 @@ export class ReplaceQuery extends Query {
 
 	in(field: string, values: ValueExpression[]) {
 		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonIn(field, values)), this._limit);
+		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
 	}
 
 	beginsWith(field: string, value: string) {
@@ -1191,7 +1191,7 @@ export class DeleteQuery extends Query {
 
 	in(field: string, values: ValueExpression[]) {
 		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonIn(field, values)), this._limit);
+		return new DeleteQuery(this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
 	}
 
 	beginsWith(field: string, value: string) {
@@ -1738,7 +1738,7 @@ export class Field {
 		if (name === this._name && this._table === table) {
 			return this;
 		}
-		return new Field(name, table);
+		return new Field(name, table || this._table);
 	}
 
 	public toString() {
@@ -2022,10 +2022,10 @@ export class ComparisonBeginsWith extends ComparisonSimple {
 export class ComparisonIn extends Comparison {
 	private _values?: List<ValueExpression>
 
-	constructor(field: FieldExpression, values: ValueExpression[]) {
+	constructor(field: FieldExpression, values?: List<ValueExpression>) {
 		super(field, 'in');
 
-		this._values = List<ValueExpression>(values);
+		this._values = values;
 	}
 
 	public get values() {
@@ -2033,7 +2033,7 @@ export class ComparisonIn extends Comparison {
 	}
 
 	set(...values: ValueExpression[]) {
-		return new ComparisonIn(this._field, values);
+		return new ComparisonIn(this._field, List<ValueExpression>(values));
 	}
 
 	public toString() {
