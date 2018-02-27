@@ -17,7 +17,7 @@ module.exports = {
 				slug: String! @field(type: "text", field: "slug", on: "title", localized: true)
 				postDate: DateTime! @field(label: "Post date", type: "datetime")
 				expireDate: DateTime! @field(label: "Expire date", type: "datetime")
-				author: User! @field(label: "Author", type: "relation")
+				author: User! @field(label: "Author", type: "relation", localized: true)
 				content: String! @field(label: "Content", type: "html", localized: true)
 			}
 

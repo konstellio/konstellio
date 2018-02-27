@@ -77,6 +77,7 @@ export default async function ({ file }) {
 			fr: string
 			en: string
 		}
+		author: string[]
 		postDate: Date
 		expireDate?: Date
 		content: {
@@ -101,14 +102,15 @@ export default async function ({ file }) {
 	// ])
 	// const us = await user.find();
 
-	// const p = await post.create({
-	// 	title: { fr: 'Premier post', en: 'First post' },
-	// 	slug: { fr: 'premier-post', en: 'first-post' },
-	// 	postDate: new Date(),
-	// 	content: { fr: '...', en: '...' }
-	// });
+	const p = await post.create({
+		title: { fr: 'Premier post', en: 'First post' },
+		slug: { fr: 'premier-post', en: 'first-post' },
+		author: ['5a90c8373d116f05dca8fc5c'],
+		postDate: new Date(),
+		content: { fr: '...', en: '...' }
+	});
 
-	const ps = await post.find({ locale: 'fr' });
+	// const ps = await post.find({ locale: 'fr' });
 
 	debugger;
 }

@@ -79,7 +79,7 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 	const { database } = context;
 	const diffs: SchemaDiff[] = [];
 
-	const mutedCollections: string[] = [];
+	const mutedCollections: string[] = ['Relation'];
 	const result = await database.execute(q.showCollection());
 
 	for (let i = 0, l = schemas.length; i < l; ++i) {
@@ -170,6 +170,29 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 				collection: collection.toString()
 			});
 		}
+	}
+
+	const exists = await database.execute(q.collectionExists('Relation'));
+	if (exists.exists === false) {
+		diffs.push({
+			action: 'add_collection',
+			collection: {
+				handle: 'Relation',
+				columns: [
+					{ handle: 'id', type: 'text' },
+					{ handle: 'handle', type: 'text' },
+					{ handle: 'source', type: 'text' },
+					{ handle: 'target', type: 'text' },
+					{ handle: 'seq', type: 'int' }
+				],
+				indexes: [
+					{ type: 'primary', handle: 'Relation_id', columns: { id: 'asc' } },
+					{ type: 'index', handle: 'Relation_handle', columns: { id: 'asc', handle: 'asc' } },
+					{ type: 'index', handle: 'Relation_source', columns: { id: 'asc', source: 'asc', seq: 'asc' } },
+					{ type: 'index', handle: 'Relation_target', columns: { id: 'asc', target: 'asc' } }
+				]
+			}
+		});
 	}
 
 	return diffs;
