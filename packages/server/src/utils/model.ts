@@ -1,5 +1,5 @@
-import { Driver, q, Collection, Bitwise, SortableField, CalcField, FieldExpression, ValueExpression, Comparison, SelectQuery, Expression, Query, ComparisonSimple, ComparisonIn, Field } from "@konstellio/db";
-import { Schema } from "./schema";
+import { Driver, q, Collection, Field as QueryField, Bitwise, SortableField, CalcField, FieldExpression, ValueExpression, Comparison, SelectQuery, Expression, Query, ComparisonSimple, ComparisonIn } from "@konstellio/db";
+import { Schema, Field as SchemaField } from "./schema";
 import { PluginInitContext } from "./plugin";
 import ObjectID from "bson-objectid"
 import * as Dataloader from "dataloader";
@@ -18,14 +18,18 @@ export async function getModels(context: PluginInitContext, schemas: Schema[], l
 }
 
 export type ModelType = { [field: string]: undefined | ValueExpression | ValueExpression[] };
-export type ModelInputType = { [field: string]: undefined | ValueExpression | ValueExpression[] | { [locale: string]: undefined | ValueExpression | ValueExpression[] } };
+export type ModelInputType = { [field: string]: undefined | ValueExpression | ValueExpression[] | ({ [locale: string]: undefined | ValueExpression | ValueExpression[] }) };
 
-export type WithID<O> = {[K in keyof O]: O[K]} & { id: string };
+type RelationMap = Map<string, string>;
+type FieldMap = Map<string, Map<string, string>>;
 
-export class Model<O extends ModelType = any, I extends ModelInputType = any> {
+export class Model<I extends ModelInputType = any, O extends ModelType = { id: string, [param: string]: any }> {
 	
 	private readonly collection: Collection;
-	private readonly loader: Dataloader<string, WithID<O> | undefined>;
+	private readonly loader: Dataloader<string, O>;
+	private readonly fields: string[];
+	private readonly fieldMaps: FieldMap;
+	private readonly relationMaps: RelationMap;
 
 	constructor(
 		protected readonly database: Driver,
@@ -35,186 +39,163 @@ export class Model<O extends ModelType = any, I extends ModelInputType = any> {
 	) {
 		this.collection = q.collection(schema.handle);
 
-		// IDEA somehow accumulate relations ?
+		this.fields = schema.fields.map(field => field.handle);
 
-		this.loader = new Dataloader<string, WithID<O> | undefined>(
-			async (keys) => {
-				// IDEA somehow accumulate fields to only fetch fields that are commons across `keys`
-				const query = q.select().from(this.collection).in('id', keys);
-				const result = await this.database.execute<WithID<O>>(query);
-				
-				return keys.map(id => {
-					const res = result.results.filter(result => result.id === id);
-					return res.length === 1 ? res[0] : undefined;
-				});
-			}
-		)
+		this.fieldMaps = new Map(
+			locales.map<[string, Map<string, string>]>(locale => {
+				return [
+					locale,
+					new Map<string, string>(
+						schema.fields.map<[string, string]>(field => {
+							if (field.localized === true) {
+								return [field.handle, `${field.handle}__${locale}`];
+							} else {
+								return [field.handle, field.handle];
+							}
+						})
+					)
+				];
+			})
+		);
+
+		this.relationMaps = new Map(
+			schema.fields.reduce((relations, field) => {
+				if (field.type === 'relation' && 'model' in field) {
+					relations.push([field.handle, field.model]);
+				}
+				return relations;
+			}, [] as [string, string][])
+		);
 	}
 
 	async findById(
 		id: string,
-		options?: {
-			fields?: string[]
-			locale?: string
-		}
-	): Promise<WithID<O>> {
-		try {
-			const result = await this.loader.load(id);
-			if (result) {
-				return this.reduceOutput<WithID<O>>(
-					result,
-					options && options.locale,
-					options && options.fields && ['id'].concat(options.fields.filter(key => key !== 'id'))
-				) as WithID<O>;
-			}
-		} catch (err) { }
-		throw new Error(`Could not find ID ${id} in ${this.schema.handle}.`);
+		{ locale, fields }: { locale?: string, fields: string[] }
+	): Promise<O> {
+		throw new Error(`Model.findById not implemented.`);
 	}
 
 	async findByIds(
 		ids: string[],
-		options?: {
-			fields?: FieldExpression[]
-			locale?: string
-		}
-	): Promise<WithID<O>[]> {
-		try {
-			const results = await this.loader.loadMany(ids);
-			const realResults = results.filter((result): result is WithID<O> => result !== undefined);
-			if (realResults.length === ids.length) {
-				return realResults.map((result: WithID<O>) => this.reduceOutput<WithID<O>>(
-					result,
-					options && options.locale,
-					options && options.fields && (['id'] as FieldExpression[]).concat(options.fields.filter(key => typeof key === 'string' ? key !== 'id' : key.name !== 'id')))
-				) as WithID<O>[];
-			}
-		} catch (err) {}
-		throw new Error(`Could not find IDs ${ids.join(', ')} in ${this.schema.handle}.`);
+		{ locale, fields }: { locale?: string, fields?: string[] }
+	): Promise<O> {
+		throw new Error(`Model.findByIds not implemented.`);
 	}
 
-	async findOne(options?: {
-		locale?: string
-		fields?: FieldExpression[]
-		condition?: Bitwise | Comparison
-		sort?: SortableField[]
-		offset?: number
-	}): Promise<WithID<O>> {
-		const results = await this.find(Object.assign({}, options, { limit: 1 }));
+	async findOne(
+		options: { locale?: string, fields?: string[], condition?: Bitwise | Comparison, sort?: SortableField[], offset?: number }
+	): Promise<O> {
+		const results = await this.find({
+			...options,
+			limit: 1
+		});
 		if (results.length === 0) {
 			throw new Error(`Could not find anything matching query in ${this.schema.handle}.`);
 		}
 		return results[0];
 	}
 
-	async find(options?: {
-		locale?: string
-		fields?: FieldExpression[]
-		condition?: Bitwise | Comparison
-		sort?: SortableField[]
-		offset?: number
-		limit?: number
-	}): Promise<WithID<O>[]> {
-		return this.select(options);
-	}
+	async find(
+		{ locale, fields, condition, sort, offset, limit }: { locale?: string, fields?: string[], condition?: Bitwise | Comparison, sort?: SortableField[], offset?: number, limit?: number }
+	): Promise<O[]> {
+		
 
-	async select(options?: {
-		locale?: string
-		fields?: FieldExpression[]
-		joins?: { [alias: string]: { query: SelectQuery, on: Expression } }
-		condition?: Bitwise | Comparison
-		sort?: SortableField[]
-		offset?: number
-		limit?: number
-	}): Promise<WithID<O>[]> {
-		let query = q.select().from(this.collection);
+		const relationUsed = new Map<string, [string, string]>();
 
-		if (options) {
-			if (options.fields) {
-				const fields = this.localizeFields(options.fields, options.locale);
-				query = query.select(...(['id'] as FieldExpression[]).concat(fields.filter(key => typeof key === 'string' ? key !== 'id' : key.name !== 'id')));
-			}
-			if (options.joins) {
-				Object.keys(options.joins).forEach(alias => {
-					const { query: select, on } = options.joins![alias];
-					query = query.join(alias, select, on);
-				});
-			}
-			if (options.condition) {
-				const condition = this.localizeCondition(options.condition instanceof Bitwise ? options.condition : q.and(options.condition), options.locale);
-				query = query.where(condition);
-			}
-			if (options.sort) {
-				const sorts = this.localizeSorts(options.sort, options.locale);
-				query = query.sort(...sorts);
-			}
-			if (typeof options.offset === 'number') {
-				query = query.offset(options.offset);
-			}
-			if (typeof options.limit === 'number') {
-				query = query.limit(options.limit);
-			}
+		fields = fields || this.fields;
+
+		let query = q.select(...fields.map(key => transformField(key, this.fieldMaps, this.relationMaps, relationUsed, locale,))).from(this.collection);
+
+		if (condition) {
+			query = query.where(transformCondition(condition instanceof Bitwise ? condition : q.and(condition), this.fieldMaps, this.relationMaps, relationUsed, locale));
+		}
+		if (sort) {
+			query = query.sort(...transformSorts(sort, this.fieldMaps, this.relationMaps, relationUsed, locale));
+		}
+		if (typeof offset === 'number') {
+			query = query.offset(offset);
+		}
+		if (typeof limit === 'number') {
+			query = query.limit(limit);
 		}
 
-		const result = await this.database.execute<WithID<O>>(query);
+		relationUsed.forEach(([handle, alias], model) => {
+			query = query.join(
+				alias,
+				q.select('collection', 'field', 'source', 'target', 'seq').from('Relation').where(q.and(q.eq('collection', this.schema.handle), q.eq('field', handle))),
+				q.eq(q.field('source', alias), q.field('id'))
+			);
+		});
 
-		return result.results.map(result => this.reduceOutput<WithID<O>>(result, options && options.locale));
+		const result = await this.database.execute<O>(query);
+
+		// TODO fetch relationUsed by results
+
+		return result.results.map(result => filterResults<O>(result, fields!, this.fieldMaps, locale));
 	}
 
-	validate(data: I): boolean {
-		// TODO
-		throw new Error(`Model.validate not implemented.`);
+	validate(data: any, errors = [] as Error[]): data is I {
+		if (typeof data !== 'object') {
+			errors.push(new Error(`Expected data to be an object.`));
+			return false;
+		}
+
+		const fields = this.schema.fields;
+		for (let i = 0, l = fields.length; i < l; ++i) {
+			const field = fields[i];
+			const value = data[field.handle];
+
+			validateField(value, field, this.locales, errors);
+			// if (validateField(value, field, this.locales, errors) === false) {
+			// 	return false;
+			// }
+		}
+		return errors.length === 0;
+		// return true;
 	}
 
-	async create(data: I): Promise<string> {
+	async create(
+		data: I
+	): Promise<O> {
 		const id = ObjectID.generate();
-		const [obj, relations] = this.reduceInput<I>(data);
-		const objID = Object.assign({}, obj, { id });
-		
+		const [fields, relations] = flattenData(data, this.fieldMaps, this.relationMaps);
+		const input = Object.assign({}, fields, { id });
 		
 		try {
-			await this.database.execute(q.insert(this.collection.name, this.collection.namespace).object(objID));
-
+			await this.database.execute(q.insert(this.collection.name, this.collection.namespace).object(input));
 			await this.database.execute(q.delete('Relation').eq('source', id));
 
 			let insert = q.insert('Relation');
-			relations.forEach((targetIds, handle) => {
-				targetIds.forEach((targetId, idx) => {
+			Object.keys(relations).forEach(handle => {
+				const targetIds = relations[handle];
+				targetIds.forEach((targetId, i) => {
 					insert = insert.object({
 						id: ObjectID.generate(),
 						collection: this.schema.handle,
 						field: handle,
 						source: id,
 						target: targetId,
-						seq: idx
+						seq: i
 					});
-				});
-			});
-			
+				})
+			})
 			await this.database.execute(insert);
 		} catch (err) {
 			throw err;
 		}
 
-		return id;
+		return {} as O;
 	}
 
-	async replace(data: WithID<I>): Promise<string> {
-		if (('id' in data) === false) {
-			throw new Error(`Could not retrieve property id of data.`);
-		}
-
-		// TODO
-
-		// const { id, ...obj } = this.reduceInput<any>(data);
-
-		// const query = q.update(this.collection.name, this.collection.namespace).fields(data).eq('id', id);
-		// const result = await this.database.execute(query);
-
-		// return id;
-		throw new Error(`Model.update not implemented.`);
+	async replace(
+		data: I
+	): Promise<string> {
+		throw new Error(`Model.replace not implemented.`);
 	}
 
-	async delete(...ids: string[]): Promise<boolean> {
+	async delete(
+		ids: string[]
+	): Promise<boolean> {
 		const result = await this.database.execute(q.delete(this.collection.name, this.collection.namespace).in('id', ids));
 		if (result.acknowledge) {
 			await this.database.execute(q.delete('Relation').in('source', ids));
@@ -223,216 +204,203 @@ export class Model<O extends ModelType = any, I extends ModelInputType = any> {
 		}
 		return false;
 	}
+}
 
-	async relation<O>(
-		id: string,
-		handle: string,
-		options?: {
-			locale?: string
-			fields?: FieldExpression[]
-			condition?: Bitwise | Comparison
-			offset?: number
-			limit?: number
-		}
-	): Promise<WithID<O>[]> {
-		const field = this.schema.fields.find(field => field.handle === handle && field.field === 'relation');
-		if (field && this.models.has(field.type)) {
-			const model = this.models.get(field.type)!;
+function transformField(field: string | QueryField, fieldMaps: FieldMap, relationMaps: RelationMap, relationUsed: Map<string, [string, string]>, locale?: string, inSelect?: boolean): QueryField {
+	if (locale === undefined) {
+		return typeof field === 'string' ? q.field(field) : field;
+	}
+	if (fieldMaps.has(locale) === false) {
+		throw new Error(`Locale ${locale} not defined.`);
+	}
+	const handle = typeof field === 'string' ? field : field.name;
+	const target = fieldMaps.get(locale)!.get(handle)!;
+	if (relationMaps.has(handle)) {
+		const model = relationMaps.get(handle)!;
+		const alias = `relation_${relationMaps.get(handle)!}`;
+		relationUsed.set(model, [target, alias]);
+		return q.field('target', alias);
+	}
+	return typeof field === 'string' ? q.field(target) : field.rename(target);
+}
 
-			if (options && options.locale) {
-				handle = this.localizeFields([handle], options.locale)[0] as string;
-			}
-
-			// const query = q.select('target').from('Relation').where(q.and(q.eq('collection', this.schema.handle), q.eq('field', handle), q.eq('source', id))).sort('seq', 'asc');
-			// const targetIds = await this.database.execute<{ target: string }>(query);
-			// const results = await model.findByIds(
-			// 	targetIds.results.map<string>(result => result.target),
-			// 	{
-			// 		fields: options && options.fields,
-			// 		locale: options && options.locale
-			// 	}
-			// );
-			// return results as WithID<O>[];
-
-			const results = await model.select({
-				fields: options && options.fields,
-				joins: {
-					relation: {
-						query: q.select('collection', 'field', 'source', 'target', 'seq').from('Relation').where(q.and(q.eq('collection', this.schema.handle), q.eq('field', handle), q.eq('source', id))),
-						on: q.eq(q.field('target', 'relation'), q.field('id'))
-					}
-				},
-				condition: options && options.condition,
-				sort: [q.sort(q.field('seq', 'relation'), 'asc')],
-				offset: options && options.offset,
-				limit: options && options.limit
-			});
-			return results.map(result => this.reduceOutput<WithID<O>>(result as WithID<O>, options && options.locale));
-		}
-		throw new Error(`Relation ${handle} is not defined in ${this.schema.handle}.`);
+function transformSorts(sorts: SortableField[], fieldMaps: FieldMap, relationMaps: RelationMap, relationUsed: Map<string, [string, string]>, locale?: string): SortableField[] {
+	if (locale === undefined) {
+		return sorts;
+	}
+	else if (fieldMaps.has(locale) === false) {
+		throw new Error(`Locale ${locale} not defined.`);
 	}
 
-	private localizeFields(fields: FieldExpression[], locale?: string): FieldExpression[] {
-		if (locale === undefined) {
-			return fields;
+	const localized: SortableField[] = [];
+
+	sorts.forEach(field => {
+		if (typeof field === 'string') {
+			localized.push(q.sort(transformField(field, fieldMaps, relationMaps, relationUsed, locale), 'asc'));
+		} else {
+			const localeField = transformField(field.field, fieldMaps, relationMaps, relationUsed, locale);
+			if (field.field === localeField) {
+				localized.push(field);
+			} else {
+				localized.push(q.sort(localeField, field.direction));
+			}
 		}
+	});
 
-		const localized: FieldExpression[] = [];
+	return localized;
+}
 
-		fields.forEach(field => {
-			const handle = typeof field === 'string' ? field : field.name;
-			const schemaField = this.schema.fields.find(f => f.handle === handle);
-			if (schemaField) {
-				if (schemaField.localized === true) {
-					localized.push(this.localizeField(field, locale));
-				} else {
-					localized.push(field);
+function transformCondition(node: Bitwise, fieldMaps: FieldMap, relationMaps: RelationMap, relationUsed: Map<string, [string, string]>, locale?: string): Bitwise {
+	if (locale === undefined) {
+		return node;
+	}
+	else if (fieldMaps.has(locale) === false) {
+		throw new Error(`Locale ${locale} not defined.`);
+	}
+
+	if (node.operands === undefined) {
+		return node;
+	}
+
+	const localizedFields = fieldMaps.get(locale)!;
+
+	let simplified = node;
+	node.operands.forEach(operand => {
+		if (operand instanceof Comparison) {
+			const handle = typeof operand.field === 'string' ? operand.field : operand.field.name;
+			if (localizedFields.has(handle)) {
+				const localeField = transformField(operand.field, fieldMaps, relationMaps, relationUsed, locale);
+				if (operand instanceof ComparisonIn) {
+					simplified = simplified.replace(operand, new ComparisonIn(localeField, operand.values));
 				}
-			}
-		});
-
-		return localized;
-	}
-
-	private localizeField(field: Field | string, locale?: string): typeof field {
-		if (locale === undefined) {
-			return field;
-		}
-		return typeof field === 'string' ? `${field}__${locale}` : field.rename(`${field.name}__${locale}`);
-	}
-
-	private localizeSorts(fields: SortableField[], locale?: string): SortableField[] {
-		if (locale === undefined) {
-			return fields;
-		}
-
-		const localized: SortableField[] = [];
-
-		fields.forEach(field => {
-			const handle = typeof field === 'string' ? field : field.field.name;
-			const schemaField = this.schema.fields.find(f => f.handle === handle);
-			if (schemaField) {
-				if (schemaField.localized === true) {
-					localized.push(new SortableField(field.field.rename(`${field.field.name}__${locale}`), field.direction));
-				} else {
-					localized.push(field);
-				}
-			}
-		});
-
-		return localized;
-	}
-
-	private localizeCondition(node: Bitwise, locale?: string): Bitwise {
-		if (locale === undefined) {
-			return node;
-		}
-
-		if (node.operands === undefined) {
-			return node;
-		}
-	
-		let simplified = node;
-		node.operands.forEach(operand => {
-			if (operand instanceof Comparison) {
-				const handle = typeof operand.field === 'string' ? operand.field : operand.field.name;
-				const fieldSchema = this.schema.fields.find(f => f.handle === handle);
-				if (fieldSchema && fieldSchema.localized === true) {
-					const field = this.localizeField(operand.field, locale);
-					if (operand instanceof ComparisonSimple) {
-						let value = operand.value;
-						if (value && value instanceof Field) {
-							const valueField = this.localizeField(value, locale);
-							const valueHandle = typeof valueField === 'string' ? valueField : valueField.name;
-							const valueSchema = this.schema.fields.find(f => f.handle === valueHandle);
-							if (valueSchema && valueSchema.localized === true) {
-								value = this.localizeField(value, locale);
-							}
-							
-							if (value !== operand.value) {
-								simplified = simplified.replace(operand, new ComparisonSimple(field, operand.operator, value));
-							}
-						} else if (value) {
-							simplified = simplified.replace(operand, new ComparisonSimple(field, operand.operator, value));
+				else if (operand instanceof ComparisonSimple) {
+					let value = operand.value;
+					if (value && value instanceof QueryField) {
+						if (localizedFields.has(value.name)) {
+							const localeValue = transformField(value.name, fieldMaps, relationMaps, relationUsed, locale);
+							simplified = simplified.replace(operand, new ComparisonSimple(localeValue, operand.operator, value));
 						}
 					}
-					else if (operand instanceof ComparisonIn) {
-						simplified = simplified.replace(operand, new ComparisonIn(field, operand.values));
-					}
-				}
-			}
-			else if (operand instanceof Bitwise) {
-				simplified = simplified.replace(operand, this.localizeCondition(operand, locale));
-			}
-		});
-	
-		return simplified;
-	}
-
-	private reduceInput<I>(data: any): [I, Map<string, string[]>] {
-		const relations = new Map<string, string[]>();
-
-		// TODO cast Date to "YYYY-MM-DDTHH-II-SS"
-
-		const obj = Object.keys(data).reduce((obj, key) => {
-			const val = data[key];
-
-			const field = this.schema.fields.find(field => field.handle === key);
-			if (field) {
-
-				if (field.localized !== true) {
-					if (field.field === 'relation') {
-						relations.set(key, isArray(val) ? val as string[] : [val as string]);
-					} else {
-						obj[key] = val;
+					else if (value) {
+						simplified = simplified.replace(operand, new ComparisonSimple(localeField, operand.operator, value));
 					}
 				}
 				else {
-					if (field.field === 'relation') {
-						this.locales.forEach(code => {
-							relations.set(`${key}__${code}`, isArray(val) ? val as string[] : [val as string]);
-						});
-					} else {
-						this.locales.forEach(code => {
-							obj[`${key}__${code}`] = typeof val[code] !== undefined ? val[code] : undefined;
-						});
-					}
+					throw new Error(`Unsupported Comparison ${operand}.`);
 				}
-
 			}
-
-			return obj;
-		}, {} as I);
-
-		return [obj, relations];
-	}
-
-	private reduceOutput<O>(data: O, locale?: string, fields?: FieldExpression[]): O {
-		if (locale || fields) {
-			const localized = new Map<string, string>(
-				locale
-					? this.schema.fields.reduce((fields, field) => {
-						if (field.localized === true) {
-							this.locales.forEach(code => {
-								fields.push([`${field.handle}__${code}`, field.handle])
-							})
-						}
-						return fields;
-					}, [] as [string, string][])
-					: [] as [string, string][]
-			);
-			
-			return Object.keys(data).reduce((filtered, source) => {
-				let target: string = source;
-				if (localized.has(source)) {
-					target = localized.get(source)!;
-				}
-				if (fields === undefined || fields.indexOf(target) > -1) {
-					filtered[target] = data[source];
-				}
-				return filtered;
-			}, {} as O);
 		}
-		return data;
+		else if (operand instanceof Bitwise) {
+			simplified = simplified.replace(operand, transformCondition(operand, fieldMaps, relationMaps, relationUsed, locale));
+		}
+	});
+
+	return simplified;
+}
+
+function validateField(value: any, field: SchemaField, locales: string[], errors: Error[], locale = false): boolean {
+	// Localized
+	if (field.localized === true && locale === false) {
+		if (typeof value !== 'object') {
+			errors.push(new Error(`Expected ${field.handle} to be an object.`));
+			return false;
+		}
+		return locales.reduce((valid, locale) => {
+			if (typeof value[locale] === 'undefined') {
+				errors.push(new Error(`Expected ${field.handle}.${locale} to be defined.`));
+				return false;
+			}
+			return valid && validateField(value[locale], field, locales, errors, true);
+		}, true);
 	}
+
+	// Required
+	if (field.required === true && !value) {
+		errors.push(new Error(`Expected ${field.handle} to be non-null.`));
+		return false;
+	}
+
+	// Relation !== string[]
+	if (field.type === 'relation' && (!isArray(value) || value.find(v => typeof v !== 'string') !== undefined)) {
+		errors.push(new Error(`Expected ${field.handle} to be an array of string.`));
+		return false;
+	}
+	// Text, Html !== string
+	else if ((field.type === 'text' || field.type === 'html') && typeof value !== 'string') {
+		errors.push(new Error(`Expected ${field.handle} to be a string.`));
+		return false;
+	}
+	// Date, DateTime !== Date
+	else if ((field.type === 'date' || field.type === 'datetime') && (value instanceof Date) === false) {
+		errors.push(new Error(`Expected ${field.handle} to be an instance of Date.`));
+		return false;
+	}
+	// Int, Float is a Number
+	else if ((field.type === 'int' || field.type === 'float') && isNaN(value) === true) {
+		errors.push(new Error(`Expected ${field.handle} to be a number.`));
+		return false;
+	}
+	// Bool is a boolean
+	else if ((field.type === 'bool' || field.type === 'boolean') && typeof value !== 'boolean') {
+		errors.push(new Error(`Expected ${field.handle} to be a boolean.`));
+		return false;
+	}
+
+	return true;
+}
+
+function flattenData(data: any, fieldMaps: FieldMap, relationMaps: RelationMap): [{ [field: string]: ValueExpression }, { [relation: string]: string[] }] {
+	const fields: { [field: string]: ValueExpression } = {};
+	const relations: { [relation: string]: string[] } = {};
+	const locales = Array.from(fieldMaps.keys());
+	const defaultLocale = locales[0];
+	const defaultFields = fieldMaps.get(defaultLocale)!;
+
+	Object.keys(data).forEach(key => {
+		const val = data[key];
+
+		if (defaultFields.has(key) === true) {
+			const isRelation = relationMaps.has(key);
+			const isLocalized = defaultFields.get(key) !== key;
+
+			if (isRelation) {
+				if (isLocalized) {
+					locales.forEach(locale => {
+						relations[fieldMaps.get(locale)!.get(key)!] = val[locale];
+					});
+				} else {
+					relations[key] = val;
+				}
+			} else {
+				if (isLocalized) {
+					locales.forEach(locale => {
+						fields[fieldMaps.get(locale)!.get(key)!] = val[locale];
+					});
+				} else {
+					fields[key] = val;
+				}
+			}
+		}
+	});
+
+	return [fields, relations];
+}
+
+function filterResults<O>(data: any, fields: string[], fieldMaps: FieldMap, locale?: string): O {
+	const locales = Array.from(fieldMaps.keys());
+	const defaultLocale = locales[0];
+
+	locale = locale || defaultLocale;
+	
+	const localizedFields = fieldMaps.get(locale)!;
+
+	const out = {} as O;
+
+	localizedFields.forEach((source, target) => {
+		if (fields.indexOf(target) > -1) {
+			out[target] = data[source];
+		}
+	});
+
+	return out;
 }

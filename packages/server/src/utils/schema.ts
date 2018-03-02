@@ -28,7 +28,9 @@ export interface Schema {
 	indexes: Index[]
 }
 
-export interface Field {
+export type Field = FieldBase | FieldRelation;
+
+export interface FieldBase {
 	handle: string
 	type: string
 	field: string
@@ -36,6 +38,11 @@ export interface Field {
 	label?: string
 	description?: string
 	localized?: boolean
+	required?: boolean
+}
+
+export interface FieldRelation extends FieldBase {
+	model: string
 }
 
 export interface Index {
@@ -114,7 +121,8 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 							type: getNamedType(definition.type),
 							field: "text",
 							group: "default",
-							label: definition.name.value
+							label: definition.name.value,
+							required: definition.type.kind === 'NonNullType'
 						}, args);
 					}
 					return undefined;

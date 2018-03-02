@@ -354,7 +354,7 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 	return {
 		handle: schema.handle,
 		columns: schema.fields.reduce((columns, field) => {
-			if (field.field === 'relation') {
+			if (field.type === 'relation') {
 				return columns;
 			} else if (field.localized) {
 				locales.forEach(code => {
