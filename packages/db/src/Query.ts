@@ -55,8 +55,8 @@ export class q {
 		return new Collection(name, namespace);
 	}
 
-	public static column(name: string, type: ColumnType, defaultValue?: any, autoIncrement?: boolean) {
-		return new Column(name, type, defaultValue, autoIncrement);
+	public static column(name: string, type: ColumnType, size?: number, defaultValue?: any, autoIncrement?: boolean) {
+		return new Column(name, type, size, defaultValue, autoIncrement);
 	}
 
 	public static index(name: string, type: IndexType, columns?: FieldDirection[]) {
@@ -148,10 +148,6 @@ export class q {
 	}
 }
 
-export class QueryTooComplexeError extends Error {}
-export class QueryNotSupportedError extends Error {}
-export class QuerySyntaxError extends Error {}
-
 export class Collection {
 	constructor(public readonly name: string, public readonly namespace?: string) {
 
@@ -182,24 +178,32 @@ export enum ColumnType {
 }
 
 export class Column {
-	constructor(public readonly name: string, public readonly type: ColumnType, public readonly defaultValue?: any, public readonly autoIncrement: boolean = false) {
+	constructor(
+		public readonly name: string,
+		public readonly type: ColumnType,
+		public readonly size?: number,
+		public readonly defaultValue?: any,
+		public readonly autoIncrement: boolean = false
+	) {
 
 	}
 
 	public rename(name: string) {
 		if (name !== this.name) {
-			return new Column(name, this.type, this.defaultValue, this.autoIncrement);
+			return new Column(name, this.type, this.size, this.defaultValue, this.autoIncrement);
+		}
+		return this;
+	}
+
+	public resize(size: number) {
+		if (size !== this.size) {
+			return new Column(this.name, this.type, size, this.defaultValue, this.autoIncrement);
 		}
 		return this;
 	}
 
 	public toString() {
-		return [
-			this.name,
-			this.type.toString().toLocaleUpperCase(),
-			this.defaultValue ? `DEFAULT(${this.defaultValue})` : ``,
-			this.autoIncrement ? `AUTOINCREMENT` : ``,
-		].filter(s => s).join(' ');
+		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue && ` DEFAULT(${this.defaultValue})`}${this.autoIncrement && ' AUTOINCREMENT'}`;
 	}
 }
 
@@ -268,7 +272,12 @@ export class FieldDirection {
 		return this;
 	}
 
-	public rename(name: string, alias?: string) {
+	public rename(name: Field)
+	public rename(name: string, alias?: string)
+	public rename(name: string | Field, alias?: string) {
+		if (name instanceof Field) {
+			return new FieldDirection(name, this.direction);
+		}
 		const renamed = this.field.rename(name, alias);
 		if (renamed !== this.field) {
 			return new FieldDirection(renamed, this.direction);
@@ -499,35 +508,7 @@ export class Binary {
 	}
 }
 
-export function simplifyBinaryTree(node: Binary) {
-	if (node.isLeaf()) {
-		return node;
-	}
-
-	let simplified = new Binary(node.operator);
-	node.operands.forEach(operand => {
-		if (operand instanceof Comparison) {
-			simplified = simplified.add(operand);
-		}
-		else if (operand instanceof Binary && operand.operator === node.operator) {
-			operand = simplifyBinaryTree(operand);
-			if (operand.operands) {
-				operand.operands.forEach(operand => {
-					simplified = simplified.add(operand!);
-				});
-			}
-		}
-		else if (operand instanceof Binary) {
-			simplified = simplified.add(simplifyBinaryTree(operand));
-		}
-	});
-
-	return simplified;
-}
-
-export class Query {
-
-}
+export class Query {}
 
 export type Join = {
 	alias: string
