@@ -1,96 +1,96 @@
 import 'mocha';
 import { expect } from 'chai';
-import { q, ColumnType, IndexType, SelectQuery, Expression } from './Query';
+import { q, ColumnType, IndexType } from './Query';
 import { Map, List } from 'immutable';
 
 describe('Query', () => {
 
-	describe('types', () => {
+	// describe('types', () => {
 
-		it('field', () => {
-			const a = q.field('foo');
-			const b = a.rename('bar');
-			expect(a.name).to.equal('foo');
-			expect(b.name).to.equal('bar');
-			expect(a).to.not.equal(b);
-		});
+	// 	it('field', () => {
+	// 		const a = q.field('foo');
+	// 		const b = a.rename('bar');
+	// 		expect(a.name).to.equal('foo');
+	// 		expect(b.name).to.equal('bar');
+	// 		expect(a).to.not.equal(b);
+	// 	});
 
-		// it('sortable field', () => {
-		// 	const a = q.sort(q.field('foo'), 'asc');
-		// 	const b = a.rename('bar');
-		// 	const c = b.sort('desc');
-		// 	expect(a.name).to.equal('foo');
-		// 	expect(a.direction).to.equal('asc');
-		// 	expect(b.name).to.equal('bar');
-		// 	expect(b.direction).to.equal('asc');
-		// 	expect(c.name).to.equal('bar');
-		// 	expect(c.direction).to.equal('desc');
-		// 	expect(a).to.not.equal(b);
-		// 	expect(a).to.not.equal(c);
-		// 	expect(b).to.not.equal(c);
-		// });
+	// 	// it('sortable field', () => {
+	// 	// 	const a = q.sort(q.field('foo'), 'asc');
+	// 	// 	const b = a.rename('bar');
+	// 	// 	const c = b.sort('desc');
+	// 	// 	expect(a.name).to.equal('foo');
+	// 	// 	expect(a.direction).to.equal('asc');
+	// 	// 	expect(b.name).to.equal('bar');
+	// 	// 	expect(b.direction).to.equal('asc');
+	// 	// 	expect(c.name).to.equal('bar');
+	// 	// 	expect(c.direction).to.equal('desc');
+	// 	// 	expect(a).to.not.equal(b);
+	// 	// 	expect(a).to.not.equal(c);
+	// 	// 	expect(b).to.not.equal(c);
+	// 	// });
 
-		it('calc field', () => {
-			const a = q.count('foo');
-			expect(() => { (<any>a).function = 'avg'; }).to.throw(Error);
-		});
+	// 	it('calc field', () => {
+	// 		const a = q.count('foo');
+	// 		expect(() => { (<any>a).function = 'avg'; }).to.throw(Error);
+	// 	});
 
-		it('variable', () => {
-			const a = q.var('foo');
-			const b = q.var('bar');
-			expect(a.name).to.equal('foo');
-			expect(b.name).to.equal('bar');
-			expect(a).to.not.equal(b);
-		});
+	// 	it('variable', () => {
+	// 		const a = q.var('foo');
+	// 		const b = q.var('bar');
+	// 		expect(a.name).to.equal('foo');
+	// 		expect(b.name).to.equal('bar');
+	// 		expect(a).to.not.equal(b);
+	// 	});
 
-		it('collection', () => {
-			const a = q.collection('foo', 'bar');
-			expect(() => { (<any>a).name = 'moo'; }).to.throw(Error);
-			expect(() => { (<any>a).namespace = 'joo'; }).to.throw(Error);
-		});
+	// 	it('collection', () => {
+	// 		const a = q.collection('foo', 'bar');
+	// 		expect(() => { (<any>a).name = 'moo'; }).to.throw(Error);
+	// 		expect(() => { (<any>a).namespace = 'joo'; }).to.throw(Error);
+	// 	});
 
-		it('comparison', () => {
-			const a = q.eq('foo', 'moo');
-			const b = a.set('joo');
-			expect(a.field).to.equal('foo');
-			expect(a.operator).to.equal('=');
-			expect(a.value).to.equal('moo');
-			expect(b.field).to.equal('foo');
-			expect(b.operator).to.equal('=');
-			expect(b.value).to.equal('joo');
-			expect(a).to.not.equal(b);
-			expect(() => { (<any>a).field = 'bar'; }).to.throw(Error);
-			expect(() => { (<any>a).operator = '!='; }).to.throw(Error);
-			expect(() => { (<any>a).value = 'joo'; }).to.throw(Error);
-		});
+	// 	it('comparison', () => {
+	// 		const a = q.eq('foo', 'moo');
+	// 		const b = a.set('joo');
+	// 		expect(a.field).to.equal('foo');
+	// 		expect(a.operator).to.equal('=');
+	// 		expect(a.value).to.equal('moo');
+	// 		expect(b.field).to.equal('foo');
+	// 		expect(b.operator).to.equal('=');
+	// 		expect(b.value).to.equal('joo');
+	// 		expect(a).to.not.equal(b);
+	// 		expect(() => { (<any>a).field = 'bar'; }).to.throw(Error);
+	// 		expect(() => { (<any>a).operator = '!='; }).to.throw(Error);
+	// 		expect(() => { (<any>a).value = 'joo'; }).to.throw(Error);
+	// 	});
 
-		it('binary', () => {
-			const eq = q.eq('foo', 'moo');
-			const ne = q.ne('bar', 'joo');
-			const lt = q.lt('moo', 'joo');
-			const a = q.and(eq, ne);
-			const b = a.add(lt);
-			expect(a.operator).to.equal('and');
-			expect(b.operator).to.equal('and');
-			expect(a.operands).to.not.equal(undefined);
-			expect(b.operands).to.not.equal(undefined);
-			expect((<List<Expression>>a.operands).count()).to.equal(2);
-			expect((<List<Expression>>b.operands).count()).to.equal(3);
-			expect((<List<Expression>>a.operands).get(0)).to.equal(eq);
-			expect((<List<Expression>>a.operands).get(1)).to.equal(ne);
-			expect((<List<Expression>>a.operands).get(0)).to.equal((<List<Expression>>b.operands).get(0));
-			expect((<List<Expression>>a.operands).get(1)).to.equal((<List<Expression>>b.operands).get(1));
-			expect((<List<Expression>>b.operands).get(2)).to.equal(lt);
+	// 	it('binary', () => {
+	// 		const eq = q.eq('foo', 'moo');
+	// 		const ne = q.ne('bar', 'joo');
+	// 		const lt = q.lt('moo', 'joo');
+	// 		const a = q.and(eq, ne);
+	// 		const b = a.add(lt);
+	// 		expect(a.operator).to.equal('and');
+	// 		expect(b.operator).to.equal('and');
+	// 		expect(a.operands).to.not.equal(undefined);
+	// 		expect(b.operands).to.not.equal(undefined);
+	// 		expect((<List<Expression>>a.operands).count()).to.equal(2);
+	// 		expect((<List<Expression>>b.operands).count()).to.equal(3);
+	// 		expect((<List<Expression>>a.operands).get(0)).to.equal(eq);
+	// 		expect((<List<Expression>>a.operands).get(1)).to.equal(ne);
+	// 		expect((<List<Expression>>a.operands).get(0)).to.equal((<List<Expression>>b.operands).get(0));
+	// 		expect((<List<Expression>>a.operands).get(1)).to.equal((<List<Expression>>b.operands).get(1));
+	// 		expect((<List<Expression>>b.operands).get(2)).to.equal(lt);
 
-			const c = a.replace(eq, lt);
-			const d = a.replace(lt, eq);
-			const e = c.replace(lt, eq);
-			expect(c).to.not.equal(a);
-			expect(d).to.equal(a);
-			expect(d).to.not.equal(e);
-		});
+	// 		const c = a.replace(eq, lt);
+	// 		const d = a.replace(lt, eq);
+	// 		const e = c.replace(lt, eq);
+	// 		expect(c).to.not.equal(a);
+	// 		expect(d).to.equal(a);
+	// 		expect(d).to.not.equal(e);
+	// 	});
 
-	});
+	// });
 
 	// describe('test', () => {
 

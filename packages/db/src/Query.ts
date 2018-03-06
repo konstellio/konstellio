@@ -3,107 +3,53 @@ import { Map, List, Record, Iterable } from 'immutable';
 
 export class q {
 
-	public static select(...fields: FieldExpression[]) {
-		if (fields.length > 0) {
-			return new SelectQuery().select(...fields)
-		}
-		return new SelectQuery();
+	public static select(...fields: Field[]) {
+		return new QuerySelect().select(...fields);
 	}
 
-	public static aggregate(fields: { [alias: string]: CalcField }) {
-		return new AggregateQuery().select(fields);
+	public static aggregate(...fields: Function[]) {
+		return new QueryAggregate(List(fields));
 	}
 
-	public static union(...selects: SelectQuery[]) {
-		return new UnionQuery(List<SelectQuery>(selects));
+	public static union(...selects: QuerySelect[]) {
+		return new QueryUnion(List(selects));
 	}
 
-	public static insert(name: string, namespace?: string) {
-		return new InsertQuery().collection(name, namespace);
+	public static insert(name: string | Collection) {
+		return new QueryInsert().into(name);
 	}
 
-	public static update(name: string, namespace?: string) {
-		return new UpdateQuery().collection(name, namespace);
+	public static update(name: string | Collection) {
+		return new QueryUpdate().from(name)
 	}
 
-	public static replace(name: string, namespace?: string) {
-		return new ReplaceQuery().collection(name, namespace);
-	}
-
-	public static delete(name: string, namespace?: string) {
-		return new DeleteQuery().collection(name, namespace);
+	public static delete(name: string | Collection) {
+		return new QueryDelete().from(name);
 	}
 
 	public static showCollection() {
-		return new ShowCollectionQuery();
+		return new QueryShowCollection();
 	}
 
-	public static createCollection(name: string, namespace?: string) {
-		return new CreateCollectionQuery().collection(name, namespace);
+	public static createCollection(name: string | Collection) {
+		return new QueryCreateCollection(typeof name === 'string' ? new Collection(name) : name);
 	}
 
-	public static describeCollection(name: string, namespace?: string) {
-		return new DescribeCollectionQuery().collection(name, namespace);
+	public static describeCollection(name: string | Collection) {
+		return new QueryDescribeCollection(typeof name === 'string' ? new Collection(name) : name);
 	}
 
-	public static alterCollection(name: string, namespace?: string) {
-		return new AlterCollectionQuery().collection(name, namespace);
+	public static alterCollection(name: string | Collection) {
+		return new QueryAlterCollection(typeof name === 'string' ? new Collection(name) : name);
 	}
 
-	public static collectionExists(name: string, namespace?: string) {
-		return new CollectionExistsQuery().collection(name, namespace);
+	public static collectionExists(name: string | Collection) {
+		return new QueryCollectionExists(typeof name === 'string' ? new Collection(name) : name);
 	}
 
-	public static dropCollection(name: string, namespace?: string) {
-		return new DropCollectionQuery().collection(name, namespace);
+	public static dropCollection(name: string | Collection) {
+		return new QueryDropCollection(typeof name === 'string' ? new Collection(name) : name);
 	}
-
-
-	public static and(...queries: Expression[]): Bitwise {
-		return new Bitwise("and", queries);
-	}
-
-	public static or(...queries: Expression[]): Bitwise {
-		return new Bitwise("or", queries);
-	}
-
-	public static xor(...queries: Expression[]): Bitwise {
-		return new Bitwise("xor", queries);
-	}
-
-
-	public static eq(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonEqual(field, value);
-	}
-
-	public static ne(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonNotEqual(field, value);
-	}
-
-	public static gt(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonGreaterThan(field, value);
-	}
-
-	public static gte(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonGreaterThanOrEqual(field, value);
-	}
-
-	public static lt(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonLesserThan(field, value);
-	}
-
-	public static lte(field: FieldExpression, value: ValueExpression) {
-		return new ComparisonLesserThanOrEqual(field, value);
-	}
-
-	public static in(field: FieldExpression, values: ValueExpression[]) {
-		return new ComparisonIn(field).set(...values);
-	}
-
-	public static beginsWith(field: FieldExpression, value: string) {
-		return new ComparisonBeginsWith(field, value);
-	}
-
 
 	public static collection(name: string, namespace?: string) {
 		return new Collection(name, namespace);
@@ -113,390 +59,717 @@ export class q {
 		return new Column(name, type, defaultValue, autoIncrement);
 	}
 
-	public static index(name: string, type: IndexType, columns?: List<SortableField>) {
-		return new Index(name, type, columns);
-	}
-
-	public static field(name: string, table?: string) {
-		return new Field(name, table);
+	public static index(name: string, type: IndexType, columns?: FieldDirection[]) {
+		return new Index(name, type, List(columns || []));
 	}
 
 	public static var(name: string) {
 		return new Variable(name);
 	}
 
-	public static sort(field: Field, direction?: DirectionExpression) {
-		return new SortableField(field, direction);
+	public static field(name: string, alias?: string) {
+		return new Field(name, alias);
 	}
 
-	// https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html
-
-
-	public static count(field: FieldExpression) {
-		return new CountCalcField(field);
+	public static sort(field: string | Field, direction: Direction = 'asc') {
+		return new FieldDirection(typeof field === 'string' ? new Field(field) : field, direction);
 	}
 
-	public static avg(field: CalcFieldExpression) {
-		return new AverageCalcField(field);
+	public static count(field: string | Field) {
+		return new FunctionCount(List(typeof field === 'string' ? new Field(field) : field));
 	}
 
-	public static sum(field: CalcFieldExpression) {
-		return new SumCalcField(field);
+	public static avg(...args: Value[]) {
+		return new FunctionAvg(List<Value>(args));
 	}
 
-	public static sub(field: CalcFieldExpression) {
-		return new SubCalcField(field);
+	public static sum(...args: Value[]) {
+		return new FunctionSum(List<Value>(args));
 	}
 
-	public static max(field: CalcFieldExpression) {
-		return new MaxCalcField(field);
+	public static sub(...args: Value[]) {
+		return new FunctionSub(List<Value>(args));
 	}
 
-	public static min(field: CalcFieldExpression) {
-		return new MinCalcField(field);
+	public static max(...args: Value[]) {
+		return new FunctionMax(List<Value>(args));
 	}
 
-	public static concat(...fields: CalcFieldExpression[]) {
-		return new ConcatCalcField(...fields);
+	public static min(...args: Value[]) {
+		return new FunctionMin(List<Value>(args));
 	}
 
+	public static concat(...args: Value[]) {
+		return new FunctionConcat(List<Value>(args));
+	}
+
+	public static eq(field: Field | Function, value: Value) {
+		return new ComparisonEqual(field, List([value]));
+	}
+
+	public static ne(field: Field | Function, value: Value) {
+		return new ComparisonNotEqual(field, List([value]));
+	}
+
+	public static gt(field: Field | Function, value: Value) {
+		return new ComparisonGreaterThan(field, List([value]));
+	}
+
+	public static gte(field: Field | Function, value: Value) {
+		return new ComparisonGreaterThanOrEqual(field, List([value]));
+	}
+
+	public static lt(field: Field | Function, value: Value) {
+		return new ComparisonLesserThan(field, List([value]));
+	}
+
+	public static lte(field: Field | Function, value: Value) {
+		return new ComparisonLesserThanOrEqual(field, List([value]));
+	}
+
+	public static in(field: Field | Function, values: Value[]) {
+		return new ComparisonIn(field, List(values));
+	}
+
+	public static beginsWith(field: Field | Function, value: string) {
+		return new ComparisonBeginsWith(field, List([value]));
+	}
+
+	public static and(...operands: BinaryExpression[]) {
+		return new Binary("and", List(operands));
+	}
+
+	public static or(...operands: BinaryExpression[]) {
+		return new Binary("or", List(operands));
+	}
+
+	public static xor(...operands: BinaryExpression[]) {
+		return new Binary("xor", List(operands));
+	}
+}
+
+export class QueryTooComplexeError extends Error {}
+export class QueryNotSupportedError extends Error {}
+export class QuerySyntaxError extends Error {}
+
+export class Collection {
+	constructor(public readonly name: string, public readonly namespace?: string) {
+
+	}
+
+	public rename(name: string, namespace?: string) {
+		if (name !== this.name || namespace !== this.namespace) {
+			return new Collection(name, namespace || this.namespace);
+		}
+		return this;
+	}
+
+	public toString() {
+		return `${this.namespace ? this.namespace + '__' : ''}${this.name}`;
+	}
 }
 
 export enum ColumnType {
-	Boolean = 'Boolean',
-	Bit = 'Bit',
-	UInt8 = 'UInt8',
-	UInt16 = 'UInt16',
-	UInt32 = 'UInt32',
-	UInt64 = 'UInt64',
-	Int8 = 'Int8',
-	Int16 = 'Int16',
-	Int32 = 'Int32',
-	Int64 = 'Int64',
-	Float32 = 'Float32',
-	Float64 = 'Float64',
-	Text = 'Text',
-	Blob = 'Blob',
-	Date = 'Date',
-	DateTime = 'DateTime'
-};
+	Boolean = 'boolean',
+	Bit = 'bit',
+	UInt = 'uint',
+	Int = 'int',
+	Float = 'float',
+	Text = 'text',
+	Blob = 'blob',
+	Date = 'date',
+	DateTime = 'datetime'
+}
+
+export class Column {
+	constructor(public readonly name: string, public readonly type: ColumnType, public readonly defaultValue?: any, public readonly autoIncrement: boolean = false) {
+
+	}
+
+	public rename(name: string) {
+		if (name !== this.name) {
+			return new Column(name, this.type, this.defaultValue, this.autoIncrement);
+		}
+		return this;
+	}
+
+	public toString() {
+		return [
+			this.name,
+			this.type.toString().toLocaleUpperCase(),
+			this.defaultValue ? `DEFAULT(${this.defaultValue})` : ``,
+			this.autoIncrement ? `AUTOINCREMENT` : ``,
+		].filter(s => s).join(' ');
+	}
+}
 
 export enum IndexType {
-	Index = 'Index',
-	Primary = 'Primary',
-	Unique = 'Unique'
-};
+	Primary = 'primary',
+	Unique = 'unique',
+	Index = 'index'
+}
 
-export type FieldExpression = string | Field
-export type CalcFieldExpression = string | Field | CalcField
-export type ValueExpression = Field | Variable | string | number | boolean | Date | null
-export type BitwiseOperatorExpression = "and" | "or" | "xor"
-export type ComparisonOperatorExpression = "=" | "!=" | ">" | ">=" | "<" | "<=" | "beginsWith" | "in"
-export type DirectionExpression = "asc" | "desc"
-export type AggregateExpression = Map<string, CalcField>
-export type DataExpression = Map<string, ValueExpression>
-export type JoinExpression = Map<string, { query: SelectQuery, on: Expression }>
-export type Expression = Comparison | Bitwise;
+export class Index {
+	constructor(public readonly name: string, public readonly type: IndexType, public readonly columns: List<FieldDirection> = List()) {
+
+	}
+
+	public add(...columns: FieldDirection[]) {
+		return new Index(this.name, this.type, this.columns.push(...columns));
+	}
+
+	public toString() {
+		return `${this.type.toString().toLocaleUpperCase()} ${this.name} (${this.columns.map(c => c ? c.toString() : '').join(', ')})`;
+	}
+}
+
+export type Primitive = string | number | boolean | Date | null;
+export type Value = Variable | Field | Function | Primitive;
+export type Variables = { [key: string]: Primitive };
+
+export class Variable {
+	constructor(public readonly name: string) {
+	}
+
+	public toString() {
+		return `VAR(${this.name})`;
+	}
+}
+
+export class Field {
+
+	constructor(public readonly name: string, public readonly alias?: string) {
+
+	}
+
+	public rename(name: string, alias?: string) {
+		if (name !== this.name || alias !== this.alias) {
+			return new Field(name, alias || this.alias);
+		}
+		return this;
+	}
+
+	public toString() {
+		return `${this.alias ? this.alias + '.' : ''}${this.name}`;
+	}
+}
+
+export type Direction = 'asc' | 'desc';
+
+export class FieldDirection {
+	constructor(public readonly field: Field, public readonly direction: Direction = 'asc') {
+
+	}
+
+	public sort(direction: Direction) {
+		if (direction !== this.direction) {
+			return new FieldDirection(this.field, direction);
+		}
+		return this;
+	}
+
+	public rename(name: string, alias?: string) {
+		const renamed = this.field.rename(name, alias);
+		if (renamed !== this.field) {
+			return new FieldDirection(renamed, this.direction);
+		}
+		return this;
+	}
+
+	public toString() {
+		return `${this.field.toString()} ${this.direction.toUpperCase()}`;
+	}
+}
+
+export abstract class Function {
+	constructor(public readonly fn: string, public readonly args: List<Value> = List()) {
+
+	}
+
+	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+		let args = List<Value>();
+		let changed = false;
+
+		this.args.forEach(arg => {
+			const replaced = replacer(arg!);
+			if (replaced) {
+				changed = changed || arg !== replaced;
+				args = args.push(replaced);
+			} else {
+				changed = true;
+			}
+		});
+
+		if (changed) {
+			return this.constructor(args) as this;
+		}
+		return this;
+	}
+
+	public toString() {
+		return `${this.fn.toUpperCase()}(${this.args.map(arg => arg && arg.toString()).join(', ')})`;
+	}
+}
+
+export class FunctionCount extends Function {
+	constructor(public readonly fields: List<Value>) {
+		super('count', fields);
+	}
+}
+
+export class FunctionAvg extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('avg', args);
+	}
+}
+
+export class FunctionSum extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('sum', args);
+	}
+}
+
+export class FunctionSub extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('sub', args);
+	}
+}
+
+export class FunctionMax extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('max', args);
+	}
+}
+
+export class FunctionMin extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('min', args);
+	}
+}
+
+export class FunctionConcat extends Function {
+	constructor(public readonly args: List<Value>) {
+		super('concat', args);
+	}
+}
+
+export type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "beginsWith" | "in";
+
+export abstract class Comparison {
+	constructor(public readonly field: Field | Function, public readonly operator: ComparisonOperator, public readonly args: List<Value> = List()) {
+
+	}
+
+	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+		let args = List<Value>();
+		let changed = false;
+
+		this.args.forEach(arg => {
+			const replaced = replacer(arg!);
+			if (replaced) {
+				changed = changed || arg !== replaced;
+				args = args.push(replaced);
+			} else {
+				changed = true;
+			}
+		});
+
+		if (changed) {
+			return this.constructor(this.field, args) as this;
+		}
+		return this;
+	}
+
+	public toString(): string {
+		return `${this.field.toString()} ${this.operator} ${this.args.map(arg => arg ? arg.toString() : 'NULL').join(', ')}`;
+	}
+}
+
+export class ComparisonEqual extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '=', args);
+	}
+}
+
+export class ComparisonNotEqual extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '!=', args);
+	}
+}
+
+export class ComparisonGreaterThan extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '>', args);
+	}
+}
+
+export class ComparisonGreaterThanOrEqual extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '>=', args);
+	}
+}
+
+export class ComparisonLesserThan extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '<', args);
+	}
+}
+
+export class ComparisonLesserThanOrEqual extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, '<=', args);
+	}
+}
+
+export class ComparisonBeginsWith extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, 'beginsWith', args);
+	}
+}
+
+export class ComparisonIn extends Comparison {
+	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+		super(field, 'in', args);
+	}
+}
+
+export type BinaryOperator = 'and' | 'or' | 'xor';
+export type BinaryExpression = Binary | Comparison;
+
+export class Binary {
+	constructor(public readonly operator: BinaryOperator, public readonly operands: List<BinaryExpression> = List()) {
+
+	}
+	
+	public isLeaf() {
+		return this.operands.filter(op => op instanceof Binary).count() === 0;
+	}
+
+	public add(expr: BinaryExpression) {
+		return new Binary(this.operator, this.operands.push(expr));
+	}
+
+	public remove(expr: BinaryExpression) {
+		if (this.operands.contains(expr)) {
+			return new Binary(this.operator, this.operands.filter(op => op !== expr).toList());
+		}
+		return this;
+	}
+
+	public replace(search: BinaryExpression, replace: BinaryExpression, deep: boolean = false) {
+		return this.replaceOperand((op) => {
+			if (op === search) {
+				return replace;
+			}
+			return op;
+		}, deep);
+	}
+
+	public replaceOperand(replacer: (op: BinaryExpression) => undefined | BinaryExpression, deep: boolean = false) {
+		let operands = List<BinaryExpression>();
+		let changed = false;
+
+		this.operands.forEach(arg => {
+			const replaced = replacer(arg!);
+			if (replaced) {
+				changed = changed || arg !== replaced;
+				operands = operands.push(replaced);
+			}
+			else if (deep === true && arg instanceof Binary) {
+				const replaced = arg.replaceOperand(replacer, true);
+				if (replaced) {
+					changed = changed || arg !== replaced;
+					operands = operands.push(replaced);
+				} else {
+					changed = true;
+				}
+			} else {
+				changed = true;
+			}
+		});
+
+		if (changed) {
+			return new Binary(this.operator, operands);
+		}
+		return this;
+	}
+
+	public toString() {
+		return `(${this.operands.map(op => op!.toString()).join(` ${this.operator.toUpperCase()} `)})`;
+	}
+}
+
+export function simplifyBinaryTree(node: Binary) {
+	if (node.isLeaf()) {
+		return node;
+	}
+
+	let simplified = new Binary(node.operator);
+	node.operands.forEach(operand => {
+		if (operand instanceof Comparison) {
+			simplified = simplified.add(operand);
+		}
+		else if (operand instanceof Binary && operand.operator === node.operator) {
+			operand = simplifyBinaryTree(operand);
+			if (operand.operands) {
+				operand.operands.forEach(operand => {
+					simplified = simplified.add(operand!);
+				});
+			}
+		}
+		else if (operand instanceof Binary) {
+			simplified = simplified.add(simplifyBinaryTree(operand));
+		}
+	});
+
+	return simplified;
+}
 
 export class Query {
 
 }
 
-export class SelectQuery extends Query {
+export type Join = {
+	alias: string
+	on: BinaryExpression
+	query: QuerySelect
+}
 
-	private _select?: List<Field>
-	private _from?: Collection
-	private _join?: JoinExpression
-	private _where?: Bitwise
-	private _sort?: List<SortableField>
-	private _offset?: number
-	private _limit?: number
-
-	constructor(select?: List<Field>, from?: Collection, join?: JoinExpression, where?: Bitwise, sort?: List<SortableField>, offset?: number, limit?: number) {
+export class QuerySelect extends Query {
+	constructor(
+		public readonly fields?: List<Field>,
+		public readonly collection?: Collection,
+		public readonly joins?: List<Join>,
+		public readonly conditions?: Binary,
+		public readonly sorts?: List<FieldDirection>,
+		public readonly limit?: number,
+		public readonly offset = 0
+	) {
 		super();
-
-		this._select = select;
-		this._from = from;
-		this._join = join;
-		this._where = where;
-		this._sort = sort;
-		this._offset = offset;
-		this._limit = limit;
 	}
 
-	getSelect(): List<Field> | undefined {
-		return this._select;
+	public select(...fields: Field[]) {
+		return new QuerySelect(List(fields), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 	}
 
-	getFrom(): Collection | undefined {
-		return this._from;
-	}
-
-	getJoin(): JoinExpression | undefined {
-		return this._join;
-	}
-
-	getWhere(): Bitwise | undefined {
-		return this._where;
-	}
-
-	getSort(): List<SortableField> | undefined {
-		return this._sort;
-	}
-
-	getOffset(): number | undefined {
-		return this._offset;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	select(...fields: FieldExpression[]): SelectQuery {
-		return new SelectQuery(List<Field>(Array.from<FieldExpression>(arguments).map(f => f instanceof Field ? f : new Field(f))), this._from, this._join, this._where, this._sort, this._offset, this._limit);
-	}
-
-	from(collection: Collection): SelectQuery
-	from(name: any, namespace?: string): SelectQuery
-	from(name?: any, namespace?: string): SelectQuery {
-		if (name && name instanceof Collection) {
-			if (name === this._from) {
-				return this;
+	public from(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QuerySelect(this.fields, renamed, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 			}
-			return new SelectQuery(this._select, name, this._join, this._where, this._sort, this._offset, this._limit);
 		}
-		if (this._from && this._from.name === name && this._from.namespace === namespace) {
-			return this;
+		else if (name !== this.collection) {
+			return new QuerySelect(this.fields, name, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 		}
-		return new SelectQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._sort, this._offset, this._limit);
+		return this;
 	}
 
-	join(alias: string, query: SelectQuery, on: Expression): SelectQuery {
-		const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
-		return new SelectQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._sort, this._offset, this._limit);
+	public join(alias: string, query: QuerySelect, on: BinaryExpression) {
+		const join: Join = { alias, query, on };
+		return new QuerySelect(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.sorts, this.limit, this.offset);
 	}
 
-	offset(offset: number): SelectQuery {
-		if (offset === this._offset) {
-			return this;
-		}
-		return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, offset, this._limit);
+	public where(condition: Binary) {
+		return new QuerySelect(this.fields, this.collection, this.joins, condition, this.sorts, this.limit, this.offset);
 	}
 
-	limit(limit: number): SelectQuery {
-		if (limit === this._limit) {
-			return this;
-		}
-		return new SelectQuery(this._select, this._from, this._join, this._where, this._sort, this._offset, limit);
+	public sort(...fields: FieldDirection[]) {
+		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, List(fields), this.limit, this.offset);
 	}
 
-	where(query: Bitwise): SelectQuery {
-		return new SelectQuery(this._select, this._from, this._join, query, this._sort, this._offset, this._limit);
+	public range(offset: number, limit?: number) {
+		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, offset, limit !== undefined ? limit : this.limit);
 	}
 
-	and(queries: List<Expression>): SelectQuery
-	and(...queries: Expression[]): SelectQuery
-	and(): SelectQuery {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("and", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
-	}
-
-	or(queries: List<Expression>): SelectQuery
-	or(...queries: Expression[]): SelectQuery
-	or(): SelectQuery {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("or", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
-	}
-
-	xor(queries: List<Expression>): SelectQuery
-	xor(...queries: Expression[]): SelectQuery
-	xor(): SelectQuery {
-		return new SelectQuery(this._select, this._from, this._join, new Bitwise("xor", Array.from<Expression>(arguments)), this._sort, this._offset, this._limit);
-	}
-
-	eq(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonEqual(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	ne(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonNotEqual(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	gt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonGreaterThan(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	gte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	lt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonLesserThan(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	lte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonLesserThanOrEqual(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	in(field: string, values: ValueExpression[]) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field).set(...values)), this._sort, this._offset, this._limit);
-	}
-
-	beginsWith(field: string, value: string) {
-		const where = this._where || new Bitwise('and');
-		return new SelectQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._sort, this._offset, this._limit);
-	}
-
-	sort(field: Field, direction?: DirectionExpression): SelectQuery
-	sort(...fields: SortableField[]): SelectQuery
-	sort(): SelectQuery {
-		if (arguments.length <= 2 && arguments[0] instanceof Field) {
-			const sort = this._sort ? this._sort : List<SortableField>();
-			const field = <Field>arguments[0];
-			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new SelectQuery(this._select, this._from, this._join, this._where, sort.push(new SortableField(field, direction)), this._offset, this._limit);
-		}
-		return new SelectQuery(this._select, this._from, this._join, this._where, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}SELECT `;
 
-		if (this._select) {
-			query += this._select.map<string>(field => field ? field.toString() : ``).join(', ');
+		if (this.fields) {
+			query += this.fields.map<string>(field => field ? field.toString() : ``).join(', ');
 		} else {
 			query += `*`;
 		}
 
-		if (this._from) {
-			query += `${newline}${indent}FROM ${this._from.toString()}`;
+		if (this.collection) {
+			query += `${newline}${indent}FROM ${this.collection.toString()}`;
 		}
 
-		if (this._join) {
-			query += this._join.map<string>((value, alias) => {
-				if (value) {
-					return `${newline}${indent}JOIN (${value.query.toString()}) AS ${alias} ON ${value.on.toString()}`;
+		if (this.joins) {
+			query += this.joins.map<string>(join => {
+				if (join) {
+					return `${newline}${indent}JOIN (${join.query.toString()}) AS ${join.alias} ON ${join.on.toString()}`;
 				}
 				return '';
 			}).join('');
 		}
 
-		if (this._where) {
-			query += `${newline}${indent}WHERE ${this._where.toString()}`;
+		if (this.conditions) {
+			query += `${newline}${indent}WHERE ${this.conditions.toString()}`;
 		}
 
-		if (this._sort) {
-			query += `${newline}${indent}SORT BY ${this._sort.map<string>(s => s ? s.toString() : '').join(', ')}`;
+		if (this.sorts) {
+			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
 		}
 
-		if (this._offset !== undefined) {
-			query += `${newline}${indent}OFFSET ${this._offset}`;
+		if (this.offset !== undefined) {
+			query += `${newline}${indent}OFFSET ${this.offset}`;
 		}
 
-		if (this._limit !== undefined) {
-			query += `${newline}${indent}LIMIT ${this._limit}`;
+		if (this.limit !== undefined) {
+			query += `${newline}${indent}LIMIT ${this.limit}`;
 		}
 
 		return query;
 	}
 }
 
-export class UnionQuery extends Query {
-
-	private _selects?: List<SelectQuery>
-	private _sort?: List<SortableField>
-	private _offset?: number
-	private _limit?: number
-
-	constructor(selects?: List<SelectQuery>, sort?: List<SortableField>, offset?: number, limit?: number) {
+export class QueryAggregate extends Query {
+	constructor(
+		public readonly fields?: List<Function>,
+		public readonly collection?: Collection,
+		public readonly joins?: List<Join>,
+		public readonly conditions?: Binary,
+		public readonly groups?: List<Field | Function>,
+		public readonly sorts?: List<FieldDirection>,
+		public readonly limit?: number,
+		public readonly offset = 0
+	) {
 		super();
-
-		this._selects = selects;
-		this._sort = sort;
-		this._offset = offset;
-		this._limit = limit;
 	}
 
-	getSelects(): List<SelectQuery> | undefined {
-		return this._selects;
+	public select(...fields: Function[]) {
+		return new QueryAggregate(List(fields), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
-	getSort(): List<SortableField> | undefined {
-		return this._sort;
-	}
-
-	getOffset(): number | undefined {
-		return this._offset;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	select(...selects: SelectQuery[]): UnionQuery {
-		return new UnionQuery(List<SelectQuery>(Array.from<SelectQuery>(arguments)), this._sort, this._offset, this._limit);
-	}
-
-	offset(offset: number): UnionQuery {
-		if (offset === this._limit) {
-			return this;
+	public from(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryAggregate(this.fields, renamed, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
+			}
 		}
-		return new UnionQuery(this._selects, this._sort, offset, this._limit);
-	}
-
-	limit(limit: number): UnionQuery {
-		if (limit === this._limit) {
-			return this;
+		else if (name !== this.collection) {
+			return new QueryAggregate(this.fields, name, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
 		}
-		return new UnionQuery(this._selects, this._sort, this._offset, limit);
+		return this;
 	}
 
-	sort(field: Field, direction?: DirectionExpression): UnionQuery
-	sort(...fields: SortableField[]): UnionQuery
-	sort(): UnionQuery {
-		if (arguments.length <= 2 && arguments[0] instanceof Field) {
-			const sort = this._sort ? this._sort : List<SortableField>();
-			const field = <Field>arguments[0];
-			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new UnionQuery(this._selects, sort.push(new SortableField(field, direction)), this._offset, this._limit);
+	public join(alias: string, query: QuerySelect, on: BinaryExpression) {
+		const join: Join = { alias, query, on };
+		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.groups, this.sorts, this.limit, this.offset);
+	}
+
+	public where(condition: Binary) {
+		return new QueryAggregate(this.fields, this.collection, this.joins, condition, this.groups, this.sorts, this.limit, this.offset);
+	}
+
+	public group(...groups: (Field | Function)[]) {
+		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, List(groups), this.sorts, this.limit, this.offset);
+	}
+
+	public sort(...fields: FieldDirection[]) {
+		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, List(fields), this.limit, this.offset);
+	}
+
+	public range(offset: number, limit?: number) {
+		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, this.sorts, offset, limit !== undefined ? limit : this.limit);
+	}
+
+	public toString(multiline: boolean = false, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}SELECT `;
+
+		if (this.fields) {
+			query += this.fields.map<string>(field => field ? field.toString() : ``).join(', ');
+		} else {
+			query += `*`;
 		}
 
-		return new UnionQuery(this._selects, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
+		if (this.collection) {
+			query += `${newline}${indent}FROM ${this.collection.toString()}`;
+		}
+
+		if (this.joins) {
+			query += this.joins.map<string>(join => {
+				if (join) {
+					return `${newline}${indent}JOIN (${join.query.toString()}) AS ${join.alias} ON ${join.on.toString()}`;
+				}
+				return '';
+			}).join('');
+		}
+
+		if (this.conditions) {
+			query += `${newline}${indent}WHERE ${this.conditions.toString()}`;
+		}
+
+		if (this.groups) {
+			query += `${newline}${indent}GROUP BY ${this.groups.map<string>(s => s ? s.toString() : '').join(', ')}`;
+		}
+
+		if (this.sorts) {
+			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
+		}
+
+		if (this.offset !== undefined) {
+			query += `${newline}${indent}OFFSET ${this.offset}`;
+		}
+
+		if (this.limit !== undefined) {
+			query += `${newline}${indent}LIMIT ${this.limit}`;
+		}
+
+		return query;
+	}
+}
+
+export class QueryUnion extends Query {
+	constructor(
+		public readonly selects?: List<QuerySelect>,
+		public readonly sorts?: List<FieldDirection>,
+		public readonly limit?: number,
+		public readonly offset = 0
+	) {
+		super();
 	}
 
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public add(select: QuerySelect) {
+		return new QueryUnion(this.selects ? this.selects.push(select) : List([select]), this.sorts, this.limit, this.offset);
+	}
+
+	public sort(...fields: FieldDirection[]) {
+		return new QueryUnion(this.selects, List(fields), this.limit, this.offset);
+	}
+
+	public range(offset: number, limit?: number) {
+		return new QueryUnion(this.selects, this.sorts, offset, limit !== undefined ? limit : this.limit);
+	}
+
+	public toString(multiline: boolean = false, indent?: string): string {
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 
-		if (this._selects) {
-			let query = `(${newline}${this._selects.map<string>(s => s ? s.toString(!!multiline, `${indent}\t`) : '').join(`${newline}) UNION (${newline}`)}${newline})`;
+		if (this.selects) {
+			let query = `(${newline}${this.selects.map<string>(s => s ? s.toString(!!multiline, `${indent}\t`) : '').join(`${newline}) UNION (${newline}`)}${newline})`;
 
-			if (this._sort) {
-				query += `${newline}${indent}SORT BY ${this._sort.map<string>(s => s ? s.toString() : '').join(', ')}`;
+			if (this.sorts) {
+				query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
 			}
 
-			if (this._offset !== undefined) {
-				query += `${newline}${indent}OFFSET ${this._offset}`;
+			if (this.offset !== undefined) {
+				query += `${newline}${indent}OFFSET ${this.offset}`;
 			}
 
-			if (this._limit !== undefined) {
-				query += `${newline}${indent}LIMIT ${this._limit}`;
+			if (this.limit !== undefined) {
+				query += `${newline}${indent}LIMIT ${this.limit}`;
 			}
 
 			return query;
@@ -505,283 +778,50 @@ export class UnionQuery extends Query {
 	}
 }
 
-export class AggregateQuery extends Query {
-	private _select?: AggregateExpression
-	private _from?: Collection
-	private _join?: JoinExpression
-	private _where?: Bitwise
-	private _group?: List<Field>
-	private _sort?: List<SortableField>
-	private _offset?: number
-	private _limit?: number
+export type Object = { [field: string]: Value };
 
-	constructor(select?: AggregateExpression, from?: Collection, join?: JoinExpression, where?: Bitwise, group?: List<Field>, sort?: List<SortableField>, offset?: number, limit?: number) {
+export class QueryInsert extends Query {
+	constructor(
+		public readonly objects?: List<Object>,
+		public readonly collection?: Collection
+	) {
 		super();
-
-		this._select = select;
-		this._from = from;
-		this._where = where;
-		this._group = group;
-		this._sort = sort;
-		this._offset = offset;
-		this._limit = limit;
 	}
 
-	getSelect(): AggregateExpression | undefined {
-		return this._select;
+	public add(object: Object) {
+		return new QueryInsert(this.objects ? this.objects.push(object) : List([object]), this.collection);
 	}
 
-	getFrom(): Collection | undefined {
-		return this._from;
-	}
-
-	getJoin(): JoinExpression | undefined {
-		return this._join;
-	}
-
-	getWhere(): Bitwise | undefined {
-		return this._where;
-	}
-
-	getGroup(): List<Field> | undefined {
-		return this._group;
-	}
-
-	getSort(): List<SortableField> | undefined {
-		return this._sort;
-	}
-
-	getOffset(): number | undefined {
-		return this._offset;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	select(fields: { [field: string]: CalcField }): AggregateQuery
-	select(fields: AggregateExpression): AggregateQuery
-	select(fields: any): AggregateQuery {
-		return new AggregateQuery(Map<string, CalcField>(fields), this._from, this._join, this._where, this._group, this._sort, this._offset, this._limit);
-	}
-
-	from(collection: Collection): AggregateQuery
-	from(name: any, namespace?: string): AggregateQuery
-	from(name?: any, namespace?: string): AggregateQuery {
-		if (name && name instanceof Collection) {
-			if (name === this._from) {
-				return this;
+	public into(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryInsert(this.objects, renamed);
 			}
-			return new AggregateQuery(this._select, name, this._join, this._where, this._group, this._sort, this._offset, this._limit);
 		}
-		if (this._from && this._from.name === name && this._from.namespace === namespace) {
-			return this;
+		else if (name !== this.collection) {
+			return new QueryInsert(this.objects, name);
 		}
-		return new AggregateQuery(this._select, this._from ? this._from.rename(name, namespace) : new Collection(name, namespace), this._join, this._where, this._group, this._sort, this._offset, this._limit);
+		return this;
 	}
 
-	join(alias: string, query: SelectQuery, on: Expression): AggregateQuery {
-		const join = this._join ? this._join : Map<string, { query: SelectQuery, on: Expression }>();
-		return new AggregateQuery(this._select, this._from, join.set(alias, { query: <SelectQuery>query, on: <Expression>on }), this._where, this._group, this._sort, this._offset, this._limit);
-	}
-
-	offset(offset: number): AggregateQuery {
-		if (offset === this._offset) {
-			return this;
-		}
-		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, offset, this._limit);
-	}
-
-	limit(limit: number): AggregateQuery {
-		if (limit === this._limit) {
-			return this;
-		}
-		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, this._sort, this._offset, limit);
-	}
-
-	where(query: Bitwise): AggregateQuery {
-		return new AggregateQuery(this._select, this._from, this._join, query, this._group, this._sort, this._offset, this._limit);
-	}
-
-	and(queries: List<Expression>): AggregateQuery
-	and(...queries: Expression[]): AggregateQuery
-	and(): AggregateQuery {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("and", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	or(queries: List<Expression>): AggregateQuery
-	or(...queries: Expression[]): AggregateQuery
-	or(): AggregateQuery {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("or", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	xor(queries: List<Expression>): AggregateQuery
-	xor(...queries: Expression[]): AggregateQuery
-	xor(): AggregateQuery {
-		return new AggregateQuery(this._select, this._from, this._join, new Bitwise("xor", Array.from<Expression>(arguments)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	eq(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonEqual(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	ne(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonNotEqual(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	gt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonGreaterThan(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	gte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	lt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonLesserThan(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	lte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonLesserThanOrEqual(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	in(field: string, values: ValueExpression[]) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonIn(field).set(...values)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	beginsWith(field: string, value: string) {
-		const where = this._where || new Bitwise('and');
-		return new AggregateQuery(this._select, this._from, this._join, where.add(new ComparisonBeginsWith(field, value)), this._group, this._sort, this._offset, this._limit);
-	}
-
-	sort(field: Field, direction?: DirectionExpression): AggregateQuery
-	sort(...fields: SortableField[]): AggregateQuery
-	sort(): AggregateQuery {
-		if (arguments.length <= 2 && arguments[0] instanceof Field) {
-			const sort = this._sort ? this._sort : List<SortableField>();
-			const field = <Field>arguments[0];
-			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, sort.push(new SortableField(field, direction)), this._offset, this._limit);
-		}
-		return new AggregateQuery(this._select, this._from, this._join, this._where, this._group, List<SortableField>(Array.from<SortableField>(arguments)), this._offset, this._limit);
-	}
-
-	group(...fields: FieldExpression[]): AggregateQuery {
-		return new AggregateQuery(this._select, this._from, this._join, this._where, List<Field>(fields.map(f => f instanceof Field ? f : new Field(f))), this._sort, this._offset, this._limit);
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
-		multiline = !!multiline;
-		indent = multiline && indent ? indent : '';
-
-		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}AGGREGATE `;
-
-		if (this._select) {
-			query += this._select.map<string>((field, alias) => field && alias ? `${field.toString()} AS ${alias}` : ``).join(', ');
-		} else {
-			query += `*`;
-		}
-
-		if (this._from) {
-			query += `${newline}${indent}FROM ${this._from.toString()}`;
-		}
-
-		if (this._join) {
-			query += this._join.map<string>((value, alias) => {
-				if (value) {
-					return `${newline}${indent}JOIN (${value.query.toString()}) AS ${alias} ON ${value.on.toString()}`;
-				}
-				return '';
-			}).join('');
-		}
-
-		if (this._where) {
-			query += `${newline}${indent}WHERE ${this._where.toString()}`;
-		}
-
-		if (this._group) {
-			query += `${newline}${indent}GROUP BY ${this._group.map<string>(s => s ? s.toString() : '').join(', ')}`;
-		}
-
-		if (this._sort) {
-			query += `${newline}${indent}SORT BY ${this._sort.map<string>(s => s ? s.toString() : '').join(', ')}`;
-		}
-
-		if (this._offset !== undefined) {
-			query += `${newline}${indent}OFFSET ${this._offset}`;
-		}
-
-		if (this._limit !== undefined) {
-			query += `${newline}${indent}LIMIT ${this._limit}`;
-		}
-
-		return query;
-	}
-}
-
-export class InsertQuery extends Query {
-	private _objects?: List<DataExpression>
-	private _collection?: Collection
-
-	constructor(objects?: List<DataExpression>, collection?: Collection) {
-		super();
-
-		this._objects = objects;
-		this._collection = collection;
-	}
-
-	getObjects(): List<DataExpression> | undefined {
-		return this._objects;
-	}
-
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	object(data: { [field: string]: ValueExpression }): InsertQuery
-	object(data: DataExpression): InsertQuery
-	object(data: any): InsertQuery {
-		return new InsertQuery(this._objects ? this._objects.push(Map<string, ValueExpression>(data)) : List<DataExpression>([Map<string, ValueExpression>(data)]), this._collection);
-	}
-
-	collection(collection: Collection): InsertQuery
-	collection(name: string, namespace?: string): InsertQuery
-	collection(name?: any, namespace?: string): InsertQuery {
-		if (name && name instanceof Collection) {
-			return new InsertQuery(this._objects, name);
-		}
-		return new InsertQuery(this._objects, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline?: boolean, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}INSERT `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
-		if (this._objects && this._objects.count() > 0) {
-			query += `${newline}${indent}(${this._objects.get(0).map<string>((value, key) => key || '').join(', ')})`;
-			query += `${newline}${indent}VALUES ${this._objects.map<string>(obj => {
-				return `(${obj!.map<string>(value => {
+		if (this.objects && this.objects.count() > 0) {
+			const keys = Object.keys(this.objects.get(0));
+			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
+			query += `${newline}${indent}VALUES ${this.objects.map<string>(obj => {
+				return `(${keys.map(key => {
+					const value = obj![key];
 					if (typeof value === 'string') {
 						return `"${value}"`;
 					}
@@ -794,138 +834,48 @@ export class InsertQuery extends Query {
 	}
 }
 
-export class UpdateQuery extends Query {
-	private _data?: DataExpression
-	private _collection?: Collection
-	private _where?: Bitwise
-	private _limit?: number
-
-	constructor(data?: DataExpression, collection?: Collection, where?: Bitwise, limit?: number) {
+export class QueryUpdate extends Query {
+	constructor(
+		public readonly object?: Object,
+		public readonly collection?: Collection,
+		public readonly conditions?: Binary
+	) {
 		super();
-
-		this._data = data;
-		this._collection = collection;
-		this._where = where;
-		this._limit = limit;
 	}
 
-	getFields(): DataExpression | undefined {
-		return this._data;
-	}
-
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	getWhere(): Bitwise | undefined {
-		return this._where;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	fields(data: { [field: string]: ValueExpression }): UpdateQuery
-	fields(data: DataExpression): UpdateQuery
-	fields(data: any): UpdateQuery {
-		return new UpdateQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
-	}
-
-	collection(collection: Collection): UpdateQuery
-	collection(name: string, namespace?: string): UpdateQuery
-	collection(name?: any, namespace?: string): UpdateQuery {
-		if (name && name instanceof Collection) {
-			return new UpdateQuery(this._data, name, this._where, this._limit);
+	public from(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryUpdate(this.object, renamed, this.conditions);
+			}
 		}
-		return new UpdateQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-	}
-
-	limit(limit: number): UpdateQuery {
-		if (limit === this._limit) {
-			return this;
+		else if (name !== this.collection) {
+			return new QueryUpdate(this.object, name, this.conditions);
 		}
-		return new UpdateQuery(this._data, this._collection, this._where, limit);
+		return this;
 	}
 
-	where(query: Bitwise): UpdateQuery {
-		return new UpdateQuery(this._data, this._collection, query, this._limit);
+	public where(condition: Binary) {
+		return new QueryUpdate(this.object, this.collection, condition);
 	}
 
-	and(queries: List<Expression>): UpdateQuery
-	and(...queries: Expression[]): UpdateQuery
-	and(): UpdateQuery {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	or(queries: List<Expression>): UpdateQuery
-	or(...queries: Expression[]): UpdateQuery
-	or(): UpdateQuery {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	xor(queries: List<Expression>): UpdateQuery
-	xor(...queries: Expression[]): UpdateQuery
-	xor(): UpdateQuery {
-		return new UpdateQuery(this._data, this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	eq(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonEqual(field, value)), this._limit);
-	}
-
-	ne(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonNotEqual(field, value)), this._limit);
-	}
-
-	gt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonGreaterThan(field, value)), this._limit);
-	}
-
-	gte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._limit);
-	}
-
-	lt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonLesserThan(field, value)), this._limit);
-	}
-
-	lte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonLesserThanOrEqual(field, value)), this._limit);
-	}
-
-	in(field: string, values: ValueExpression[]) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
-	}
-
-	beginsWith(field: string, value: string) {
-		const where = this._where || new Bitwise('and');
-		return new UpdateQuery(this._data, this._collection, where.add(new ComparisonBeginsWith(field, value)), this._limit);
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}UPDATE `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
-		if (this._data) {
-			query += `${newline}${indent}(${this._data.map<string>((value, key) => key || '').join(', ')})`;
-			query += `${newline}${indent}VALUES (${this._data.map<string>(value => {
+		if (this.object) {
+			const keys = Object.keys(this.object);
+			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
+			query += `${newline}${indent}VALUES (${keys.map<string>(key => {
+				const value = this.object![key];
 				if (typeof value === 'string') {
 					return `"${value}"`;
 				}
@@ -933,304 +883,60 @@ export class UpdateQuery extends Query {
 			}).join(', ')})`;
 		}
 
-		if (this._where) {
-			query += `${newline}${indent}WHERE ${newline}${indent}WHERE ${this._where.toString()}`;
-		}
-
-		if (this._limit !== undefined) {
-			query += `${newline}${indent}LIMIT ${this._limit}`;
+		if (this.where) {
+			query += `${newline}${indent}WHERE ${this.where.toString()}`;
 		}
 
 		return query;
 	}
 }
 
-export class ReplaceQuery extends Query {
-	private _data?: DataExpression
-	private _collection?: Collection
-	private _where?: Bitwise
-	private _limit?: number
-
-	constructor(data?: DataExpression, collection?: Collection, where?: Bitwise, limit?: number) {
+export class QueryDelete extends Query {
+	constructor(
+		public readonly collection?: Collection,
+		public readonly conditions?: Binary
+	) {
 		super();
-
-		this._data = data;
-		this._collection = collection;
-		this._where = where;
-		this._limit = limit;
 	}
 
-	getFields(): DataExpression | undefined {
-		return this._data;
-	}
-
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	getWhere(): Bitwise | undefined {
-		return this._where;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	fields(data: { [field: string]: ValueExpression }): ReplaceQuery
-	fields(data: DataExpression): ReplaceQuery
-	fields(data: any): ReplaceQuery {
-		return new ReplaceQuery(Map<string, ValueExpression>(data), this._collection, this._where, this._limit);
-	}
-
-	collection(collection: Collection): ReplaceQuery
-	collection(name: string, namespace?: string): ReplaceQuery
-	collection(name?: any, namespace?: string): ReplaceQuery {
-		if (name && name instanceof Collection) {
-			return new ReplaceQuery(this._data, name, this._where, this._limit);
+	public from(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryDelete(renamed, this.conditions);
+			}
 		}
-		return new ReplaceQuery(this._data, this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-	}
-
-	limit(limit: number): ReplaceQuery {
-		if (limit === this._limit) {
-			return this;
+		else if (name !== this.collection) {
+			return new QueryDelete(name, this.conditions);
 		}
-		return new ReplaceQuery(this._data, this._collection, this._where, limit);
+		return this;
 	}
 
-	where(query: Bitwise): ReplaceQuery {
-		return new ReplaceQuery(this._data, this._collection, query, this._limit);
+	public where(condition: Binary) {
+		return new QueryDelete(this.collection, condition);
 	}
 
-	and(queries: List<Expression>): ReplaceQuery
-	and(...queries: Expression[]): ReplaceQuery
-	and(): ReplaceQuery {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	or(queries: List<Expression>): ReplaceQuery
-	or(...queries: Expression[]): ReplaceQuery
-	or(): ReplaceQuery {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	xor(queries: List<Expression>): ReplaceQuery
-	xor(...queries: Expression[]): ReplaceQuery
-	xor(): ReplaceQuery {
-		return new ReplaceQuery(this._data, this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	eq(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonEqual(field, value)), this._limit);
-	}
-
-	ne(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonNotEqual(field, value)), this._limit);
-	}
-
-	gt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonGreaterThan(field, value)), this._limit);
-	}
-
-	gte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._limit);
-	}
-
-	lt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonLesserThan(field, value)), this._limit);
-	}
-
-	lte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonLesserThanOrEqual(field, value)), this._limit);
-	}
-
-	in(field: string, values: ValueExpression[]) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
-	}
-
-	beginsWith(field: string, value: string) {
-		const where = this._where || new Bitwise('and');
-		return new ReplaceQuery(this._data, this._collection, where.add(new ComparisonBeginsWith(field, value)), this._limit);
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
-		multiline = !!multiline;
-		indent = multiline && indent ? indent : '';
-
-		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}REPLACE `;
-
-		if (this._collection) {
-			query += this._collection.toString();
-		}
-
-		if (this._data) {
-			query += `${newline}${indent}(${this._data.map<string>((value, key) => key || '').join(', ')})`;
-			query += `${newline}${indent}VALUES (${this._data.map<string>(value => {
-				if (typeof value === 'string') {
-					return `"${value}"`;
-				}
-				return `${value}`;
-			}).join(', ')})`;
-		}
-
-		if (this._where) {
-			query += `${newline}${indent}WHERE ${newline}${indent}WHERE ${this._where.toString()}`;
-		}
-
-		if (this._limit !== undefined) {
-			query += `${newline}${indent}LIMIT ${this._limit}`;
-		}
-
-		return query;
-	}
-}
-
-export class DeleteQuery extends Query {
-	private _collection?: Collection
-	private _where?: Bitwise
-	private _limit?: number
-
-	constructor(collection?: Collection, where?: Bitwise, limit?: number) {
-		super();
-
-		this._collection = collection;
-		this._where = where;
-		this._limit = limit;
-	}
-
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	getWhere(): Bitwise | undefined {
-		return this._where;
-	}
-
-	getLimit(): number | undefined {
-		return this._limit;
-	}
-
-	collection(collection: Collection): DeleteQuery
-	collection(name: string, namespace?: string): DeleteQuery
-	collection(name?: any, namespace?: string): DeleteQuery {
-		if (name && name instanceof Collection) {
-			return new DeleteQuery(name, this._where, this._limit);
-		}
-		return new DeleteQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._where, this._limit);
-	}
-
-	limit(limit: number): DeleteQuery {
-		if (limit === this._limit) {
-			return this;
-		}
-		return new DeleteQuery(this._collection, this._where, limit);
-	}
-
-	where(query: Bitwise): DeleteQuery {
-		return new DeleteQuery(this._collection, query, this._limit);
-	}
-
-	and(queries: List<Expression>): DeleteQuery
-	and(...queries: Expression[]): DeleteQuery
-	and(): DeleteQuery {
-		return new DeleteQuery(this._collection, new Bitwise("and", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	or(queries: List<Expression>): DeleteQuery
-	or(...queries: Expression[]): DeleteQuery
-	or(): DeleteQuery {
-		return new DeleteQuery(this._collection, new Bitwise("or", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	xor(queries: List<Expression>): DeleteQuery
-	xor(...queries: Expression[]): DeleteQuery
-	xor(): DeleteQuery {
-		return new DeleteQuery(this._collection, new Bitwise("xor", Array.from<Expression>(arguments)), this._limit);
-	}
-
-	eq(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonEqual(field, value)), this._limit);
-	}
-
-	ne(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonNotEqual(field, value)), this._limit);
-	}
-
-	gt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonGreaterThan(field, value)), this._limit);
-	}
-
-	gte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonGreaterThanOrEqual(field, value)), this._limit);
-	}
-
-	lt(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonLesserThan(field, value)), this._limit);
-	}
-
-	lte(field: string, value: ValueExpression) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonLesserThanOrEqual(field, value)), this._limit);
-	}
-
-	in(field: string, values: ValueExpression[]) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonIn(field).set(...values)), this._limit);
-	}
-
-	beginsWith(field: string, value: string) {
-		const where = this._where || new Bitwise('and');
-		return new DeleteQuery(this._collection, where.add(new ComparisonBeginsWith(field, value)), this._limit);
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}DELETE `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
-		if (this._where) {
-			query += `${newline}${indent}WHERE ${this._where.toString()}`;
-		}
-
-		if (this._limit !== undefined) {
-			query += `${newline}${indent}LIMIT ${this._limit}`;
+		if (this.where) {
+			query += `${newline}${indent}WHERE ${this.where.toString()}`;
 		}
 
 		return query;
 	}
 }
 
-export class ShowCollectionQuery extends Query {
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+export class QueryShowCollection extends Query {
+	toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
@@ -1241,115 +947,126 @@ export class ShowCollectionQuery extends Query {
 	}
 }
 
-export class CreateCollectionQuery extends Query {
-	private _collection?: Collection
-	private _columns?: List<Column>
-	private _indexes?: List<Index>
-
-	constructor(collection?: Collection, columns?: List<Column>, indexes?: List<Index>) {
+export class QueryCollectionExists extends Query {
+	constructor(
+		public readonly collection: Collection
+	) {
 		super();
-
-		this._collection = collection;
-		this._columns = columns;
-		this._indexes = indexes;
 	}
 
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	getColumns(): List<Column> | undefined {
-		return this._columns;
-	}
-
-	getIndexes(): List<Index> | undefined {
-		return this._indexes;
-	}
-
-	collection(collection: Collection): CreateCollectionQuery
-	collection(name: string, namespace?: string): CreateCollectionQuery
-	collection(name?: any, namespace?: string): CreateCollectionQuery {
-		if (name && name instanceof Collection) {
-			return new CreateCollectionQuery(name, this._columns);
+	public rename(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryCollectionExists(renamed);
+			}
 		}
-		return new CreateCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._columns, this._indexes);
+		else if (name !== this.collection) {
+			return new QueryCollectionExists(name);
+		}
+		return this;
 	}
 
-	columns(...columns: Column[]): CreateCollectionQuery {
-		return new CreateCollectionQuery(this._collection, List<Column>(columns), this._indexes);
-	}
-
-	indexes(...indexes: Index[]): CreateCollectionQuery {
-		return new CreateCollectionQuery(this._collection, this._columns, List<Index>(indexes));
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}CREATE COLLECTION `;
+		let query = `${indent}COLLECTION EXISTS `;
 
-		if (this._collection) {
-			query += this._collection.toString();
-		}
-
-		query += ` (`;
-
-
-		if (this._columns) {
-			query += `${newline}${indent}${this._columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
-		}
-
-		query += `${newline}${indent})`;
-
-		if (this._indexes) {
-			query += ` ${newline}${indent}INDEXES (`;
-			query += `${newline}${indent}${this._indexes.map<string>(i => i ? i.toString() : '').join(`,${newline}${indent}`)}`;
-			query += `${newline}${indent})`;
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
 		return query;
 	}
 }
 
-export class DescribeCollectionQuery extends Query {
-	private _collection?: Collection
-
-	constructor(collection?: Collection) {
+export class QueryDescribeCollection extends Query {
+	constructor(
+		public readonly collection: Collection
+	) {
 		super();
-
-		this._collection = collection;
 	}
 
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	collection(collection: Collection): DescribeCollectionQuery
-	collection(name: string, namespace?: string): DescribeCollectionQuery
-	collection(name?: any, namespace?: string): DescribeCollectionQuery {
-		if (name && name instanceof Collection) {
-			return new DescribeCollectionQuery(name);
+	public rename(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryDescribeCollection(renamed);
+			}
 		}
-		return new DescribeCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
+		else if (name !== this.collection) {
+			return new QueryDescribeCollection(name);
+		}
+		return this;
 	}
 
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}DESCRIBE COLLECTION `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
+		}
+
+		return query;
+	}
+}
+
+export class QueryCreateCollection extends Query {
+	constructor(
+		public readonly collection: Collection,
+		public readonly columns?: List<Column>,
+		public readonly indexes?: List<Index>
+	) {
+		super();
+	}
+
+	public rename(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryCreateCollection(renamed, this.columns, this.indexes);
+			}
+		}
+		else if (name !== this.collection) {
+			return new QueryCreateCollection(name, this.columns, this.indexes);
+		}
+		return this;
+	}
+
+	public alter(columns: Column[], indexes: Index[]) {
+		return new QueryCreateCollection(this.collection, List(columns), List(indexes));
+	}
+
+	public toString(multiline: boolean = false, indent?: string): string {
+		multiline = !!multiline;
+		indent = multiline && indent ? indent : '';
+
+		let newline = multiline ? `\n` : ' ';
+		let query = `${indent}CREATE COLLECTION `;
+
+		if (this.collection) {
+			query += this.collection.toString();
+		}
+
+		query += ` (`;
+
+
+		if (this.columns) {
+			query += `${newline}${indent}${this.columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
+		}
+
+		query += `${newline}${indent})`;
+
+		if (this.indexes) {
+			query += ` ${newline}${indent}INDEXES (`;
+			query += `${newline}${indent}${this.indexes.map<string>(i => i ? i.toString() : '').join(`,${newline}${indent}`)}`;
+			query += `${newline}${indent})`;
 		}
 
 		return query;
@@ -1381,92 +1098,68 @@ export type ChangeDropIndex = {
 
 export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
 
-export class AlterCollectionQuery extends Query {
-	private _collection?: Collection
-	private _rename?: Collection
-	private _changes?: List<Change>
-
-	constructor(collection?: Collection, changes?: List<Change>, rename?: Collection) {
+export class QueryAlterCollection extends Query {
+	constructor(
+		public readonly collection: Collection,
+		public readonly renamed?: Collection,
+		public readonly changes?: List<Change>
+	) {
 		super();
-
-		this._collection = collection;
-		this._changes = changes;
-		this._rename = rename;
 	}
 
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	getRename(): Collection | undefined {
-		return this._rename;
-	}
-
-	getChanges(): List<Change> | undefined {
-		return this._changes;
-	}
-
-	collection(collection: Collection): AlterCollectionQuery
-	collection(name: string, namespace?: string): AlterCollectionQuery
-	collection(name?: any, namespace?: any): AlterCollectionQuery {
-		if (name && name instanceof Collection) {
-			return new AlterCollectionQuery(name, this._changes);
+	public rename(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryAlterCollection(this.collection, renamed, this.changes);
+			}
 		}
-		return new AlterCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace), this._changes);
-	}
-
-	rename(collection: Collection): AlterCollectionQuery
-	rename(name: string, namespace?: string): AlterCollectionQuery
-	rename(name?: any, namespace?: any): AlterCollectionQuery {
-		if (name && name instanceof Collection) {
-			return new AlterCollectionQuery(this._collection, this._changes, name);
+		else if (name !== this.collection) {
+			return new QueryAlterCollection(this.collection, name, this.changes);
 		}
-		return new AlterCollectionQuery(this._collection, this._changes, new Collection(name, namespace));
+		return this;
 	}
 
-	addColumn(column: Column, copyColumn?: string): AlterCollectionQuery {
-		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addColumn', column, copyColumn }));
+	public addColumn(column: Column, copyColumn?: string) {
+		const changes = this.changes ? this.changes : List<Change>();
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'addColumn', column, copyColumn }));
 	}
 
-	alterColumn(oldColumn: string, newColumn: Column): AlterCollectionQuery {
-		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'alterColumn', oldColumn, newColumn }));
+	public alterColumn(oldColumn: string, newColumn: Column) {
+		const changes = this.changes ? this.changes : List<Change>();
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'alterColumn', oldColumn, newColumn }));
 	}
 
-	dropColumn(column: string): AlterCollectionQuery {
-		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'dropColumn', column }));
+	public dropColumn(column: string) {
+		const changes = this.changes ? this.changes : List<Change>();
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'dropColumn', column }));
 	}
 
-	addIndex(index: Index): AlterCollectionQuery {
-		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'addIndex', index }));
+	public addIndex(index: Index) {
+		const changes = this.changes ? this.changes : List<Change>();
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'addIndex', index }));
 	}
 
-	dropIndex(index: string): AlterCollectionQuery {
-		const changes = this._changes ? this._changes : List<Change>();
-		return new AlterCollectionQuery(this._collection, changes.push({ type: 'dropIndex', index }));
+	public dropIndex(index: string) {
+		const changes = this.changes ? this.changes : List<Change>();
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'dropIndex', index }));
 	}
 
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline?: boolean, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}ALTER COLLECTION `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
 		query += ` (`;
 
-		if (this._changes) {
-			query += `${newline}${indent}${this._changes.map<string>(c => {
+		if (this.changes) {
+			query += `${newline}${indent}${this.changes.map<string>(c => {
 				if (c && c.type === 'addColumn') {
 					return `ADDCOL ${c.column.toString()}`;
 				}
@@ -1490,697 +1183,45 @@ export class AlterCollectionQuery extends Query {
 
 		query += `${newline}${indent})`;
 
-		if (this._rename) {
-			query += ` AS ${this._rename.toString()}`;
+		if (this.renamed) {
+			query += ` AS ${this.renamed.toString()}`;
 		}
 
 		return query;
 	}
 }
 
-export class CollectionExistsQuery extends Query {
-	private _collection?: Collection
-
-	constructor(collection?: Collection) {
+export class QueryDropCollection extends Query {
+	constructor(
+		public readonly collection: Collection
+	) {
 		super();
-
-		this._collection = collection;
 	}
 
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	collection(collection: Collection): CollectionExistsQuery
-	collection(name: string, namespace?: string): CollectionExistsQuery
-	collection(name?: any, namespace?: string): CollectionExistsQuery {
-		if (name && name instanceof Collection) {
-			return new CollectionExistsQuery(name);
+	public rename(name: string | Collection) {
+		if (typeof name === 'string') {
+			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
+			if (renamed !== this.collection) {
+				return new QueryDropCollection(renamed);
+			}
 		}
-		return new CollectionExistsQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
-		multiline = !!multiline;
-		indent = multiline && indent ? indent : '';
-
-		let newline = multiline ? `\n` : ' ';
-		let query = `${indent}COLLECTION EXISTS `;
-
-		if (this._collection) {
-			query += this._collection.toString();
+		else if (name !== this.collection) {
+			return new QueryDropCollection(name);
 		}
-
-		return query;
-	}
-}
-
-export class DropCollectionQuery extends Query {
-	private _collection?: Collection
-
-	constructor(collection?: Collection) {
-		super();
-
-		this._collection = collection;
+		return this;
 	}
 
-	getCollection(): Collection | undefined {
-		return this._collection;
-	}
-
-	collection(collection: Collection): DropCollectionQuery
-	collection(name: string, namespace?: string): DropCollectionQuery
-	collection(name?: any, namespace?: string): DropCollectionQuery {
-		if (name && name instanceof Collection) {
-			return new DropCollectionQuery(name);
-		}
-		return new DropCollectionQuery(this._collection ? this._collection.rename(name, namespace) : new Collection(name, namespace));
-	}
-
-	toString(): string
-	toString(multiline: boolean): string
-	toString(multiline: boolean, indent: string): string
-	toString(multiline?: boolean, indent?: string): string {
+	public toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
 		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}DROP COLLECTION `;
 
-		if (this._collection) {
-			query += this._collection.toString();
+		if (this.collection) {
+			query += this.collection.toString();
 		}
 
 		return query;
 	}
-}
-
-export class Collection {
-	private _name: string
-	private _namespace?: string
-
-	constructor(name: string, namespace?: string) {
-		this._name = name;
-		this._namespace = namespace;
-	}
-
-	public get name() {
-		return this._name;
-	}
-
-	public get namespace() {
-		return this._namespace;
-	}
-
-	public rename(name: string, namespace?: string) {
-		if (name === this._name && namespace === this._namespace) {
-			return this;
-		}
-		return new Collection(name, namespace);
-	}
-
-	public toString() {
-		if (this._namespace) {
-			return `${this._namespace}.${this._name}`;
-		}
-		return this._name;
-	}
-}
-
-export class Column {
-	private _name: string
-	private _type: ColumnType
-	private _defaultValue?: any
-	private _autoIncrement?: boolean
-
-
-	constructor(name: string, type: ColumnType, defaultValue?: any, autoIncrement?: boolean) {
-		this._name = name;
-		this._type = type;
-		this._defaultValue = defaultValue;
-		this._autoIncrement = autoIncrement;
-	}
-
-	getName(): string | undefined {
-		return this._name;
-	}
-
-	getType(): ColumnType | undefined {
-		return this._type;
-	}
-
-	getDefaultValue(): any | undefined {
-		return this._defaultValue;
-	}
-
-	getAutoIncrement(): boolean | undefined {
-		return this._autoIncrement;
-	}
-
-	name(name: string): Column {
-		return this._name === name ? this : new Column(name, this._type, this._defaultValue, this._autoIncrement)
-	}
-
-	type(type: ColumnType): Column {
-		return this._type === type ? this : new Column(this._name, type, this._defaultValue, this._autoIncrement);
-	}
-
-	defaultValue(defaultValue: any): Column {
-		return this._defaultValue === defaultValue ? this : new Column(this._name, this._type, defaultValue, this._autoIncrement);
-	}
-
-	autoIncrement(autoIncrement: boolean): Column {
-		return this._autoIncrement === autoIncrement ? this : new Column(this._name, this._type, this._defaultValue, autoIncrement);
-	}
-
-	public toString() {
-		return [
-			this._name,
-			this._type.toString().toLocaleUpperCase(),
-			this._defaultValue ? `DEFAULT(${this._defaultValue})` : ``,
-			this._autoIncrement ? `AUTOINCREMENT` : ``,
-		].filter(s => s).join(' ');
-	}
-}
-
-export class Index {
-	private _name: string
-	private _type: IndexType
-	private _columns?: List<SortableField>
-
-	constructor(name: string, type: IndexType, columns?: List<SortableField>) {
-		this._name = name;
-		this._type = type;
-		this._columns = columns;
-	}
-
-	getName(): string | undefined {
-		return this._name;
-	}
-
-	getType(): IndexType | undefined {
-		return this._type;
-	}
-
-	getColumns(): List<SortableField> | undefined {
-		return this._columns;
-	}
-
-	name(name: string): Index {
-		return this._name === name ? this : new Index(name, this._type, this._columns);
-	}
-
-	type(type: IndexType): Index {
-		return this._type === type ? this : new Index(this._name, type, this._columns);
-	}
-
-	columns(column: Field, direction?: DirectionExpression): Index
-	columns(...columns: SortableField[]): Index
-	columns(): any {
-		if (arguments.length <= 2 && arguments[0] instanceof Field) {
-			const sort = this._columns ? this._columns : List<SortableField>();
-			const field = <Field>arguments[0];
-			const direction = arguments.length === 2 ? <DirectionExpression>arguments[1] : undefined;
-			return new Index(this._name, this._type, sort.push(new SortableField(field, direction)));
-		}
-		else if (arguments.length > 0) {
-			return new Index(this._name, this._type, List<SortableField>(Array.from<SortableField>(arguments)));
-		}
-		return this._columns;
-	}
-
-	public toString() {
-		return `${this._type.toString().toLocaleUpperCase()} ${this._name} (${this._columns ? this._columns.map<string>(c => c ? c.toString() : '').join(', ') : ''})`;
-	}
-}
-
-export class Field {
-	private _name: string
-	private _table?: string
-
-	constructor(name: string, table?: string) {
-		this._name = name;
-		this._table = table;
-	}
-
-	public get name() {
-		return this._name;
-	}
-
-	public get table() {
-		return this._table;
-	}
-
-	public rename(name: string, table?: string) {
-		if (name === this._name && this._table === table) {
-			return this;
-		}
-		return new Field(name, table || this._table);
-	}
-
-	public toString() {
-		if (this._table) {
-			return `${this.table}.${this._name}`;
-		}
-		return `${this._name}`;
-	}
-}
-
-export class SortableField {
-	private _field: Field
-	private _direction?: DirectionExpression
-
-	constructor(field: Field, direction?: DirectionExpression) {
-		this._field = field;
-		this._direction = direction;
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public get direction() {
-		return this._direction;
-	}
-
-	public sort(direction: DirectionExpression) {
-		if (direction === this._direction) {
-			return this;
-		}
-		return new SortableField(this._field, direction);
-	}
-
-	public toString() {
-		if (this._direction) {
-			return `${this._field.toString()} ${this._direction}`;
-		}
-		return this._field.toString();
-	}
-}
-
-export class CalcField {
-	private _function: string
-
-	constructor(fn: string) {
-		this._function = fn;
-	}
-
-	public get function() {
-		return this._function;
-	}
-
-	public toString() {
-		return `${this._function.toLocaleUpperCase()}()`;
-	}
-}
-
-export type Variables = { [key: string]: string | number | boolean | Date | null };
-
-export class Variable {
-	constructor(public readonly name: string) {
-	}
-}
-
-export class CountCalcField extends CalcField {
-
-	private _field: Field
-
-	constructor(field: FieldExpression) {
-		super('count');
-		this._field = field instanceof Field ? field : new Field(field);
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public toString() {
-		return `COUNT(${this._field.toString()})`;
-	}
-}
-
-export class AverageCalcField extends CalcField {
-
-	private _field: Field | CalcField
-
-	constructor(field: CalcFieldExpression) {
-		super('avg');
-		this._field = typeof field === 'string' ? new Field(field) : field;
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public toString() {
-		return `AVG(${this._field.toString()})`;
-	}
-}
-
-export class SumCalcField extends CalcField {
-
-	private _field: Field | CalcField
-
-	constructor(field: CalcFieldExpression) {
-		super('sum');
-		this._field = typeof field === 'string' ? new Field(field) : field;
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public toString() {
-		return `SUM(${this._field.toString()})`;
-	}
-}
-
-export class SubCalcField extends CalcField {
-
-	private _field: Field | CalcField
-
-	constructor(field: CalcFieldExpression) {
-		super('sub');
-		this._field = typeof field === 'string' ? new Field(field) : field;
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public toString() {
-		return `SUB(${this._field.toString()})`;
-	}
-}
-
-export class MaxCalcField extends CalcField {
-
-	private _fields: List<Field | CalcField>
-
-	constructor(...fields: CalcFieldExpression[]) {
-		super('max');
-		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
-	}
-
-	public get fields() {
-		return this._fields;
-	}
-
-	public toString() {
-		return `MAX(${this._fields.map(f => f ? f.toString() : '').join(', ')})`;
-	}
-}
-
-export class MinCalcField extends CalcField {
-
-	private _fields: List<Field | CalcField>
-
-	constructor(...fields: CalcFieldExpression[]) {
-		super('min');
-		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
-	}
-
-	public get fields() {
-		return this._fields;
-	}
-
-	public toString() {
-		return `MIN(${this._fields.map(f => f ? f.toString() : '').join(', ')})`;
-	}
-}
-
-export class ConcatCalcField extends CalcField {
-
-	private _fields: List<Field | CalcField>
-
-	constructor(...fields: CalcFieldExpression[]) {
-		super('concat');
-		this._fields = List<Field | CalcField>(fields.map(f => typeof f === 'string' ? new Field(f) : f));
-	}
-
-	public get fields() {
-		return this._fields;
-	}
-
-	public toString() {
-		return `CONCAT(${this._fields.map(f => f ? f.toString() : '').join(', ')})`;
-	}
-}
-
-export class Comparison {
-	protected _field: FieldExpression
-	protected _operator: ComparisonOperatorExpression
-
-	constructor(field: FieldExpression, operator: ComparisonOperatorExpression) {
-		this._field = field;
-		this._operator = operator;
-	}
-
-	public get field() {
-		return this._field;
-	}
-
-	public get operator() {
-		return this._operator;
-	}
-
-	public toString(): string {
-		return `${this._field.toString()} ${this._operator}`;
-	}
-}
-
-export class ComparisonSimple extends Comparison {
-	private _value?: ValueExpression
-
-	constructor(field: FieldExpression, operator: ComparisonOperatorExpression, value: ValueExpression) {
-		super(field, operator);
-		this._value = value;
-	}
-
-	public get value() {
-		return this._value;
-	}
-
-	set(value: ValueExpression) {
-		if (value === this._value) {
-			return this;
-		}
-		return new ComparisonSimple(this._field, this._operator, value);
-	}
-
-	public toString() {
-		const value = typeof this._value === 'string' ? `"${this._value}"` : `${this._value}`;
-		return `${this._field.toString()} ${this._operator} ${value}`;
-	}
-}
-
-export class ComparisonEqual extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '=', value);
-	}
-}
-
-export class ComparisonNotEqual extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '!=', value);
-	}
-}
-
-export class ComparisonGreaterThan extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '>', value);
-	}
-}
-
-export class ComparisonGreaterThanOrEqual extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '>=', value);
-	}
-}
-
-export class ComparisonLesserThan extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '<', value);
-	}
-}
-
-export class ComparisonLesserThanOrEqual extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, '<=', value);
-	}
-}
-
-export class ComparisonBeginsWith extends ComparisonSimple {
-	constructor(field: FieldExpression, value: ValueExpression) {
-		super(field, 'beginsWith', value);
-	}
-}
-
-export class ComparisonIn extends Comparison {
-	private _values?: List<ValueExpression>
-
-	constructor(field: FieldExpression, values?: List<ValueExpression>) {
-		super(field, 'in');
-
-		this._values = values;
-	}
-
-	public get values() {
-		return this._values;
-	}
-
-	set(...values: ValueExpression[]) {
-		return new ComparisonIn(this._field, List<ValueExpression>(values));
-	}
-
-	public toString() {
-		const value: string = this._values ? `(${this._values.map<string>(v => {
-			if (typeof v === 'string') {
-				return `"${v}"`;
-			}
-			return `${v}`;
-		}).join(', ')})` : '';
-
-		return `${this._field.toString()} ${this._operator} ${value}`;
-	}
-}
-
-export class Bitwise {
-	private _operator: BitwiseOperatorExpression
-	private _operands?: List<Expression>
-
-	constructor(operator: BitwiseOperatorExpression, queries?: Expression[] | List<Expression>) {
-		this._operator = operator;
-		this._operands = queries ? List<Expression>(queries) : List<Expression>();
-	}
-
-	public get operator() {
-		return this._operator;
-	}
-
-	public get operands() {
-		return this._operands;
-	}
-
-	public get isLeaf() {
-		return this.operands === undefined || this.operands.filter(op => op instanceof Bitwise).count() === 0;
-	}
-
-	public add(expr: Expression) {
-		return new Bitwise(this._operator, this._operands ? this._operands.push(expr) : undefined);
-	}
-
-	public remove(expr: Expression) {
-		if (this._operands) {
-			if (this._operands.contains(expr)) {
-				return new Bitwise(this._operator, this._operands.filter(op => op !== expr).toList());
-			}
-		}
-		return this;
-	}
-
-	public replace(searchValue: Expression, newValue: Expression, deep?: boolean): Bitwise {
-		if (this === searchValue) {
-			return <Bitwise>newValue;
-		}
-		if (this._operands) {
-			const replaced = this._operands.withMutations((list) => {
-				list.forEach((op, idx = 0) => {
-					if (op === searchValue) {
-						list = list.update(idx, (op) => newValue);
-					}
-					else if (op instanceof Bitwise && deep === true) {
-						const opUpdated = op.replace(searchValue, newValue, true);
-						if (op !== opUpdated) {
-							list = list.update(idx, (op) => opUpdated);
-						}
-					}
-				});
-			});
-
-			if (replaced !== this._operands) {
-				return new Bitwise(this._operator, <List<Expression>>replaced);
-			}
-		}
-		return this;
-	}
-
-	public toString(): string {
-		if (this._operands) {
-			if (this._operands.count() === 1) {
-				return this._operands.get(0).toString();
-			}
-			return `(${this._operands.map(op => op ? op.toString() : '').join(` ${this._operator} `)})`;
-		}
-		return ``;
-	}
-}
-
-export class TooComplexQueryError extends Error {
-
-}
-
-export class QueryNotSupportedError extends Error {
-
-}
-
-export class QuerySyntaxError extends Error {
-
-}
-
-export function simplifyBitwiseTree(node: Bitwise): Bitwise {
-	if (node.isLeaf || node.operands === undefined) {
-		return node;
-	}
-
-	let simplified = new Bitwise(node.operator);
-	node.operands.forEach(operand => {
-		if (operand instanceof Comparison) {
-			simplified = simplified.add(operand);
-		}
-		else if (operand instanceof Bitwise && operand.operator === node.operator) {
-			operand = simplifyBitwiseTree(operand);
-			if (operand.operands) {
-				operand.operands.forEach(operand => {
-					simplified = simplified.add(<Expression>operand);
-				});
-			}
-		}
-		else if (operand instanceof Bitwise) {
-			simplified = simplified.add(simplifyBitwiseTree(operand));
-		}
-	});
-
-	return simplified;
-}
-
-export type Visitor<N, T> = (node: N) => T;
-
-export function traverseQuery<T>(
-	query: Query,
-	visitor: {
-		SelectQuery?: Visitor<SelectQuery, T>
-		UnionQuery?: Visitor<UnionQuery, T>
-		AggregateQuery?: Visitor<AggregateQuery, T>
-		InsertQuery?: Visitor<InsertQuery, T>
-		UpdateQuery?: Visitor<UpdateQuery, T>
-		ReplaceQuery?: Visitor<ReplaceQuery, T>
-		DeleteQuery?: Visitor<DeleteQuery, T>
-		CreateCollectionQuery?: Visitor<CreateCollectionQuery, T>
-		DescribeCollectionQuery?: Visitor<DescribeCollectionQuery, T>
-		AlterCollectionQuery?: Visitor<AlterCollectionQuery, T>
-		CollectionExistsQuery?: Visitor<CollectionExistsQuery, T>
-		DropCollectionQuery?: Visitor<DropCollectionQuery, T>
-	}
-): T {
-	const kind = query.constructor.name;
-	if (typeof visitor[kind] === null) {
-		throw new TypeError(`Visitor did not specify how to traverse ${kind} query.`);
-	}
-
-	const visitorFn: Visitor<Query, T> = visitor[kind];
-	return visitorFn(query);
 }
