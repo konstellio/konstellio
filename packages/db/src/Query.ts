@@ -643,6 +643,8 @@ export type Join = {
 }
 
 export class QuerySelect extends Query {
+	private type: 'select';
+
 	constructor(
 		public readonly fields?: List<Field>,
 		public readonly collection?: Collection,
@@ -736,6 +738,8 @@ export class QuerySelect extends Query {
 }
 
 export class QueryAggregate extends Query {
+	private type: 'aggregate';
+
 	constructor(
 		public readonly fields?: List<Function>,
 		public readonly collection?: Collection,
@@ -838,6 +842,8 @@ export class QueryAggregate extends Query {
 }
 
 export class QueryUnion extends Query {
+	private type: 'union';
+
 	constructor(
 		public readonly selects?: List<QuerySelect>,
 		public readonly sorts?: List<FieldDirection>,
@@ -888,6 +894,8 @@ export class QueryUnion extends Query {
 export type Object = Map<string, Value>;
 
 export class QueryInsert extends Query {
+	private type: 'insert';
+
 	constructor(
 		public readonly objects?: List<Object>,
 		public readonly collection?: Collection
@@ -943,6 +951,8 @@ export class QueryInsert extends Query {
 }
 
 export class QueryUpdate extends Query {
+	private type: 'update';
+
 	constructor(
 		public readonly object?: Object,
 		public readonly collection?: Collection,
@@ -1005,6 +1015,8 @@ export class QueryUpdate extends Query {
 }
 
 export class QueryDelete extends Query {
+	private type: 'delete';
+
 	constructor(
 		public readonly collection?: Collection,
 		public readonly conditions?: Binary
@@ -1049,6 +1061,8 @@ export class QueryDelete extends Query {
 }
 
 export class QueryShowCollection extends Query {
+	private type: 'showcollection';
+
 	toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
@@ -1061,6 +1075,8 @@ export class QueryShowCollection extends Query {
 }
 
 export class QueryCollectionExists extends Query {
+	private type: 'collectionexists';
+
 	constructor(
 		public readonly collection: Collection
 	) {
@@ -1096,6 +1112,8 @@ export class QueryCollectionExists extends Query {
 }
 
 export class QueryDescribeCollection extends Query {
+	private type: 'describecollection';
+
 	constructor(
 		public readonly collection: Collection
 	) {
@@ -1131,6 +1149,8 @@ export class QueryDescribeCollection extends Query {
 }
 
 export class QueryCreateCollection extends Query {
+	private type: 'createcollection';
+
 	constructor(
 		public readonly collection: Collection,
 		public readonly columns?: List<Column>,
@@ -1212,6 +1232,8 @@ export type ChangeDropIndex = {
 export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
 
 export class QueryAlterCollection extends Query {
+	private type: 'altercollection';
+
 	constructor(
 		public readonly collection: Collection,
 		public readonly renamed?: Collection,
@@ -1305,6 +1327,8 @@ export class QueryAlterCollection extends Query {
 }
 
 export class QueryDropCollection extends Query {
+	private type: 'dropcollection';
+
 	constructor(
 		public readonly collection: Collection
 	) {
