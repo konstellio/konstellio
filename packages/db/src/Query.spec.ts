@@ -1,233 +1,178 @@
 import 'mocha';
 import { expect } from 'chai';
-import { q, ColumnType, IndexType } from './Query';
+import * as Query from './Query';
 import { Map, List } from 'immutable';
+
+const { q, ColumnType, IndexType } = Query;
 
 describe('Query', () => {
 
-	// describe('types', () => {
+	it('collection', async () => {
+		expect(q.collection).to.be.a('function');
+		expect(q.collection('foo')).to.be.an.instanceof(Query.Collection);
+		expect(q.collection('foo').name).to.equal('foo');
+		expect(q.collection('foo').namespace).to.equal(undefined);
+		expect(q.collection('foo', 'bar').namespace).to.equal('bar');
+		expect(q.collection('foo').rename('moo').name).to.equal('moo');
+		expect(q.collection('foo', 'bar').rename('moo', 'joo').name).to.equal('moo');
+		expect(q.collection('foo', 'bar').rename('moo', 'joo').namespace).to.equal('joo');
 
-	// 	it('field', () => {
-	// 		const a = q.field('foo');
-	// 		const b = a.rename('bar');
-	// 		expect(a.name).to.equal('foo');
-	// 		expect(b.name).to.equal('bar');
-	// 		expect(a).to.not.equal(b);
-	// 	});
+		const a = q.collection('foo', 'bar');
+		const b = a.rename('moo');
+		expect(a).to.not.equal(b);
+	});
 
-	// 	// it('sortable field', () => {
-	// 	// 	const a = q.sort(q.field('foo'), 'asc');
-	// 	// 	const b = a.rename('bar');
-	// 	// 	const c = b.sort('desc');
-	// 	// 	expect(a.name).to.equal('foo');
-	// 	// 	expect(a.direction).to.equal('asc');
-	// 	// 	expect(b.name).to.equal('bar');
-	// 	// 	expect(b.direction).to.equal('asc');
-	// 	// 	expect(c.name).to.equal('bar');
-	// 	// 	expect(c.direction).to.equal('desc');
-	// 	// 	expect(a).to.not.equal(b);
-	// 	// 	expect(a).to.not.equal(c);
-	// 	// 	expect(b).to.not.equal(c);
-	// 	// });
+	it('variable', async () => {
+		expect(q.var).to.be.a('function');
+		expect(q.var('foo')).to.be.an.instanceof(Query.Variable);
+		expect(q.var('foo').name).to.equal('foo');
+	});
 
-	// 	it('calc field', () => {
-	// 		const a = q.count('foo');
-	// 		expect(() => { (<any>a).function = 'avg'; }).to.throw(Error);
-	// 	});
+	it('field', async () => {
 
-	// 	it('variable', () => {
-	// 		const a = q.var('foo');
-	// 		const b = q.var('bar');
-	// 		expect(a.name).to.equal('foo');
-	// 		expect(b.name).to.equal('bar');
-	// 		expect(a).to.not.equal(b);
-	// 	});
+		expect(q.field).to.be.a('function');
+		expect(q.field('foo')).to.be.an.instanceof(Query.Field);
+		expect(q.field('foo').name).to.equal('foo');
+		expect(q.field('foo').alias).to.equal(undefined);
+		expect(q.field('foo', 'bar').alias).to.equal('bar');
+		expect(q.field('foo').rename('moo').name).to.equal('moo');
+		expect(q.field('foo', 'bar').rename('moo', 'joo').alias).to.equal('joo');
 
-	// 	it('collection', () => {
-	// 		const a = q.collection('foo', 'bar');
-	// 		expect(() => { (<any>a).name = 'moo'; }).to.throw(Error);
-	// 		expect(() => { (<any>a).namespace = 'joo'; }).to.throw(Error);
-	// 	});
+		const a = q.field('foo');
+		const b = a.rename('moo');
+		expect(a).to.not.equal(b);
 
-	// 	it('comparison', () => {
-	// 		const a = q.eq('foo', 'moo');
-	// 		const b = a.set('joo');
-	// 		expect(a.field).to.equal('foo');
-	// 		expect(a.operator).to.equal('=');
-	// 		expect(a.value).to.equal('moo');
-	// 		expect(b.field).to.equal('foo');
-	// 		expect(b.operator).to.equal('=');
-	// 		expect(b.value).to.equal('joo');
-	// 		expect(a).to.not.equal(b);
-	// 		expect(() => { (<any>a).field = 'bar'; }).to.throw(Error);
-	// 		expect(() => { (<any>a).operator = '!='; }).to.throw(Error);
-	// 		expect(() => { (<any>a).value = 'joo'; }).to.throw(Error);
-	// 	});
+		expect(q.sort).to.be.a('function')
+		expect(q.sort('foo', 'asc')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort('foo', 'asc').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort('foo', 'asc').direction).to.equal('asc');
+		expect(q.sort('foo', 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort('foo', 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort('foo', 'asc').rename('moo', 'joo').field.name).to.equal('moo');
+		expect(q.sort('foo', 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
+		expect(q.sort(q.field('foo', 'bar'), 'asc')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort(q.field('foo', 'bar'), 'asc').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort(q.field('foo', 'bar'), 'asc').direction).to.equal('asc');
+		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field.name).to.equal('moo');
+		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
 
-	// 	it('binary', () => {
-	// 		const eq = q.eq('foo', 'moo');
-	// 		const ne = q.ne('bar', 'joo');
-	// 		const lt = q.lt('moo', 'joo');
-	// 		const a = q.and(eq, ne);
-	// 		const b = a.add(lt);
-	// 		expect(a.operator).to.equal('and');
-	// 		expect(b.operator).to.equal('and');
-	// 		expect(a.operands).to.not.equal(undefined);
-	// 		expect(b.operands).to.not.equal(undefined);
-	// 		expect((<List<Expression>>a.operands).count()).to.equal(2);
-	// 		expect((<List<Expression>>b.operands).count()).to.equal(3);
-	// 		expect((<List<Expression>>a.operands).get(0)).to.equal(eq);
-	// 		expect((<List<Expression>>a.operands).get(1)).to.equal(ne);
-	// 		expect((<List<Expression>>a.operands).get(0)).to.equal((<List<Expression>>b.operands).get(0));
-	// 		expect((<List<Expression>>a.operands).get(1)).to.equal((<List<Expression>>b.operands).get(1));
-	// 		expect((<List<Expression>>b.operands).get(2)).to.equal(lt);
+		const c = q.sort('foo', 'asc');
+		const d = c.rename('moo');
+		expect(c).to.not.equal(d);
+	});
 
-	// 		const c = a.replace(eq, lt);
-	// 		const d = a.replace(lt, eq);
-	// 		const e = c.replace(lt, eq);
-	// 		expect(c).to.not.equal(a);
-	// 		expect(d).to.equal(a);
-	// 		expect(d).to.not.equal(e);
-	// 	});
+	it('function', async () => {
+		expect(q.count).to.be.a('function');
+		expect(q.count('foo')).to.be.an.instanceof(Query.FunctionCount);
+		expect(q.count('foo').fn).to.equal('count');
+		expect(q.count('foo').args.count()).to.equal(1);
+		expect(q.count('foo').args.get(0)).to.be.an.instanceof(Query.Field);
 
-	// });
+		['avg', 'sum', 'sub', 'max', 'min', 'concat'].forEach(fnName => {
+			const fn = q[fnName];
+			expect(fn).to.be.a('function');
+			expect(fn('foo')).to.be.an.instanceof(Query.Function);
+			expect(fn('foo').fn).to.equal(fnName);
+			expect(fn('foo').args.count()).to.equal(1);
+			expect(fn('foo').args.get(0)).to.equal('foo');
+			expect(fn('foo', q.field('bar')).args.count()).to.equal(2);
+			expect(fn('foo', q.field('bar')).args.get(1)).to.be.an.instanceof(Query.Field);
+		});
+	});
 
-	// describe('test', () => {
+	it('comparison', async () => {
+		[['eq', '='], ['ne', '!='], ['gt', '>'], ['gte', '>='], ['lt', '<'], ['lte', '<='], ['beginsWith', 'beginsWith']].forEach(([fnName, operator]) => {
+			const fn = q[fnName];
+			expect(fn).to.be.a('function');
+			expect(fn(q.field('foo'), 'bar')).to.be.an.instanceof(Query.Comparison);
+			expect(fn(q.field('foo'), 'bar').field).to.be.an.instanceof(Query.Field);
+			expect(fn(q.field('foo'), 'bar').field.name).to.equal('foo');
+			expect(fn(q.field('foo'), 'bar').operator).to.equal(operator);
+			expect(fn(q.field('foo'), 'bar').args.count()).to.equal(1);
+			expect(fn(q.field('foo'), 'bar').args.get(0)).to.equal('bar');
+		});
 
-	// 	console.log(q.createCollection('test', 'bob').columns(
-	// 		q.column('id', ColumnType.UInt32, 1, true),
-	// 		q.column('name', ColumnType.String),
-	// 		q.column('age', ColumnType.UInt8),
-	// 		q.column('sex', ColumnType.Bit),
-	// 		q.column('birthdate', ColumnType.Date)
-	// 	).toString());
+		expect(q.in).to.be.a('function');
+		expect(q.in(q.field('foo'), ['bar'])).to.be.an.instanceof(Query.Comparison);
+		expect(q.in(q.field('foo'), ['bar']).field).to.be.an.instanceof(Query.Field);
+		expect(q.in(q.field('foo'), ['bar']).operator).to.equal('in');
+		expect(q.in(q.field('foo'), ['bar']).args.count()).to.equal(1);
+		expect(q.in(q.field('foo'), ['bar']).args.get(0)).to.equal('bar');
 
-	// 	console.log(q.alterCollection('test', 'bob').columns(
-	// 		q.column('id', ColumnType.UInt32, 1, true),
-	// 		q.column('name', ColumnType.String),
-	// 		q.column('age', ColumnType.UInt8),
-	// 		q.column('sex', ColumnType.Bit),
-	// 		q.column('birthdate', ColumnType.Date)
-	// 	).toString());
-		
-	// 	console.log(q.collectionExists('test', 'bob').toString());
+		const a = q.eq('foo', 'bar');
+		const b = a.replaceArgument(arg => 'moo');
+		expect(a).to.not.equal(b);
+		expect(b).to.be.an.instanceof(Query.ComparisonEqual);
+		expect(b.args.get(0)).to.equal('moo');
+	});
 
-	// 	console.log(q.dropCollection('test', 'bob').toString());
+	it('binary', async () => {
+		['and', 'or', 'xor'].forEach(op => {
+			const fn = q[op];
+			expect(fn).to.be.a('function');
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo'))).to.be.an.instanceof(Query.Binary);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operator).to.equal(op);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.count()).to.equal(2);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(0)).to.be.an.instanceof(Query.ComparisonEqual);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(1)).to.be.an.instanceof(Query.ComparisonGreaterThan);
+		});
 
-	// 	console.log(q.createIndex(
-	// 		q.index('id', IndexType.Primary).columns('id', 'asc'),
-	// 		q.collection('test', 'bob')
-	// 	).toString());
+		const op1 = q.lt('boo', 'hoo');
+		const op2 = q.ne('coo', 'koo');
+		const a = q.and(q.eq('foo', 'bar'), q.gt('moo', 'joo'));
+		const b = a.add(op1);
+		const c = b.replace(op1, op2);
+		const d = b.replace(q.eq('foo', 'bar'), op2);
+		expect(a).to.not.equal(b);
+		expect(b.operands.count()).to.equal(3);
+		expect(b.operands.get(2)).to.equal(op1);
+		expect(b).to.not.equal(c);
+		expect(c.operands.get(2)).to.equal(op2);
+		expect(b).to.equal(d);
+	});
 
-	// 	console.log(q.createIndex(
-	// 		q.index('birthdate', IndexType.Index)
-	// 			.columns('birthdate', 'asc')
-	// 			.columns('id', 'asc'),
-	// 		q.collection('test', 'bob')
-	// 	).toString());
+	it('column', async () => {
+		expect(q.column).to.be.a('function');
+		expect(q.column('foo', ColumnType.Int, 8, 0, false)).to.be.an.instanceof(Query.Column);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).name).to.equal('foo');
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).type).to.equal(ColumnType.Int);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).size).to.equal(8);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).defaultValue).to.equal(0);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).autoIncrement).to.equal(false);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).rename('bar').name).to.equal('bar');
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).rename('bar').type).to.equal(ColumnType.Int);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).rename('bar').size).to.equal(8);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).rename('bar').defaultValue).to.equal(0);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).rename('bar').autoIncrement).to.equal(false);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).resize(16).name).to.equal('foo');
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).resize(16).type).to.equal(ColumnType.Int);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).resize(16).size).to.equal(16);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).resize(16).defaultValue).to.equal(0);
+		expect(q.column('foo', ColumnType.Int, 8, 0, false).resize(16).autoIncrement).to.equal(false);
 
+		const a = q.column('foo', ColumnType.Int, 8, 0, false);
+		const b = a.rename('bar');
+		const c = a.resize(16);
+		const d = a.resize(8);
+		expect(a).to.not.equal(b);
+		expect(a).to.not.equal(c);
+		expect(a).to.equal(d);
+	});
 
-	// });
+	it('index', async () => {
+		expect(q.index).to.be.a('function');
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')])).to.be.an.instanceof(Query.Index);
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).name).to.equal('foo');
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).type).to.equal(IndexType.Primary);
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).columns.count()).to.equal(1);
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).columns.get(0)).to.be.an.instanceof(Query.FieldDirection);
 
-	// describe('SelectQuery', () => {
-
-	// 	it('select', () => {
-	// 		expect(q.select()).to.be.an.instanceof(SelectQuery);
-	// 		expect(q.select('a', 'b', 'c').select().toJS()).to.deep.equal([{ _name: 'a' }, { _name: 'b' }, { _name: 'c' }]);
-	// 		expect(q.select('a', 'b', 'c').select('a').select().toJS()).to.deep.equal([{ _name: 'a' }]);
-	// 	});
-
-	// 	it('from', () => {
-	// 		expect(q.select().from('Foo').getFrom()).to.deep.equal({name: 'Foo', namespace: undefined });
-	// 		expect(q.select().from('Foo', 'Bar').getFrom()).to.deep.equal({name: 'Foo', namespace: 'Bar' });
-	// 	});
-
-	// 	it('join', () => {
-	// 		const query = q.select();
-	// 		const on = q.eq('foo', q.field('baz'));
-	// 		expect(q.select().join('Foo', query, on).getJoin()).to.deep.equal({ Foo: { query: query, on: on } });
-	// 	});
-
-	// 	it('where', () => {
-	// 		expect(q.select().where(q.and([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-	// 			operator: 'and',
-	// 			queries: [
-	// 				{ field: 'foo', operator: '=', value: 'bar' },
-	// 				{ field: 'foo', operator: '!=', value: 'bar' }
-	// 			]
-	// 		});
-	// 		expect(q.select().where(q.or([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-	// 			operator: 'or',
-	// 			queries: [
-	// 				{ field: 'foo', operator: '=', value: 'bar' },
-	// 				{ field: 'foo', operator: '!=', value: 'bar' }
-	// 			]
-	// 		});
-	// 		expect(q.select().where(q.xor([q.eq('foo', 'bar'), q.ne('foo', 'bar')])).getWhere()).to.be.deep.equal({
-	// 			operator: 'xor',
-	// 			queries: [
-	// 				{ field: 'foo', operator: '=', value: 'bar' },
-	// 				{ field: 'foo', operator: '!=', value: 'bar' }
-	// 			]
-	// 		});
-
-	// 		expect(q.select().eq('foo', 'bar').getWhere()).to.be.deep.equal({
-	// 			operator: 'and',
-	// 			queries: [
-	// 				{ field: 'foo', operator: '=', value: 'bar' }
-	// 			]
-	// 		});
-	// 	});
-
-	// 	it('sort', () => {
-	// 		expect(q.select().sort('foo').getSort()).to.be.deep.equal([
-	// 			{ name: 'foo', direction: undefined }
-	// 		]);
-	// 		expect(q.select().sort(q.sort('foo', 'desc')).getSort()).to.be.deep.equal([
-	// 			{ name: 'foo', direction: 'desc' }
-	// 		]);
-	// 		expect(q.select().sort(q.sort('foo', 'asc'), q.sort('baz', 'desc')).getSort()).to.be.deep.equal([
-	// 			{ name: 'foo', direction: 'asc' },
-	// 			{ name: 'baz', direction: 'desc' }
-	// 		]);
-	// 	});
-
-	// 	it('offset', () => {
-	// 		expect(q.select().offset(0).getOffset()).to.be.equal(0);
-	// 		expect(q.select().offset(2).getOffset()).to.be.equal(2);
-	// 		expect(() => { q.select().offset(-1).getOffset() }).to.throw(Error);
-	// 	});
-
-	// 	it('limit', () => {
-	// 		expect(q.select().limit(2).getLimit()).to.be.equal(2);
-	// 		expect(() => { q.select().limit(0).getLimit() }).to.throw(Error);
-	// 		expect(() => { q.select().limit(-1).getLimit() }).to.throw(Error);
-	// 	});
-
-	// });
-
-	// describe('AggregateQuery', () => {
-
-	// 	it('select', () => {
-	// 		const count = q.count('foo');
-	// 		const avg = q.avg('foo');
-	// 		expect(q.aggregate({ foo: count, bar: avg }).getSelect()).to.deep.equal({
-	// 			foo: count,
-	// 			bar: avg
-	// 		});
-	// 	});
-
-	// 	it('from', () => {
-	// 		expect(q.aggregate({ total: q.count('foo') }).from('Foo').getFrom()).to.deep.equal({name: 'Foo', namespace: undefined });
-	// 		expect(q.aggregate({ total: q.count('foo') }).from('Foo', 'Bar').getFrom()).to.deep.equal({name: 'Foo', namespace: 'Bar' });
-	// 	});
-
-	// 	it('join', () => {
-	// 		const query = q.select();
-	// 		const on = q.eq('foo', q.field('baz'));
-	// 		expect(q.aggregate({ total: q.count('foo') }).join('Foo', query, on).getJoin()).to.deep.equal({ Foo: { query: query, on: on } });
-	// 	});
-
-	// });
+		const a = q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]);
+		const b = a.add(q.sort('moo', 'asc'));
+		expect(a).to.not.equal(b);
+		expect(b.columns.count()).to.equal(2);
+	});
 
 });

@@ -1,9 +1,10 @@
 import * as assert from 'assert';
 import { Map, List, Record, Iterable } from 'immutable';
+import { isArray } from 'util';
 
 export class q {
 
-	public static select(...fields: Field[]) {
+	public static select(...fields: (string | Field)[]) {
 		return new QuerySelect().select(...fields);
 	}
 
@@ -76,7 +77,7 @@ export class q {
 	}
 
 	public static count(field: string | Field) {
-		return new FunctionCount(List(typeof field === 'string' ? new Field(field) : field));
+		return new FunctionCount(List([typeof field === 'string' ? new Field(field) : field]));
 	}
 
 	public static avg(...args: Value[]) {
@@ -103,59 +104,93 @@ export class q {
 		return new FunctionConcat(List<Value>(args));
 	}
 
-	public static eq(field: Field | Function, value: Value) {
-		return new ComparisonEqual(field, List([value]));
+	public static eq(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static ne(field: Field | Function, value: Value) {
-		return new ComparisonNotEqual(field, List([value]));
+	public static ne(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonNotEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static gt(field: Field | Function, value: Value) {
-		return new ComparisonGreaterThan(field, List([value]));
+	public static gt(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonGreaterThan(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static gte(field: Field | Function, value: Value) {
-		return new ComparisonGreaterThanOrEqual(field, List([value]));
+	public static gte(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonGreaterThanOrEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static lt(field: Field | Function, value: Value) {
-		return new ComparisonLesserThan(field, List([value]));
+	public static lt(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonLesserThan(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static lte(field: Field | Function, value: Value) {
-		return new ComparisonLesserThanOrEqual(field, List([value]));
+	public static lte(field: string | Field | Function, value: Value) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonLesserThanOrEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static in(field: Field | Function, values: Value[]) {
-		return new ComparisonIn(field, List(values));
+	public static in(field: string | Field | Function, values: Value[]) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(isArray(values) && values.length > 0);
+
+		return new ComparisonIn(typeof field === 'string' ? new Field(field) : field, List(values));
 	}
 
-	public static beginsWith(field: Field | Function, value: string) {
-		return new ComparisonBeginsWith(field, List([value]));
+	public static beginsWith(field: string | Field | Function, value: string) {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(value !== undefined);
+
+		return new ComparisonBeginsWith(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
 	public static and(...operands: BinaryExpression[]) {
+		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+
 		return new Binary("and", List(operands));
 	}
 
 	public static or(...operands: BinaryExpression[]) {
+		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+
 		return new Binary("or", List(operands));
 	}
 
 	public static xor(...operands: BinaryExpression[]) {
+		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+
 		return new Binary("xor", List(operands));
 	}
 }
 
 export class Collection {
 	constructor(public readonly name: string, public readonly namespace?: string) {
-
+		assert(typeof name === 'string');
+		assert(namespace === undefined || typeof namespace === 'string');
 	}
 
 	public rename(name: string, namespace?: string) {
+		assert(typeof name === 'string');
+		assert(namespace === undefined || typeof namespace === 'string');
+
 		if (name !== this.name || namespace !== this.namespace) {
-			return new Collection(name, namespace || this.namespace);
+			return new Collection(name, namespace);
 		}
 		return this;
 	}
@@ -185,10 +220,15 @@ export class Column {
 		public readonly defaultValue?: any,
 		public readonly autoIncrement: boolean = false
 	) {
-
+		assert(typeof name === 'string');
+		assert(typeof type === 'string');
+		assert(size === undefined || typeof size === 'number');
+		assert(autoIncrement === undefined || typeof autoIncrement === 'boolean');
 	}
 
 	public rename(name: string) {
+		assert(typeof name === 'string');
+
 		if (name !== this.name) {
 			return new Column(name, this.type, this.size, this.defaultValue, this.autoIncrement);
 		}
@@ -196,6 +236,8 @@ export class Column {
 	}
 
 	public resize(size: number) {
+		assert(typeof size === 'number' && size > 0);
+
 		if (size !== this.size) {
 			return new Column(this.name, this.type, size, this.defaultValue, this.autoIncrement);
 		}
@@ -203,7 +245,7 @@ export class Column {
 	}
 
 	public toString() {
-		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue && ` DEFAULT(${this.defaultValue})`}${this.autoIncrement && ' AUTOINCREMENT'}`;
+		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement === true ? ' AUTOINCREMENT' : ''}`;
 	}
 }
 
@@ -214,11 +256,20 @@ export enum IndexType {
 }
 
 export class Index {
-	constructor(public readonly name: string, public readonly type: IndexType, public readonly columns: List<FieldDirection> = List()) {
-
+	constructor(
+		public readonly name: string,
+		public readonly type: IndexType,
+		public readonly columns: List<FieldDirection> = List()
+	) {
+		assert(typeof name === 'string');
+		assert(typeof type === 'string');
+		assert(columns instanceof List);
 	}
 
 	public add(...columns: FieldDirection[]) {
+		assert(columns.length > 0);
+		assert(columns.filter(column => (column instanceof FieldDirection) === false).length === 0);
+
 		return new Index(this.name, this.type, this.columns.push(...columns));
 	}
 
@@ -233,6 +284,7 @@ export type Variables = { [key: string]: Primitive };
 
 export class Variable {
 	constructor(public readonly name: string) {
+		assert(typeof name === 'string');
 	}
 
 	public toString() {
@@ -243,10 +295,14 @@ export class Variable {
 export class Field {
 
 	constructor(public readonly name: string, public readonly alias?: string) {
-
+		assert(typeof name === 'string');
+		assert(alias === undefined || typeof alias === 'string');
 	}
 
 	public rename(name: string, alias?: string) {
+		assert(typeof name === 'string');
+		assert(alias === undefined || typeof alias === 'string');
+
 		if (name !== this.name || alias !== this.alias) {
 			return new Field(name, alias || this.alias);
 		}
@@ -262,19 +318,25 @@ export type Direction = 'asc' | 'desc';
 
 export class FieldDirection {
 	constructor(public readonly field: Field, public readonly direction: Direction = 'asc') {
-
+		assert(field instanceof Field);
+		assert(direction === 'asc' || direction === 'desc');
 	}
 
 	public sort(direction: Direction) {
+		assert(direction === 'asc' || direction === 'desc');
+
 		if (direction !== this.direction) {
 			return new FieldDirection(this.field, direction);
 		}
 		return this;
 	}
 
-	public rename(name: Field)
-	public rename(name: string, alias?: string)
-	public rename(name: string | Field, alias?: string) {
+	public rename(name: Field): FieldDirection
+	public rename(name: string, alias?: string): FieldDirection
+	public rename(name: string | Field, alias?: string): FieldDirection {
+		assert(typeof name === 'string' || name instanceof Field);
+		assert(alias === undefined || typeof alias === 'string');
+
 		if (name instanceof Field) {
 			return new FieldDirection(name, this.direction);
 		}
@@ -291,11 +353,17 @@ export class FieldDirection {
 }
 
 export abstract class Function {
-	constructor(public readonly fn: string, public readonly args: List<Value> = List()) {
-
+	constructor(
+		public readonly fn: string,
+		public readonly args: List<Value> = List()
+	) {
+		assert(typeof fn === 'string');
+		assert(args instanceof List);
 	}
 
 	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+		assert(typeof replacer === 'function');
+		
 		let args = List<Value>();
 		let changed = false;
 
@@ -310,7 +378,8 @@ export abstract class Function {
 		});
 
 		if (changed) {
-			return this.constructor(args) as this;
+			const constructor = this.constructor as any;
+			return new constructor(args) as this;
 		}
 		return this;
 	}
@@ -321,55 +390,96 @@ export abstract class Function {
 }
 
 export class FunctionCount extends Function {
-	constructor(public readonly fields: List<Value>) {
-		super('count', fields);
+	constructor(args: List<Value>) {
+		super('count', args);
 	}
 }
 
 export class FunctionAvg extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('avg', args);
 	}
 }
 
 export class FunctionSum extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('sum', args);
 	}
 }
 
 export class FunctionSub extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('sub', args);
 	}
 }
 
 export class FunctionMax extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('max', args);
 	}
 }
 
 export class FunctionMin extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('min', args);
 	}
 }
 
 export class FunctionConcat extends Function {
-	constructor(public readonly args: List<Value>) {
+	constructor(args: List<Value>) {
 		super('concat', args);
 	}
 }
 
-export type ComparisonOperator = "=" | "!=" | ">" | ">=" | "<" | "<=" | "beginsWith" | "in";
+export type ComparisonOperator = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'beginsWith' | 'in';
 
 export abstract class Comparison {
-	constructor(public readonly field: Field | Function, public readonly operator: ComparisonOperator, public readonly args: List<Value> = List()) {
+	constructor(
+		public readonly field: Field | Function,
+		public readonly operator: ComparisonOperator,
+		public readonly args: List<Value> = List()
+	) {
+		assert(field instanceof Field || field instanceof Function);
+		assert(operator === '=' || operator === '!=' || operator === '>' || operator === '>=' || operator === '<' || operator === '<=' || operator === 'beginsWith' || operator === 'in');
+		assert(args instanceof List);
+	}
 
+	public rename(name: Field | Function): Comparison
+	public rename(name: string, alias?: string): Comparison
+	public rename(name: string | Field | Function, alias?: string): Comparison {
+		assert(typeof name === 'string' || name instanceof Field);
+		assert(alias === undefined || typeof alias === 'string');
+
+		const constructor = this.constructor as any;
+		if (name instanceof Field || name instanceof Function) {
+			return new constructor(name, this.args);
+		}
+		else {
+			if (this.field instanceof Field) {
+				return new constructor(new Field(name), this.args);
+			}
+			else {
+				const renameArg = (arg) => {
+					if (arg instanceof Field) {
+						return arg.rename(name);
+					}
+					else if (arg instanceof Function) {
+						return arg.replaceArgument(renameArg);
+					}
+					return arg;
+				}
+				const renamed = this.field.replaceArgument(renameArg);
+				if (renamed !== this.field) {
+					return new constructor(renamed, this.args);
+				}
+			}
+		}
+		return this;
 	}
 
 	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+		assert(typeof replacer === 'function');
+
 		let args = List<Value>();
 		let changed = false;
 
@@ -384,7 +494,8 @@ export abstract class Comparison {
 		});
 
 		if (changed) {
-			return this.constructor(this.field, args) as this;
+			const constructor = this.constructor as any;
+			return new constructor(this.field, args);
 		}
 		return this;
 	}
@@ -395,49 +506,49 @@ export abstract class Comparison {
 }
 
 export class ComparisonEqual extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '=', args);
 	}
 }
 
 export class ComparisonNotEqual extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '!=', args);
 	}
 }
 
 export class ComparisonGreaterThan extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '>', args);
 	}
 }
 
 export class ComparisonGreaterThanOrEqual extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '>=', args);
 	}
 }
 
 export class ComparisonLesserThan extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '<', args);
 	}
 }
 
 export class ComparisonLesserThanOrEqual extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, '<=', args);
 	}
 }
 
 export class ComparisonBeginsWith extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, 'beginsWith', args);
 	}
 }
 
 export class ComparisonIn extends Comparison {
-	constructor(public readonly field: Field | Function, public readonly args: List<Value>) {
+	constructor(field: Field | Function, args: List<Value>) {
 		super(field, 'in', args);
 	}
 }
@@ -446,8 +557,12 @@ export type BinaryOperator = 'and' | 'or' | 'xor';
 export type BinaryExpression = Binary | Comparison;
 
 export class Binary {
-	constructor(public readonly operator: BinaryOperator, public readonly operands: List<BinaryExpression> = List()) {
-
+	constructor(
+		public readonly operator: BinaryOperator,
+		public readonly operands: List<BinaryExpression> = List()
+	) {
+		assert(operator === 'and' || operator === 'or' || operator === 'xor');
+		assert(operands instanceof List);
 	}
 	
 	public isLeaf() {
@@ -455,10 +570,14 @@ export class Binary {
 	}
 
 	public add(expr: BinaryExpression) {
+		assert(expr instanceof Binary || expr instanceof Comparison);
+
 		return new Binary(this.operator, this.operands.push(expr));
 	}
 
 	public remove(expr: BinaryExpression) {
+		assert(expr instanceof Binary || expr instanceof Comparison);
+
 		if (this.operands.contains(expr)) {
 			return new Binary(this.operator, this.operands.filter(op => op !== expr).toList());
 		}
@@ -466,6 +585,10 @@ export class Binary {
 	}
 
 	public replace(search: BinaryExpression, replace: BinaryExpression, deep: boolean = false) {
+		assert(search instanceof Binary || search instanceof Comparison);
+		assert(replace instanceof Binary || replace instanceof Comparison);
+		assert(typeof deep === 'boolean');
+
 		return this.replaceOperand((op) => {
 			if (op === search) {
 				return replace;
@@ -475,6 +598,9 @@ export class Binary {
 	}
 
 	public replaceOperand(replacer: (op: BinaryExpression) => undefined | BinaryExpression, deep: boolean = false) {
+		assert(typeof replacer === 'function');
+		assert(typeof deep === 'boolean');
+
 		let operands = List<BinaryExpression>();
 		let changed = false;
 
@@ -529,8 +655,8 @@ export class QuerySelect extends Query {
 		super();
 	}
 
-	public select(...fields: Field[]) {
-		return new QuerySelect(List(fields), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
+	public select(...fields: (string | Field)[]) {
+		return new QuerySelect(List(fields.map<Field>(field => typeof field === 'string' ? new Field(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 	}
 
 	public from(name: string | Collection) {
@@ -551,16 +677,16 @@ export class QuerySelect extends Query {
 		return new QuerySelect(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.sorts, this.limit, this.offset);
 	}
 
-	public where(condition: Binary) {
-		return new QuerySelect(this.fields, this.collection, this.joins, condition, this.sorts, this.limit, this.offset);
+	public where(condition: BinaryExpression) {
+		return new QuerySelect(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.sorts, this.limit, this.offset);
 	}
 
 	public sort(...fields: FieldDirection[]) {
 		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, List(fields), this.limit, this.offset);
 	}
 
-	public range(offset: number, limit?: number) {
-		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, offset, limit !== undefined ? limit : this.limit);
+	public range(limit: number, offset?: number) {
+		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, limit !== undefined ? limit : this.limit, offset);
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -645,8 +771,8 @@ export class QueryAggregate extends Query {
 		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
-	public where(condition: Binary) {
-		return new QueryAggregate(this.fields, this.collection, this.joins, condition, this.groups, this.sorts, this.limit, this.offset);
+	public where(condition: BinaryExpression) {
+		return new QueryAggregate(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.groups, this.sorts, this.limit, this.offset);
 	}
 
 	public group(...groups: (Field | Function)[]) {
@@ -759,7 +885,7 @@ export class QueryUnion extends Query {
 	}
 }
 
-export type Object = { [field: string]: Value };
+export type Object = Map<string, Value>;
 
 export class QueryInsert extends Query {
 	constructor(
@@ -769,8 +895,9 @@ export class QueryInsert extends Query {
 		super();
 	}
 
-	public add(object: Object) {
-		return new QueryInsert(this.objects ? this.objects.push(object) : List([object]), this.collection);
+	public add(object: Object | { [field: string]: Value }) {
+		const map = Map<string, Value>(object);
+		return new QueryInsert(this.objects ? this.objects.push(map) : List([map]), this.collection);
 	}
 
 	public into(name: string | Collection) {
@@ -837,8 +964,13 @@ export class QueryUpdate extends Query {
 		return this;
 	}
 
-	public where(condition: Binary) {
-		return new QueryUpdate(this.object, this.collection, condition);
+	public set(object: Object | { [field: string]: Value }) {
+		const map: Object = Map<string, Value>(object);
+		return new QueryUpdate(map, this.collection, this.conditions);
+	}
+
+	public where(condition: BinaryExpression) {
+		return new QueryUpdate(this.object, this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -893,8 +1025,8 @@ export class QueryDelete extends Query {
 		return this;
 	}
 
-	public where(condition: Binary) {
-		return new QueryDelete(this.collection, condition);
+	public where(condition: BinaryExpression) {
+		return new QueryDelete(this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {

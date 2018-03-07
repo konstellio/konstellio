@@ -4,7 +4,7 @@ use(require("chai-as-promised"));
 should();
 import { spawn, ChildProcess } from 'child_process';
 import { SQLiteDriver } from './SQLiteDriver';
-import { q, QueryNotSupportedError } from '../Query';
+import { q } from '../Query';
 import * as QueryResult from '../QueryResult';
 import { ColumnType, IndexType } from '../index';
 import { unlinkSync } from 'fs';
@@ -38,14 +38,14 @@ describe('SQLite', () => {
 
 	it('insert', async () => {
 
-		const result: QueryResult.InsertQueryResult = await driver.execute(q.insert('Foo', 'Bar').object({
+		const result: QueryResult.QueryInsertResult = await driver.execute(q.insert(q.collection('Foo', 'Bar')).add({
 			title: 'Hello world',
 			postDate: new Date(),
 			likes: 10
 		})).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.InsertQueryResult);
+		expect(result).to.be.an.instanceOf(QueryResult.QueryInsertResult);
 
-		await driver.execute(q.insert('Foo', 'Bar').object({
+		await driver.execute(q.insert(q.collection('Foo', 'Bar')).add({
 			title: 'Bye world',
 			postDate: new Date(),
 			likes: 10
@@ -54,183 +54,178 @@ describe('SQLite', () => {
 
 	it('update', async () => {
 
-		const update = q.update('Foo', 'Bar').fields({ likes: 11 }).eq('title', 'Hello world');//.limit(1);
+		const update = q.update(q.collection('Foo', 'Bar')).set({ likes: 11 }).where(q.eq('title', 'Hello world'));//.limit(1);
 
-		const result: QueryResult.UpdateQueryResult<any> = await driver.execute<Foo>(update).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.UpdateQueryResult);
-	});
-
-	it('replace', async () => {
-
-		const replace = q.replace('Foo', 'Bar').fields({ title: 'Goodbye world', likes: 11 }).eq('title', 'Hello world').limit(1);
-
-		await driver.execute<Foo>(replace).should.be.rejectedWith(QueryNotSupportedError);
+		const result: QueryResult.QueryUpdateResult<any> = await driver.execute<Foo>(update).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryUpdateResult);
 	});
 
 	it('select', async () => {
 
-		const select = q.select().from('Foo', 'Bar').limit(1);
+		const select = q.select().from(q.collection('Foo', 'Bar')).range(1);
 
-		const result: QueryResult.SelectQueryResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.SelectQueryResult);
+		const result: QueryResult.QuerySelectResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QuerySelectResult);
 	});
 
 	it('variable', async () => {
-		const select = q.select().from('Foo', 'Bar').eq('title', q.var('title'));
+		const select = q.select().from(q.collection('Foo', 'Bar')).where(q.eq('title', q.var('title')));
 		await driver.execute<Foo>(select).should.be.rejected;
 
-		const result: QueryResult.SelectQueryResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.SelectQueryResult);
+		const result: QueryResult.QuerySelectResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QuerySelectResult);
 	});
 
 	it('delete', async () => {
 
-		const remove = q.delete('Foo', 'Bar').eq('title', 'Hello world');//.limit(1);
+		const remove = q.delete(q.collection('Foo', 'Bar')).where(q.eq('title', 'Hello world'));
 
-		const result: QueryResult.DeleteQueryResult = await driver.execute(remove).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.DeleteQueryResult);
+		const result: QueryResult.QueryDeleteResult = await driver.execute(remove).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryDeleteResult);
 	});
 
 	it('describe collection', async () => {
 
-		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Foo', 'Bar')).should.be.fulfilled;
-		expect(desc).to.be.an.instanceOf(QueryResult.DescribeCollectionQueryResult);
+		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Foo', 'Bar'))).should.be.fulfilled;
+		expect(desc).to.be.an.instanceOf(QueryResult.QueryDescribeCollectionResult);
 		expect(desc.columns.length).to.be.equal(4);
-		expect(desc.columns[0].getName()).to.be.equal('id');
-		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
-		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
-		expect(desc.columns[1].getName()).to.be.equal('title');
-		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
-		expect(desc.columns[2].getName()).to.be.equal('postDate');
-		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
-		expect(desc.columns[3].getName()).to.be.equal('likes');
-		expect(desc.columns[3].getType()).to.be.equal(ColumnType.Int64);
-		expect(desc.columns[3].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[3].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[0].name).to.be.equal('id');
+		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
+		expect(desc.columns[0].defaultValue).to.be.equal(null);
+		expect(desc.columns[0].autoIncrement).to.be.equal(true);
+		expect(desc.columns[1].name).to.be.equal('title');
+		expect(desc.columns[1].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].defaultValue).to.be.equal(null);
+		expect(desc.columns[1].autoIncrement).to.be.equal(false);
+		expect(desc.columns[2].name).to.be.equal('postDate');
+		expect(desc.columns[2].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].defaultValue).to.be.equal(null);
+		expect(desc.columns[2].autoIncrement).to.be.equal(false);
+		expect(desc.columns[3].name).to.be.equal('likes');
+		expect(desc.columns[3].type).to.be.equal(ColumnType.Int);
+		expect(desc.columns[3].defaultValue).to.be.equal(null);
+		expect(desc.columns[3].autoIncrement).to.be.equal(false);
 		expect(desc.indexes.length).to.be.equal(3);
-		expect(desc.indexes[0].getName()).to.be.equal('Bar_Foo_id');
-		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
-		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
-		expect(desc.indexes[0].getColumns()!.get(0).toString()).to.be.equal('id asc');
-		expect(desc.indexes[1].getName()).to.be.equal('Bar_Foo_title');
-		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Index);
-		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(1);
-		expect(desc.indexes[1].getColumns()!.get(0).toString()).to.be.equal('title asc');
-		expect(desc.indexes[2].getName()).to.be.equal('Bar_Foo_postDate');
-		expect(desc.indexes[2].getType()).to.be.equal(IndexType.Index);
-		expect(desc.indexes[2].getColumns()!.count()).to.be.equal(2);
-		expect(desc.indexes[2].getColumns()!.get(0).toString()).to.be.equal('postDate asc');
-		expect(desc.indexes[2].getColumns()!.get(1).toString()).to.be.equal('likes asc');
+		expect(desc.indexes[0].name).to.be.equal('Bar_Foo_id');
+		expect(desc.indexes[0].type).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].columns.count()).to.be.equal(1);
+		expect(desc.indexes[0].columns.get(0).toString()).to.be.equal('id ASC');
+		expect(desc.indexes[1].name).to.be.equal('Bar_Foo_title');
+		expect(desc.indexes[1].type).to.be.equal(IndexType.Index);
+		expect(desc.indexes[1].columns.count()).to.be.equal(1);
+		expect(desc.indexes[1].columns.get(0).toString()).to.be.equal('title ASC');
+		expect(desc.indexes[2].name).to.be.equal('Bar_Foo_postDate');
+		expect(desc.indexes[2].type).to.be.equal(IndexType.Index);
+		expect(desc.indexes[2].columns.count()).to.be.equal(2);
+		expect(desc.indexes[2].columns.get(0).toString()).to.be.equal('postDate ASC');
+		expect(desc.indexes[2].columns.get(1).toString()).to.be.equal('likes ASC');
 	});
 
 	it('create collection', async () => {
 
-		const create = q.createCollection('Moo', 'Joo')
-			.columns(
-				q.column('id', ColumnType.UInt64, null, true),
-				q.column('title', ColumnType.Text),
-				q.column('date', ColumnType.Date)
-			)
-			.indexes(
-				q.index('Joo_Moo_id', IndexType.Primary).columns(q.sort(q.field('id'), 'asc')),
-				q.index('Joo_Moo_date', IndexType.Unique).columns(q.sort(q.field('id'), 'asc'), q.sort(q.field('date'), 'desc'))
-			)
+		const create = q.createCollection(q.collection('Moo', 'Joo'))
+			.alter(
+				[
+					q.column('id', ColumnType.UInt, 64, null, true),
+					q.column('title', ColumnType.Text),
+					q.column('date', ColumnType.Date)
+				],
+				[
+					q.index('Joo_Moo_id', IndexType.Primary, [q.sort(q.field('id'), 'asc')]),
+					q.index('Joo_Moo_date', IndexType.Unique, [q.sort(q.field('id'), 'asc'), q.sort(q.field('date'), 'desc')])
+				]
+			);
 
-		const result: QueryResult.CreateCollectionQueryResult = await driver.execute(create).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.CreateCollectionQueryResult);
+		const result: QueryResult.QueryCreateCollectionResult = await driver.execute(create).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryCreateCollectionResult);
 
-		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Joo')).should.be.fulfilled;
+		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Joo'))).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
-		expect(desc.columns[0].getName()).to.be.equal('id');
-		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
-		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
-		expect(desc.columns[1].getName()).to.be.equal('title');
-		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
-		expect(desc.columns[2].getName()).to.be.equal('date');
-		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[0].name).to.be.equal('id');
+		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
+		expect(desc.columns[0].defaultValue).to.be.equal(null);
+		expect(desc.columns[0].autoIncrement).to.be.equal(true);
+		expect(desc.columns[1].name).to.be.equal('title');
+		expect(desc.columns[1].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].defaultValue).to.be.equal(null);
+		expect(desc.columns[1].autoIncrement).to.be.equal(false);
+		expect(desc.columns[2].name).to.be.equal('date');
+		expect(desc.columns[2].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].defaultValue).to.be.equal(null);
+		expect(desc.columns[2].autoIncrement).to.be.equal(false);
 		expect(desc.indexes.length).to.be.equal(2);
-		expect(desc.indexes[0].getName()).to.be.equal('Joo_Moo_id');
-		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
-		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
-		expect(desc.indexes[0].getColumns()!.get(0).toString()).to.be.equal('id asc');
-		expect(desc.indexes[1].getName()).to.be.equal('Joo_Moo_date');
-		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Unique);
-		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(2);
-		expect(desc.indexes[1].getColumns()!.get(0).toString()).to.be.equal('id asc');
-		expect(desc.indexes[1].getColumns()!.get(1).toString()).to.be.equal('date desc');
+		expect(desc.indexes[0].name).to.be.equal('Joo_Moo_id');
+		expect(desc.indexes[0].type).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].columns.count()).to.be.equal(1);
+		expect(desc.indexes[0].columns.get(0).toString()).to.be.equal('id ASC');
+		expect(desc.indexes[1].name).to.be.equal('Joo_Moo_date');
+		expect(desc.indexes[1].type).to.be.equal(IndexType.Unique);
+		expect(desc.indexes[1].columns.count()).to.be.equal(2);
+		expect(desc.indexes[1].columns.get(0).toString()).to.be.equal('id ASC');
+		expect(desc.indexes[1].columns.get(1).toString()).to.be.equal('date DESC');
 	});
 
 	it('alter collection', async () => {
 
-		const alter = q.alterCollection('Moo', 'Joo')
+		const alter = q.alterCollection(q.collection('Moo', 'Joo'))
 			.addColumn(q.column('content', ColumnType.Text))
 			.alterColumn('date', q.column('postDate', ColumnType.Date))
 			.dropColumn('title')
-			.addIndex(q.index('Joo_Moo_content', IndexType.Index).columns(q.sort(q.field('content'), 'asc')))
+			.addIndex(q.index('Joo_Moo_content', IndexType.Index, [q.sort(q.field('content'), 'asc')]))
 			.dropIndex('Joo_Moo_date')
-			.rename('Moo', 'Boo');
+			.rename(q.collection('Moo', 'Boo'));
 
-		const result: QueryResult.AlterCollectionQueryResult = await driver.execute(alter).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.AlterCollectionQueryResult);
+		const result: QueryResult.QueryAlterCollectionResult = await driver.execute(alter).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryAlterCollectionResult);
 
-		const desc: QueryResult.DescribeCollectionQueryResult = await driver.execute(q.describeCollection('Moo', 'Boo')).should.be.fulfilled;
+		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
-		expect(desc.columns[0].getName()).to.be.equal('id');
-		expect(desc.columns[0].getType()).to.be.equal(ColumnType.Int64);
-		expect(desc.columns[0].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[0].getAutoIncrement()).to.be.equal(true);
-		expect(desc.columns[1].getName()).to.be.equal('postDate');
-		expect(desc.columns[1].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[1].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[1].getAutoIncrement()).to.be.equal(false);
-		expect(desc.columns[2].getName()).to.be.equal('content');
-		expect(desc.columns[2].getType()).to.be.equal(ColumnType.Text);
-		expect(desc.columns[2].getDefaultValue()).to.be.equal(null);
-		expect(desc.columns[2].getAutoIncrement()).to.be.equal(false);
+		expect(desc.columns[0].name).to.be.equal('id');
+		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
+		expect(desc.columns[0].defaultValue).to.be.equal(null);
+		expect(desc.columns[0].autoIncrement).to.be.equal(true);
+		expect(desc.columns[1].name).to.be.equal('postDate');
+		expect(desc.columns[1].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[1].defaultValue).to.be.equal(null);
+		expect(desc.columns[1].autoIncrement).to.be.equal(false);
+		expect(desc.columns[2].name).to.be.equal('content');
+		expect(desc.columns[2].type).to.be.equal(ColumnType.Text);
+		expect(desc.columns[2].defaultValue).to.be.equal(null);
+		expect(desc.columns[2].autoIncrement).to.be.equal(false);
 		expect(desc.indexes.length).to.be.equal(2);
-		expect(desc.indexes[0].getName()).to.be.equal('Boo_Moo_id');
-		expect(desc.indexes[0].getType()).to.be.equal(IndexType.Primary);
-		expect(desc.indexes[0].getColumns()!.count()).to.be.equal(1);
-		expect(desc.indexes[0].getColumns()!.get(0).toString()).to.be.equal('id asc');
-		expect(desc.indexes[1].getName()).to.be.equal('Joo_Moo_content');
-		expect(desc.indexes[1].getType()).to.be.equal(IndexType.Index);
-		expect(desc.indexes[1].getColumns()!.count()).to.be.equal(1);
-		expect(desc.indexes[1].getColumns()!.get(0).toString()).to.be.equal('content asc');
+		expect(desc.indexes[0].name).to.be.equal('Boo_Moo_id');
+		expect(desc.indexes[0].type).to.be.equal(IndexType.Primary);
+		expect(desc.indexes[0].columns.count()).to.be.equal(1);
+		expect(desc.indexes[0].columns.get(0).toString()).to.be.equal('id ASC');
+		expect(desc.indexes[1].name).to.be.equal('Joo_Moo_content');
+		expect(desc.indexes[1].type).to.be.equal(IndexType.Index);
+		expect(desc.indexes[1].columns.count()).to.be.equal(1);
+		expect(desc.indexes[1].columns.get(0).toString()).to.be.equal('content ASC');
 	});
 
 	it('exists collection', async () => {
-		let result: QueryResult.CollectionExistsQueryResult = await driver.execute(q.collectionExists('Moo', 'Boo')).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.CollectionExistsQueryResult);
+		let result: QueryResult.QueryCollectionExistsResult = await driver.execute(q.collectionExists(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryCollectionExistsResult);
 		expect(result.exists).to.equal(true);
 
-		result = await driver.execute(q.collectionExists('Foo', 'Joo')).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.CollectionExistsQueryResult);
+		result = await driver.execute(q.collectionExists(q.collection('Foo', 'Joo'))).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryCollectionExistsResult);
 		expect(result.exists).to.equal(false);
 	});
 
 	it('describe collection', async () => {
 
-		let result: QueryResult.ShowCollectionQueryResult = await driver.execute(q.showCollection()).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.ShowCollectionQueryResult);
+		let result: QueryResult.QueryShowCollectionResult = await driver.execute(q.showCollection()).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryShowCollectionResult);
 		expect(result.collections.length).to.equal(2);
-		expect(result.collections[0].toString()).to.equal('Bar.Foo');
-		expect(result.collections[1].toString()).to.equal('Boo.Moo');
+		expect(result.collections[0].toString()).to.equal('Bar__Foo');
+		expect(result.collections[1].toString()).to.equal('Boo__Moo');
 
 	});
 
 	it('drop collection', async () => {
-		let result: QueryResult.DropCollectionQueryResult = await driver.execute(q.dropCollection('Moo', 'Boo')).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.DropCollectionQueryResult);
+		let result: QueryResult.QueryDropCollectionResult = await driver.execute(q.dropCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryResult.QueryDropCollectionResult);
 		expect(result.acknowledge).to.equal(true);
 	});
 

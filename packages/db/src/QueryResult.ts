@@ -4,73 +4,67 @@ export class QueryResult {
 
 }
 
-export class SelectQueryResult<T> extends QueryResult {
+export class QuerySelectResult<T> extends QueryResult {
 	constructor(public readonly results: T[]) {
 		super();
 	}
 }
 
-export class AggregateQueryResult<T> extends QueryResult {
+export class QueryAggregateResult<T> extends QueryResult {
 	constructor(public readonly results: T[]) {
 		super();
 	}
 }
 
-export class InsertQueryResult extends QueryResult {
+export class QueryInsertResult extends QueryResult {
 	constructor(public readonly id: string) {
 		super();
 	}
 }
 
-export class UpdateQueryResult<T> extends QueryResult {
+export class QueryUpdateResult<T> extends QueryResult {
 	constructor(public readonly data: T) {
 		super();
 	}
 }
 
-export class ReplaceQueryResult<T> extends QueryResult {
-	constructor(public readonly data: T) {
-		super();
-	}
-}
-
-export class DeleteQueryResult extends QueryResult {
+export class QueryDeleteResult extends QueryResult {
 	constructor(public readonly acknowledge: boolean) {
 		super();
 	}
 }
 
-export class CreateCollectionQueryResult extends QueryResult {
+export class QueryCreateCollectionResult extends QueryResult {
 	constructor(public readonly acknowledge: boolean) {
 		super();
 	}
 }
 
-export class AlterCollectionQueryResult extends QueryResult {
+export class QueryAlterCollectionResult extends QueryResult {
 	constructor(public readonly acknowledge: boolean) {
 		super();
 	}
 }
 
-export class ShowCollectionQueryResult extends QueryResult {
+export class QueryShowCollectionResult extends QueryResult {
 	constructor(public readonly collections: Query.Collection[]) {
 		super();
 	}
 }
 
-export class DescribeCollectionQueryResult extends QueryResult {
+export class QueryDescribeCollectionResult extends QueryResult {
 	constructor(public readonly collection: Query.Collection, public readonly columns: Query.Column[], public readonly indexes: Query.Index[]) {
 		super();
 	}
 }
 
-export class CollectionExistsQueryResult extends QueryResult {
+export class QueryCollectionExistsResult extends QueryResult {
 	constructor(public readonly exists: boolean) {
 		super();
 	}
 }
 
-export class DropCollectionQueryResult extends QueryResult {
+export class QueryDropCollectionResult extends QueryResult {
 	constructor(public readonly acknowledge: boolean) {
 		super();
 	}

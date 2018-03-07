@@ -1,4 +1,4 @@
-import { Binary, Comparison, Field, FieldDirection, Join, Query } from './Query';
+import { Binary, Comparison, Field, FieldDirection, Function, Join, Query, BinaryExpression, QuerySelect } from './Query';
 import { List } from 'immutable';
 
 export function simplifyBinaryTree(node: Binary) {
@@ -27,46 +27,181 @@ export function simplifyBinaryTree(node: Binary) {
 	return simplified;
 }
 
-export function renameFieldInQuery(
-	query: Query,
-	replace: Map<Field, Field>
-): typeof query {
+export class QueryTooComplexeError extends Error {}
 
-	return query;
+export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
+
+	const decomposed: BinaryExpression[] = [];
+	const trees: Binary[] = [simplifyBinaryTree(tree)];
+
+	while (trees.length > 0) {
+		const root = trees.shift()!;
+
+		if (root.isLeaf()) {
+			if (root.operator === 'and') {
+				decomposed.push(root);
+			}
+			else if (root.operator === 'or') {
+				if (root.operands) {
+					decomposed.push(...root.operands.toArray())
+				}
+			}
+			else if (root.operator === 'xor') {
+				throw new QueryTooComplexeError(`Can not decompose XOR binary operation.`);
+			}
+		}
+		else {
+			const walk = [root];
+
+			while (walk.length > 0) {
+				const node = walk.shift()!;
+
+				// Split on OR node and break
+				if (node.operator === 'or') {
+					if (node.operands) {
+						trees.push(...node.operands.map(op => {
+							return simplifyBinaryTree(root.replace(node, op instanceof Comparison ? new Binary('and', List([op])) : op!, true));
+						}).toArray());
+					}
+					break;
+				}
+
+				else if (root.operator === 'xor') {
+					throw new QueryTooComplexeError(`Can not decompose XOR binary operation.`);
+				}
+
+				// Continue walk with nested bitwise node
+				else if (node.operands) {
+					walk.push(...<Binary[]>node.operands.filter((op): op is Binary => op instanceof Binary).toArray());
+				}
+			}
+		}
+	}
+
+	return decomposed;
 }
 
+export function renameField(source: Field, replace: Map<Field, Field>): Field
+export function renameField(source: FieldDirection, replace: Map<Field, Field>): FieldDirection
+export function renameField(source: Function, replace: Map<Field, Field>): Function
+export function renameField(source: Binary, replace: Map<Field, Field>): Binary
+export function renameField(source: Comparison, replace: Map<Field, Field>): Comparison
+export function renameField(source: List<Field>, replace: Map<Field, Field>): List<Field>
+export function renameField(source: List<FieldDirection>, replace: Map<Field, Field>): List<FieldDirection>
+export function renameField(source: List<Function>, replace: Map<Field, Field>): List<Function>
+export function renameField(source: List<Join>, replace: Map<Field, Field>): List<Join>
 export function renameField(
-	source: Field | FieldDirection | Join | Binary | Comparison,
+	source: Field | FieldDirection | Function | BinaryExpression | List<Field | FieldDirection | Function | Join>,
 	replace: Map<Field, Field>
 ): typeof source {
-	// if (source instanceof Binary) {
-	// 	return source;
-	// }
-	// if (source instanceof Comparison) {
-	// 	return source;
-	// }
-	// else {
-	// 	return source.withMutations((source) => {
-	// 		source.forEach((field, idx = 0) => {
-	// 			if (field instanceof Field) {
-	// 				if (field.alias === undefined) {
-	// 					if (replace.has(field.name)) {
-	// 						fields.set(idx, replace.get(field.name)!);
-	// 					}
-	// 				}
-	// 			}
-	// 			else if (field instanceof FieldDirection) {
-	// 				if (field.field.alias === undefined) {
-	// 					if (replace.has(field.field.name)) {
-	// 						fields.set(idx, field.rename(replace.get(field.field.name)!));
-	// 					}
-	// 				}
-	// 			}
-	// 			else if (field) {
-	// 				field...
-	// 			}
-	// 		});
-	// 	});
-	// }
-	return source;
+	const needles = Array.from(replace.keys());
+
+	if (source instanceof Field) {
+		for (let i = 0, l = needles.length; i < l; ++i) {
+			const needle = needles[i];
+			if (needle.name === source.name && needle.alias === source.alias) {
+				return replace.get(needle)!;
+			}
+		}
+		return source;
+	}
+	else if (source instanceof FieldDirection) {
+		for (let i = 0, l = needles.length; i < l; ++i) {
+			const needle = needles[i];
+			if (needle.name === source.field.name && needle.alias === source.field.alias) {
+				return source.rename(replace.get(needle)!);
+			}
+		}
+		return source;
+	}
+	else if (source instanceof Function) {
+		return source.replaceArgument(arg => {
+			if (arg instanceof Field) {
+				return renameField(arg, replace);
+			}
+			else if (arg instanceof Function) {
+				return renameField(arg, replace);
+			}
+			return arg;
+		});
+	}
+	else if (source instanceof Binary) {
+		return source.replaceOperand(op => {
+			if (op instanceof Comparison) {
+				return renameField(op, replace);
+			}
+			else {
+				return renameField(op, replace);
+			}
+		});
+	}
+	else if (source instanceof Comparison) {
+		const constructor = source.constructor as any;
+		const args = source.args
+			? source.args.withMutations(args => {
+				args.forEach((arg, idx = 0) => {
+					if (arg instanceof Field) {
+						args.set(idx, renameField(arg, replace));
+					}
+					else if (arg instanceof Function) {
+						args.set(idx, renameField(arg, replace));
+					}
+				});
+			}).toList()
+			: undefined;
+
+		if (source.field instanceof Field) {
+			const field = renameField(source.field, replace);
+			if (field !== source.field || args !== source.args) {
+				return new constructor(field, args);
+			}
+		}
+		else {
+			const field = renameField(source.field, replace);
+			if (field !== source.field || args !== source.args) {
+				return new constructor(field, args);
+			}
+		}
+		return source;
+	}
+	else {
+		return source.withMutations((source) => {
+			source.forEach((field, idx = 0) => {
+				if (field instanceof Field) {
+					const replaced = renameField(field, replace);
+					if (replaced !== field) {
+						source.set(idx, replaced);
+					}
+				}
+				else if (field instanceof FieldDirection) {
+					const replaced = renameField(field, replace);
+					if (replaced !== field) {
+						source.set(idx, replaced);
+					}
+				}
+				else if (field instanceof Function) {
+					const replaced = renameField(field, replace);
+					if (replaced !== field) {
+						source.set(idx, replaced);
+					}
+				}
+				else if (field) {
+					const { on, query } = field;
+					const fields = query.fields ? renameField(query.fields, replace) : undefined;
+					const joins = query.joins ? renameField(query.joins, replace) : undefined;
+					const conditions = query.conditions ? renameField(query.conditions, replace) : undefined;
+					const sorts = query.sorts ? renameField(query.sorts, replace) : undefined;
+
+					const queryRenamed = fields !== query.fields || joins !== query.joins || conditions !== query.conditions || sorts !== query.sorts
+						? new QuerySelect(fields, query.collection, joins, conditions, sorts, query.limit, query.offset)
+						: query;
+					const onRenamed = on instanceof Binary ? renameField(on, replace) : renameField(on, replace);
+
+					if (queryRenamed !== query || onRenamed !== on) {
+						source.set(idx, { alias: field.alias, on: onRenamed, query: queryRenamed });
+					}
+				}
+			});
+		});
+	}
 }
