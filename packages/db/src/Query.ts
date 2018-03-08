@@ -687,8 +687,11 @@ export class QuerySelect extends Query {
 		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, List(fields), this.limit, this.offset);
 	}
 
-	public range(limit: number, offset?: number) {
-		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, limit !== undefined ? limit : this.limit, offset);
+	public range({ limit, offset }: { limit?: number, offset?: number }) {
+		if (limit !== this.limit || offset !== this.offset) {
+			return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+		}
+		return this;
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -787,8 +790,11 @@ export class QueryAggregate extends Query {
 		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, List(fields), this.limit, this.offset);
 	}
 
-	public range(offset: number, limit?: number) {
-		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, this.sorts, offset, limit !== undefined ? limit : this.limit);
+	public range({ limit, offset }: { limit?: number, offset?: number }) {
+		if (limit !== this.limit || offset !== this.offset) {
+			return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+		}
+		return this;
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -861,8 +867,11 @@ export class QueryUnion extends Query {
 		return new QueryUnion(this.selects, List(fields), this.limit, this.offset);
 	}
 
-	public range(offset: number, limit?: number) {
-		return new QueryUnion(this.selects, this.sorts, offset, limit !== undefined ? limit : this.limit);
+	public range({ limit, offset }: { limit?: number, offset?: number }) {
+		if (limit !== this.limit || offset !== this.offset) {
+			return new QueryUnion(this.selects, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+		}
+		return this;
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -1172,7 +1181,7 @@ export class QueryCreateCollection extends Query {
 		return this;
 	}
 
-	public alter(columns: Column[], indexes: Index[]) {
+	public define(columns: Column[], indexes: Index[]) {
 		return new QueryCreateCollection(this.collection, List(columns), List(indexes));
 	}
 

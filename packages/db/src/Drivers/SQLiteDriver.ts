@@ -346,8 +346,7 @@ export class SQLiteDriver extends Driver {
 		}, {} as { [key: string]: Column});
 
 		const tmpTable = `konstellio_db_rename_${++SQLiteDriver.tmpId}`;
-		// const create = q.createCollection(tmpTable).columns(...existingColumns.map(col => renameColumns[col.name!] ? renameColumns[col.name!] : col).concat(newColumns));
-		const create = q.createCollection(tmpTable).alter(
+		const create = q.createCollection(tmpTable).define(
 			existingColumns.map(col => renameColumns[col.name!] ? renameColumns[col.name!] : col).concat(newColumns),
 			[]
 		);

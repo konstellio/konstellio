@@ -62,7 +62,7 @@ describe('SQLite', () => {
 
 	it('select', async () => {
 
-		const select = q.select().from(q.collection('Foo', 'Bar')).range(1);
+		const select = q.select().from(q.collection('Foo', 'Bar')).range({ limit: 1 });
 
 		const result: QueryResult.QuerySelectResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryResult.QuerySelectResult);
@@ -124,7 +124,7 @@ describe('SQLite', () => {
 	it('create collection', async () => {
 
 		const create = q.createCollection(q.collection('Moo', 'Joo'))
-			.alter(
+			.define(
 				[
 					q.column('id', ColumnType.UInt, 64, null, true),
 					q.column('title', ColumnType.Text),
