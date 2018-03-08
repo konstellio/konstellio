@@ -3,7 +3,6 @@ import { DocumentNode, Kind, FieldDefinitionNode, ObjectTypeDefinitionNode, Type
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
 import { DirectiveNode } from 'graphql';
-import { DescribeCollectionQueryResult, ColumnType, IndexType } from '@konstellio/db';
 
 export async function getSchemaDocument(context: PluginInitContext, plugins: Plugin[]): Promise<DocumentNode> {
 	const schemas = await Promise.all(plugins.map<Promise<string>>(plugin => plugin && plugin.graphql ? plugin.graphql(context) : Promise.resolve('')));

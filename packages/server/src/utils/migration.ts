@@ -1,4 +1,4 @@
-import { q, Compare, Column, ColumnType, Index, IndexType, AlterCollectionQuery, CreateCollectionQuery, CreateCollectionQueryResult, AlterCollectionQueryResult, DescribeCollectionQueryResult, SortableField, DropCollectionQuery, DropCollectionQueryResult } from '@konstellio/db';
+import { q, Compare, Column, ColumnType, Index, IndexType, QueryAlterCollection, QueryCreateCollection, QueryCreateCollectionResult, QueryAlterCollectionResult, QueryDescribeCollectionResult, FieldDirection, QueryDropCollection, QueryDropCollectionResult } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
 import { Plugin, PluginInitContext } from './plugin';
@@ -101,6 +101,7 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 			const mutedIndexes: string[] = [];
 
 			dbSchemaDesc.columns.forEach(dbColumn => {
+				const [dbColumnType, dbColumnSize] = mapStringToColumnType(dbColumn.type);
 				const column = schemaDesc.columns.find(column => column.handle === dbColumn.handle);
 				if (column === undefined) {
 					diffs.push({
@@ -109,17 +110,21 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 						column: dbColumn
 					});
 				}
-				else if ((database.compareTypes(mapStringToColumnType(column.type), mapStringToColumnType(dbColumn.type)) & Compare.Castable) === 0) {
-					mutedFields.push(column.handle);
-					diffs.push({
-						action: 'alter_column',
-						collection: schemaDesc,
-						column: dbColumn,
-						type: column.type
-					});
-				}
 				else {
-					mutedFields.push(column.handle);
+					const [columnType, columnSize] = mapStringToColumnType(column.type);
+
+					if ((database.compareTypes(columnType, dbColumnType) & Compare.Castable) === 0) {
+						mutedFields.push(column.handle);
+						diffs.push({
+							action: 'alter_column',
+							collection: schemaDesc,
+							column: dbColumn,
+							type: column.type
+						});
+					}
+					else {
+						mutedFields.push(column.handle);
+					}
 				}
 			});
 			schemaDesc.columns.forEach(column => {
@@ -178,9 +183,9 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
 export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
 export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
-	const createCollections: CreateCollectionQuery[] = [];
-	const dropCollections: DropCollectionQuery[] = [];
-	const alterCollections: Map<string, AlterCollectionQuery> = new Map();
+	const createCollections: QueryCreateCollection[] = [];
+	const dropCollections: QueryDropCollection[] = [];
+	const alterCollections: Map<string, QueryAlterCollection> = new Map();
 	const muteNewColumn: string[] = [];
 
 	const actionOrder = ['drop_collection', 'drop_column'];
@@ -198,17 +203,20 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 
 		if (diff.action === 'add_collection') {
 			const columns = diff.collection.columns
-				.map<Column>(column => q.column(column.handle, mapStringToColumnType(column.type)));
+				.map<Column>(column => {
+					const [type, size] = mapStringToColumnType(column.type);
+					return q.column(column.handle, type, size);
+				});
 			
 			const indexes = diff.collection.indexes
 				.map<Index>(index => {
 					const columns = Object.keys(index.columns).map(name => {
 						return q.sort(q.field(name), index.columns[name]);
 					});
-					return q.index(index.handle, mapStringToIndexType(index.type)).columns(...columns);
+					return q.index(index.handle, mapStringToIndexType(index.type), columns);
 				});
 			
-			createCollections.push(q.createCollection(diff.collection.handle).columns(...columns).indexes(...indexes));
+			createCollections.push(q.createCollection(diff.collection.handle).define(columns, indexes));
 		}
 		else if (diff.action === 'drop_collection') {
 			const collectionName = diff.collection;
@@ -269,9 +277,10 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 					}
 				}
 
+				const [type, size] = mapStringToColumnType(diff.column.type);
 				alterCollections.set(
 					collectionHandle,
-					alterCollections.get(collectionHandle)!.addColumn(q.column(diff.column.handle, mapStringToColumnType(diff.column.type)), choice)
+					alterCollections.get(collectionHandle)!.addColumn(q.column(diff.column.handle, type, size), choice)
 				);
 			}
 		}
@@ -281,9 +290,11 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 			if (alterCollections.has(collectionHandle) === false) {
 				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
 			}
+
+			const [type, size] = mapStringToColumnType(diff.type);
 			alterCollections.set(
 				collectionHandle,
-				alterCollections.get(collectionHandle)!.alterColumn(diff.column.handle, q.column(diff.column.handle, mapStringToColumnType(diff.type)))
+				alterCollections.get(collectionHandle)!.alterColumn(diff.column.handle, q.column(diff.column.handle, type, size))
 			);
 		}
 		else if (diff.action === 'drop_column') {
@@ -317,14 +328,14 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 		}
 		else if (diff.action === 'add_index') {
 			const collectionHandle = diff.collection.handle;
-			const columns = Object.keys(diff.index.columns).map<SortableField>(handle => q.sort(q.field(handle), diff.index.columns[handle]));
+			const columns = Object.keys(diff.index.columns).map<FieldDirection>(handle => q.sort(q.field(handle), diff.index.columns[handle]));
 
 			if (alterCollections.has(collectionHandle) === false) {
 				alterCollections.set(collectionHandle, q.alterCollection(collectionHandle));
 			}
 			alterCollections.set(
 				collectionHandle,
-				alterCollections.get(collectionHandle)!.addIndex(q.index(diff.index.handle, mapStringToIndexType(diff.index.type)).columns(...columns))
+				alterCollections.get(collectionHandle)!.addIndex(q.index(diff.index.handle, mapStringToIndexType(diff.index.type), columns))
 			);
 		}
 		else if (diff.action === 'drop_index') {
@@ -340,7 +351,7 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 		}
 	}
 
-	const queries: Promise<CreateCollectionQueryResult | DropCollectionQueryResult | AlterCollectionQueryResult>[] = ([] as Promise<CreateCollectionQueryResult | DropCollectionQueryResult | AlterCollectionQueryResult>[]).concat(
+	const queries: Promise<QueryCreateCollectionResult | QueryDropCollectionResult | QueryAlterCollectionResult>[] = ([] as Promise<QueryCreateCollectionResult | QueryDropCollectionResult | QueryAlterCollectionResult>[]).concat(
 		dropCollections.map(drop => context.database.execute(drop)),
 		createCollections.map(create => context.database.execute(create)),
 		Array.from(alterCollections.values()).map(alter => context.database.execute(alter))
@@ -399,30 +410,30 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 	};
 }
 
-function databaseDescriptionToSchemaDescription(context: PluginInitContext, description: DescribeCollectionQueryResult): SchemaDescription {
+function databaseDescriptionToSchemaDescription(context: PluginInitContext, description: QueryDescribeCollectionResult): SchemaDescription {
 	const locales = Object.keys(context.locales);
 
 	return {
 		handle: description.collection.toString(),
 		columns: description.columns.reduce((columns, column) => {
 			columns.push({
-				handle: column.getName()!,
-				type: mapColumnTypeToFieldType(column.getType()!)
+				handle: column.name,
+				type: mapColumnTypeToFieldType(column.type)
 			});
 			return columns;
 		}, [] as SchemaDescriptionColumn[]),
 		indexes: description.indexes.reduce((indexes, index) => {
-			const type = index.getType()!;
-			const columns = index.getColumns()!;
-			let handle = index.getName()!;
-			const localized = columns.reduce((localized: boolean, column: SortableField) => {
+			const type = index.type;
+			const columns = index.columns;
+			let handle = index.name;
+			const localized = columns.reduce((localized: boolean, column: FieldDirection) => {
 				const match = matchLocalizedHandle(column.field.name);
 				return localized || match !== null;
 			}, false);
 			indexes.push({
 				handle: handle,
 				type: type,
-				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: SortableField) => {
+				columns: columns.reduce((columns: { [handle: string]: 'asc' | 'desc' }, field: FieldDirection) => {
 					if (localized) {
 						const match = matchLocalizedHandle(field.field.name);
 						if (match) {
@@ -441,21 +452,21 @@ function databaseDescriptionToSchemaDescription(context: PluginInitContext, desc
 	};
 }
 
-function mapStringToColumnType(type: string): ColumnType {
+function mapStringToColumnType(type: string): [ColumnType, number | undefined] {
 	switch (type) {
 		case 'int':
-			return ColumnType.Int64;
+			return [ColumnType.Int, 64];
 		case 'float':
-			return ColumnType.Float64;
+			return [ColumnType.Float, 64];
 		case 'text':
 		case 'password':
 		case 'slug':
 		case 'html':
-			return ColumnType.Text;
+			return [ColumnType.Text, undefined];
 		case 'date':
-			return ColumnType.DateTime;
+			return [ColumnType.DateTime, undefined];
 		case 'datetime':
-			return ColumnType.DateTime;
+			return [ColumnType.DateTime, undefined];
 		default:
 			throw new Error(`Unknown field type ${type}.`);
 	}
@@ -476,13 +487,9 @@ function mapStringToIndexType(type: string): IndexType {
 
 function mapColumnTypeToFieldType(type: ColumnType): string {
 	switch (type) {
-		case ColumnType.Int8:
-		case ColumnType.Int16:
-		case ColumnType.Int32:
-		case ColumnType.Int64:
+		case ColumnType.Int:
 			return 'int';
-		case ColumnType.Float32:
-		case ColumnType.Float64:
+		case ColumnType.Float:
 			return 'float';
 		case ColumnType.Text:
 			return 'text';

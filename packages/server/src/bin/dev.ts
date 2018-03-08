@@ -62,33 +62,22 @@ export default async function ({ file }) {
 		{ id: string, title: string, slug: string, postDate: Date, expireDate: Date, author: string[], content: string }
 	>;
 
-	// const u = await User.create({ username: 'lpaudet', password: 'bleh' });
-	// const u = await User.findOne({ condition: q.eq('id', '5a90c8373d116f05dca8fc5c') });
-	// const u = await User.findById('5a90c8373d116f05dca8fc5c');
-	// console.log(JSON.stringify(u));
-
-	// const us = await User.findByIds(['5a90c8373d116f05dca8fc5c', '5a91ab4b52ff84191c1ae33c'], { fields: ['username'] });
-	// const us = await Promise.all([
-	// 	User.findById('5a90c8373d116f05dca8fc5c'),
-	// 	User.findById('5a90c8373d116f05dca8fc5c', { fields: ['username'] }),
-	// 	User.findById('5a91ab4b52ff84191c1ae33c', { fields: ['id'] })
-	// ])
-	// const us = await User.find();
-
-	// const data = {
-	// 	title: { fr: 'Premier post', en: 'First post' },
-	// 	slug: { fr: 'premier-post', en: 'first-post' },
-	// 	author: ['5a90c8373d116f05dca8fc5c'],
-	// 	postDate: new Date(),
-	// 	content: { fr: '...', en: '...' }
-	// };
-	// const post = await Post.create(data);
+	const data = {
+		title: { fr: 'Premier post', en: 'First post' },
+		slug: { fr: 'premier-post', en: 'first-post' },
+		author: ['5a90c8373d116f05dca8fc5c'],
+		postDate: new Date(),
+		content: { fr: '...', en: '...' }
+	};
+	if (Post.validate(data)) {
+		// const post = await Post.create(data);
+	}
 
 	// const p = await Post.findById('5a959dda04eaf84f40e5592a', { locale: 'fr' });
 	// const as = await Post.relation(p.id, 'author', { locale: 'fr', fields: ['username'] });
 
 	// const p = await Post.find({ condition: q.eq('slug', 'premier-post'), locale: 'fr' });
-	const p = await Post.findOne({ condition: q.eq('author', '5a90c8373d116f05dca8fc5c'), locale: 'fr' });
+	// const p = await Post.findOne({ condition: q.eq('author', '5a90c8373d116f05dca8fc5c'), locale: 'fr' });
 
 	// const errors = [];
 	// const data = {
