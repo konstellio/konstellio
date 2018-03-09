@@ -589,7 +589,7 @@ export class Binary {
 		assert(replace instanceof Binary || replace instanceof Comparison);
 		assert(typeof deep === 'boolean');
 
-		return this.replaceOperand((op) => {
+		return this.visit((op) => {
 			if (op === search) {
 				return replace;
 			}
@@ -597,21 +597,21 @@ export class Binary {
 		}, deep);
 	}
 
-	public replaceOperand(replacer: (op: BinaryExpression) => undefined | BinaryExpression, deep: boolean = false) {
-		assert(typeof replacer === 'function');
+	public visit(visiter: (op: BinaryExpression) => undefined | BinaryExpression, deep: boolean = false) {
+		assert(typeof visiter === 'function');
 		assert(typeof deep === 'boolean');
 
 		let operands = List<BinaryExpression>();
 		let changed = false;
 
 		this.operands.forEach(arg => {
-			const replaced = replacer(arg!);
+			const replaced = visiter(arg!);
 			if (replaced) {
 				changed = changed || arg !== replaced;
 				operands = operands.push(replaced);
 			}
 			else if (deep === true && arg instanceof Binary) {
-				const replaced = arg.replaceOperand(replacer, true);
+				const replaced = arg.visit(visiter, true);
 				if (replaced) {
 					changed = changed || arg !== replaced;
 					operands = operands.push(replaced);
@@ -744,7 +744,7 @@ export class QueryAggregate extends Query {
 	private type: 'aggregate';
 
 	constructor(
-		public readonly fields?: List<Function>,
+		public readonly fields?: List<Field | Function>,
 		public readonly collection?: Collection,
 		public readonly joins?: List<Join>,
 		public readonly conditions?: Binary,
@@ -756,7 +756,7 @@ export class QueryAggregate extends Query {
 		super();
 	}
 
-	public select(...fields: Function[]) {
+	public select(...fields: (Field | Function)[]) {
 		return new QueryAggregate(List(fields), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
@@ -942,11 +942,11 @@ export class QueryInsert extends Query {
 		}
 
 		if (this.objects && this.objects.count() > 0) {
-			const keys = Object.keys(this.objects.get(0));
+			const keys = Array.from<string>(this.objects.get(0).keys() as any);
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
 			query += `${newline}${indent}VALUES ${this.objects.map<string>(obj => {
 				return `(${keys.map(key => {
-					const value = obj![key];
+					const value = obj!.get(key);
 					if (typeof value === 'string') {
 						return `"${value}"`;
 					}

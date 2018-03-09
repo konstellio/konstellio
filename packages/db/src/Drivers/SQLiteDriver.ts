@@ -584,7 +584,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 	else if (query instanceof QueryAggregate) {
 		const params: any[] = [];
 		let sql = ``;
-		sql += `SELECT ${query.fields ? query.fields!.map<string>(f => f ? fnToSQL(f, params, variables) : '') : '*'}`;
+		sql += `SELECT ${query.fields ? query.fields!.map<string>(f => f ? f instanceof Field ? fieldToSQL(f) : fnToSQL(f, params, variables) : '') : '*'}`;
 
 		if (query.collection) {
 			sql += ` FROM ${collectionToSQL(query.collection!)}`;

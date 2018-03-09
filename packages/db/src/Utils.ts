@@ -1,5 +1,6 @@
 import { Binary, Comparison, Field, FieldDirection, Function, Join, Query, BinaryExpression, QuerySelect } from './Query';
 import { List } from 'immutable';
+import { isArray } from 'util';
 
 export function simplifyBinaryTree(node: Binary) {
 	if (node.isLeaf()) {
@@ -81,22 +82,36 @@ export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
 	return decomposed;
 }
 
+export function renameField(source: string, replace: Map<Field, Field>): string
 export function renameField(source: Field, replace: Map<Field, Field>): Field
 export function renameField(source: FieldDirection, replace: Map<Field, Field>): FieldDirection
 export function renameField(source: Function, replace: Map<Field, Field>): Function
 export function renameField(source: Binary, replace: Map<Field, Field>): Binary
 export function renameField(source: Comparison, replace: Map<Field, Field>): Comparison
+export function renameField(source: Field[], replace: Map<Field, Field>): Field[]
+export function renameField(source: FieldDirection[], replace: Map<Field, Field>): FieldDirection[]
+export function renameField(source: Function[], replace: Map<Field, Field>): Function[]
+export function renameField(source: Join[], replace: Map<Field, Field>): Join[]
 export function renameField(source: List<Field>, replace: Map<Field, Field>): List<Field>
 export function renameField(source: List<FieldDirection>, replace: Map<Field, Field>): List<FieldDirection>
 export function renameField(source: List<Function>, replace: Map<Field, Field>): List<Function>
 export function renameField(source: List<Join>, replace: Map<Field, Field>): List<Join>
 export function renameField(
-	source: Field | FieldDirection | Function | BinaryExpression | List<Field | FieldDirection | Function | Join>,
+	source: string | Field | FieldDirection | Function | BinaryExpression | List<Field | FieldDirection | Function | Join> | (Field | FieldDirection | Function | Join)[],
 	replace: Map<Field, Field>
 ): typeof source {
 	const needles = Array.from(replace.keys());
 
-	if (source instanceof Field) {
+	if (typeof source === 'string') {
+		for (let i = 0, l = needles.length; i < l; ++i) {
+			const needle = needles[i];
+			if (needle.name === source) {
+				return replace.get(needle)!.name;
+			}
+		}
+		return source;
+	}
+	else if (source instanceof Field) {
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
 			if (needle.name === source.name && needle.alias === source.alias) {
@@ -126,7 +141,7 @@ export function renameField(
 		});
 	}
 	else if (source instanceof Binary) {
-		return source.replaceOperand(op => {
+		return source.visit(op => {
 			if (op instanceof Comparison) {
 				return renameField(op, replace);
 			}
@@ -163,6 +178,9 @@ export function renameField(
 			}
 		}
 		return source;
+	}
+	else if (isArray(source)) {
+		return source.map(source => renameField(source as Field, replace));
 	}
 	else {
 		return source.withMutations((source) => {
