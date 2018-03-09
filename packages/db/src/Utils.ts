@@ -82,23 +82,24 @@ export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
 	return decomposed;
 }
 
-export function renameField(source: string, replace: Map<Field, Field>): string
-export function renameField(source: Field, replace: Map<Field, Field>): Field
-export function renameField(source: FieldDirection, replace: Map<Field, Field>): FieldDirection
-export function renameField(source: Function, replace: Map<Field, Field>): Function
-export function renameField(source: Binary, replace: Map<Field, Field>): Binary
-export function renameField(source: Comparison, replace: Map<Field, Field>): Comparison
-export function renameField(source: Field[], replace: Map<Field, Field>): Field[]
-export function renameField(source: FieldDirection[], replace: Map<Field, Field>): FieldDirection[]
-export function renameField(source: Function[], replace: Map<Field, Field>): Function[]
-export function renameField(source: Join[], replace: Map<Field, Field>): Join[]
-export function renameField(source: List<Field>, replace: Map<Field, Field>): List<Field>
-export function renameField(source: List<FieldDirection>, replace: Map<Field, Field>): List<FieldDirection>
-export function renameField(source: List<Function>, replace: Map<Field, Field>): List<Function>
-export function renameField(source: List<Join>, replace: Map<Field, Field>): List<Join>
-export function renameField(
+export function replaceField(source: string, replace: Map<Field, Field>, matches?: Field[]): string
+export function replaceField(source: Field, replace: Map<Field, Field>, matches?: Field[]): Field
+export function replaceField(source: FieldDirection, replace: Map<Field, Field>, matches?: Field[]): FieldDirection
+export function replaceField(source: Function, replace: Map<Field, Field>, matches?: Field[]): Function
+export function replaceField(source: Binary, replace: Map<Field, Field>, matches?: Field[]): Binary
+export function replaceField(source: Comparison, replace: Map<Field, Field>, matches?: Field[]): Comparison
+export function replaceField(source: Field[], replace: Map<Field, Field>, matches?: Field[]): Field[]
+export function replaceField(source: FieldDirection[], replace: Map<Field, Field>, matches?: Field[]): FieldDirection[]
+export function replaceField(source: Function[], replace: Map<Field, Field>, matches?: Field[]): Function[]
+export function replaceField(source: Join[], replace: Map<Field, Field>, matches?: Field[]): Join[]
+export function replaceField(source: List<Field>, replace: Map<Field, Field>, matches?: Field[]): List<Field>
+export function replaceField(source: List<FieldDirection>, replace: Map<Field, Field>, matches?: Field[]): List<FieldDirection>
+export function replaceField(source: List<Function>, replace: Map<Field, Field>, matches?: Field[]): List<Function>
+export function replaceField(source: List<Join>, replace: Map<Field, Field>, matches?: Field[]): List<Join>
+export function replaceField(
 	source: string | Field | FieldDirection | Function | BinaryExpression | List<Field | FieldDirection | Function | Join> | (Field | FieldDirection | Function | Join)[],
-	replace: Map<Field, Field>
+	replace: Map<Field, Field>,
+	matches: Field[] = []
 ): typeof source {
 	const needles = Array.from(replace.keys());
 
@@ -106,6 +107,9 @@ export function renameField(
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
 			if (needle.name === source) {
+				if (matches.indexOf(needle) === -1) {
+					matches.push(needle);
+				}
 				return replace.get(needle)!.name;
 			}
 		}
@@ -115,6 +119,9 @@ export function renameField(
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
 			if (needle.name === source.name && needle.alias === source.alias) {
+				if (matches.indexOf(needle) === -1) {
+					matches.push(needle);
+				}
 				return replace.get(needle)!;
 			}
 		}
@@ -124,6 +131,9 @@ export function renameField(
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
 			if (needle.name === source.field.name && needle.alias === source.field.alias) {
+				if (matches.indexOf(needle) === -1) {
+					matches.push(needle);
+				}
 				return source.rename(replace.get(needle)!);
 			}
 		}
@@ -131,23 +141,15 @@ export function renameField(
 	}
 	else if (source instanceof Function) {
 		return source.replaceArgument(arg => {
-			if (arg instanceof Field) {
-				return renameField(arg, replace);
-			}
-			else if (arg instanceof Function) {
-				return renameField(arg, replace);
+			if (arg instanceof Field || arg instanceof Function) {
+				return replaceField(arg as Field, replace, matches);
 			}
 			return arg;
 		});
 	}
 	else if (source instanceof Binary) {
 		return source.visit(op => {
-			if (op instanceof Comparison) {
-				return renameField(op, replace);
-			}
-			else {
-				return renameField(op, replace);
-			}
+			return replaceField(op as Comparison, replace, matches);
 		});
 	}
 	else if (source instanceof Comparison) {
@@ -155,65 +157,42 @@ export function renameField(
 		const args = source.args
 			? source.args.withMutations(args => {
 				args.forEach((arg, idx = 0) => {
-					if (arg instanceof Field) {
-						args.set(idx, renameField(arg, replace));
-					}
-					else if (arg instanceof Function) {
-						args.set(idx, renameField(arg, replace));
+					if (arg instanceof Field || arg instanceof Function) {
+						args.set(idx, replaceField(arg as Field, replace, matches));
 					}
 				});
 			}).toList()
 			: undefined;
 
-		if (source.field instanceof Field) {
-			const field = renameField(source.field, replace);
-			if (field !== source.field || args !== source.args) {
-				return new constructor(field, args);
-			}
-		}
-		else {
-			const field = renameField(source.field, replace);
-			if (field !== source.field || args !== source.args) {
-				return new constructor(field, args);
-			}
+		const field = replaceField(source.field as Field, replace, matches);
+		if (field !== source.field || args !== source.args) {
+			return new constructor(field, args);
 		}
 		return source;
 	}
 	else if (isArray(source)) {
-		return source.map(source => renameField(source as Field, replace));
+		return source.map(source => replaceField(source as Field, replace, matches));
 	}
 	else {
 		return source.withMutations((source) => {
 			source.forEach((field, idx = 0) => {
-				if (field instanceof Field) {
-					const replaced = renameField(field, replace);
-					if (replaced !== field) {
-						source.set(idx, replaced);
-					}
-				}
-				else if (field instanceof FieldDirection) {
-					const replaced = renameField(field, replace);
-					if (replaced !== field) {
-						source.set(idx, replaced);
-					}
-				}
-				else if (field instanceof Function) {
-					const replaced = renameField(field, replace);
+				if (field instanceof Field || field instanceof FieldDirection || field instanceof Function) {
+					const replaced = replaceField(field as Field, replace, matches);
 					if (replaced !== field) {
 						source.set(idx, replaced);
 					}
 				}
 				else if (field) {
 					const { on, query } = field;
-					const fields = query.fields ? renameField(query.fields, replace) : undefined;
-					const joins = query.joins ? renameField(query.joins, replace) : undefined;
-					const conditions = query.conditions ? renameField(query.conditions, replace) : undefined;
-					const sorts = query.sorts ? renameField(query.sorts, replace) : undefined;
+					const fields = query.fields ? replaceField(query.fields, replace, matches) : undefined;
+					const joins = query.joins ? replaceField(query.joins, replace, matches) : undefined;
+					const conditions = query.conditions ? replaceField(query.conditions, replace, matches) : undefined;
+					const sorts = query.sorts ? replaceField(query.sorts, replace, matches) : undefined;
 
 					const queryRenamed = fields !== query.fields || joins !== query.joins || conditions !== query.conditions || sorts !== query.sorts
 						? new QuerySelect(fields, query.collection, joins, conditions, sorts, query.limit, query.offset)
 						: query;
-					const onRenamed = on instanceof Binary ? renameField(on, replace) : renameField(on, replace);
+					const onRenamed = on instanceof Binary ? replaceField(on, replace, matches) : replaceField(on, replace, matches);
 
 					if (queryRenamed !== query || onRenamed !== on) {
 						source.set(idx, { alias: field.alias, on: onRenamed, query: queryRenamed });
