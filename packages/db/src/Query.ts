@@ -8,7 +8,7 @@ export class q {
 		return new QuerySelect().select(...fields);
 	}
 
-	public static aggregate(...fields: Function[]) {
+	public static aggregate(...fields: (Field | FieldAs)[]) {
 		return new QueryAggregate(List(fields));
 	}
 
@@ -74,6 +74,10 @@ export class q {
 
 	public static sort(field: string | Field, direction: Direction = 'asc') {
 		return new FieldDirection(typeof field === 'string' ? new Field(field) : field, direction);
+	}
+
+	public static as(field: string | Field | Function, alias: string) {
+		return new FieldAs(typeof field === 'string' ? new Field(field) : field, alias);
 	}
 
 	public static count(field: string | Field) {
@@ -195,6 +199,10 @@ export class Collection {
 		return this;
 	}
 
+	public equal(collection: Collection): boolean {
+		return this.name === collection.name && this.namespace === collection.namespace;
+	}
+
 	public toString() {
 		return `${this.namespace ? this.namespace + '__' : ''}${this.name}`;
 	}
@@ -244,6 +252,10 @@ export class Column {
 		return this;
 	}
 
+	public equal(column: Column): boolean {
+		return this.name === column.name && this.type === column.type && this.size === column.size && this.defaultValue === column.defaultValue && this.autoIncrement === column.autoIncrement;
+	}
+
 	public toString() {
 		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement === true ? ' AUTOINCREMENT' : ''}`;
 	}
@@ -273,6 +285,10 @@ export class Index {
 		return new Index(this.name, this.type, this.columns.push(...columns));
 	}
 
+	public equal(index: Index): boolean {
+		return this.name === index.name && this.type === index.type && this.columns === index.columns;
+	}
+
 	public toString() {
 		return `${this.type.toString().toLocaleUpperCase()} ${this.name} (${this.columns.map(c => c ? c.toString() : '').join(', ')})`;
 	}
@@ -285,6 +301,10 @@ export type Variables = { [key: string]: Primitive };
 export class Variable {
 	constructor(public readonly name: string) {
 		assert(typeof name === 'string');
+	}
+
+	public equal(variable: Variable): boolean {
+		return this.name === variable.name;
 	}
 
 	public toString() {
@@ -307,6 +327,10 @@ export class Field {
 			return new Field(name, alias || this.alias);
 		}
 		return this;
+	}
+
+	public equal(field: Field): boolean {
+		return this.name === field.name && this.alias === field.alias;
 	}
 
 	public toString() {
@@ -347,6 +371,10 @@ export class FieldDirection {
 		return this;
 	}
 
+	public equal(field: FieldDirection): boolean {
+		return this.field === field.field && this.direction === field.direction;
+	}
+
 	public toString() {
 		return `${this.field.toString()} ${this.direction.toUpperCase()}`;
 	}
@@ -382,6 +410,10 @@ export abstract class Function {
 			return new constructor(args) as this;
 		}
 		return this;
+	}
+
+	public equal(fn: Function): boolean {
+		return this.fn === fn.fn && this.args === fn.args;
 	}
 
 	public toString() {
@@ -428,6 +460,31 @@ export class FunctionMin extends Function {
 export class FunctionConcat extends Function {
 	constructor(args: List<Value>) {
 		super('concat', args);
+	}
+}
+
+export class FieldAs {
+	constructor(public readonly field: Field | Function, public readonly alias: string) {
+		assert(field instanceof Field || field instanceof Function);
+		assert(typeof alias === 'string');
+	}
+
+	public set(field: Field | Function, alias: string): FieldAs {
+		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
+		assert(typeof alias === 'string');
+
+		if (this.field !== field || this.alias !== alias) {
+			return new FieldAs(field, alias);
+		}
+		return this;
+	}
+
+	public equal(field: FieldAs): boolean {
+		return this.field === field.field && this.alias === field.alias;
+	}
+
+	public toString() {
+		return `${this.field.toString()} AS ${this.alias}`;
 	}
 }
 
@@ -498,6 +555,10 @@ export abstract class Comparison {
 			return new constructor(this.field, args);
 		}
 		return this;
+	}
+
+	public equal(comparison: Comparison): boolean {
+		return this.field === comparison.field && this.operator === comparison.operator && this.args === comparison.args;
 	}
 
 	public toString(): string {
@@ -629,6 +690,10 @@ export class Binary {
 		return this;
 	}
 
+	public equal(binary: Binary): boolean {
+		return this.operator === binary.operator && this.operands === binary.operands;
+	}
+
 	public toString() {
 		return `(${this.operands.map(op => op!.toString()).join(` ${this.operator.toUpperCase()} `)})`;
 	}
@@ -646,7 +711,7 @@ export class QuerySelect extends Query {
 	private type: 'select';
 
 	constructor(
-		public readonly fields?: List<Field>,
+		public readonly fields?: List<Field | FieldAs>,
 		public readonly collection?: Collection,
 		public readonly joins?: List<Join>,
 		public readonly conditions?: Binary,
@@ -657,8 +722,8 @@ export class QuerySelect extends Query {
 		super();
 	}
 
-	public select(...fields: (string | Field)[]) {
-		return new QuerySelect(List(fields.map<Field>(field => typeof field === 'string' ? new Field(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
+	public select(...fields: (string | Field | FieldAs)[]) {
+		return new QuerySelect(List(fields.map<Field | FieldAs>(field => typeof field === 'string' ? new Field(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 	}
 
 	public from(name: string | Collection) {
@@ -744,7 +809,7 @@ export class QueryAggregate extends Query {
 	private type: 'aggregate';
 
 	constructor(
-		public readonly fields?: List<Field | Function>,
+		public readonly fields?: List<Field | FieldAs>,
 		public readonly collection?: Collection,
 		public readonly joins?: List<Join>,
 		public readonly conditions?: Binary,
@@ -756,7 +821,7 @@ export class QueryAggregate extends Query {
 		super();
 	}
 
-	public select(...fields: (Field | Function)[]) {
+	public select(...fields: (Field | FieldAs)[]) {
 		return new QueryAggregate(List(fields), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
@@ -775,7 +840,7 @@ export class QueryAggregate extends Query {
 
 	public join(alias: string, query: QuerySelect, on: BinaryExpression) {
 		const join: Join = { alias, query, on };
-		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.groups, this.sorts, this.limit, this.offset);
+		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List([join]), this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
 	public where(condition: BinaryExpression) {

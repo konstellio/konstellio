@@ -30,6 +30,7 @@ import {
 	Collection,
 	Field,
 	FieldDirection,
+	FieldAs,
 	Function,
 	Variable,
 	Variables,
@@ -420,23 +421,31 @@ function collectionToSQL(collection: Collection): string {
 	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
 }
 
-function fieldToSQL(field: Field): string {
-	return `${field.alias ? `${field.alias}.` : ''}${field.name}`;
-}
-
-function fieldDirectionToSQL(field: FieldDirection): string {
-	return `${field.field.toString()} ${field.direction || 'ASC'}`;
+function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
+	if (field instanceof Field) {
+		return `${field.alias ? `${field.alias}.` : ''}${field.name}`;
+	}
+	else if (field instanceof FieldAs) {
+		if (field.field instanceof Function) {
+			return `${fnToSQL(field.field, params, variables)} AS ${field.alias}`;
+		} else {
+			return `${field.field.toString()} AS ${field.alias}`;
+		}
+	}
+	else {
+		return `${field.field.toString()} ${field.direction.toUpperCase() || 'ASC'}`;
+	}
 }
 
 function fnToSQL(field: Function, params: any[], variables?: Variables): string {
 	return `${field.fn.toUpperCase()}(${field.args.map<string>(field => {
-		return field ? (field instanceof Field ? fieldToSQL(field) : valueToSQL(field, params, variables)) : '';
+		return field ? (field instanceof Field ? fieldToSQL(field, params, variables) : valueToSQL(field, params, variables)) : '';
 	}).join(', ')})`;
 }
 
 function valueToSQL(field: Value, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
-		return fieldToSQL(field);
+		return fieldToSQL(field, params, variables);
 	}
 	else if (field instanceof Function) {
 		return fnToSQL(field, params, variables);
@@ -457,10 +466,10 @@ function valueToSQL(field: Value, params: any[], variables?: Variables): string 
 
 function comparisonToSQL(comparison: Comparison, params: any[], variables?: Variables): string {
 	if (comparison instanceof ComparisonIn) {
-		return `${comparison.field instanceof Field ? fieldToSQL(comparison.field) : fnToSQL(comparison.field, params, variables)} IN (${comparison.args.map(arg => valueToSQL(arg!, params, variables)).join(', ')})`;
+		return `${comparison.field instanceof Field ? fieldToSQL(comparison.field, params, variables) : fnToSQL(comparison.field, params, variables)} IN (${comparison.args.map(arg => valueToSQL(arg!, params, variables)).join(', ')})`;
 	}
 	else {
-		return `${comparison.field instanceof Field ? fieldToSQL(comparison.field) : fnToSQL(comparison.field, params, variables)} ${comparison.operator} ${valueToSQL(comparison.args.get(0), params, variables)}`;
+		return `${comparison.field instanceof Field ? fieldToSQL(comparison.field, params, variables) : fnToSQL(comparison.field, params, variables)} ${comparison.operator} ${valueToSQL(comparison.args.get(0), params, variables)}`;
 	}
 }
 
@@ -484,7 +493,7 @@ function binaryToSQL(bitwise: Binary, params: any[], variables?: Variables): str
 function selectQueryToSQL(query: QuerySelect, variables?: Variables): Statement {
 	const params: any[] = [];
 	let sql = ``;
-	sql += `SELECT ${query.fields && query.fields.count() > 0 ? query.fields!.map<string>(f => f ? fieldToSQL(f) : '').join(', ') : '*'}`;
+	sql += `SELECT ${query.fields && query.fields.count() > 0 ? query.fields!.map<string>(f => f ? fieldToSQL(f, params, variables) : '').join(', ') : '*'}`;
 
 	if (query.collection) {
 		sql += ` FROM ${collectionToSQL(query.collection!)}`;
@@ -500,6 +509,9 @@ function selectQueryToSQL(query: QuerySelect, variables?: Variables): Statement 
 	}
 	if (query.conditions) {
 		sql += ` WHERE ${binaryToSQL(query.conditions!, params, variables)}`;
+	}
+	if (query.sorts) {
+		sql += ` ORDER BY ${query.sorts!.map<string>(sort => sort ? fieldToSQL(sort, params, variables) : '').join(', ')}`;
 	}
 	if (query.limit) {
 		sql += ` LIMIT ${query.limit!}`;
@@ -570,7 +582,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 			throw new Error(`Expected QueryUnion have at least 1 Select`);
 		}
 		if (query.sorts) {
-			sql += ` SORT BY ${query.sorts!.map<string>(sort => sort ? fieldDirectionToSQL(sort) : '').join(', ')}`;
+			sql += ` ORDER BY ${query.sorts!.map<string>(sort => sort ? fieldToSQL(sort, params, variables) : '').join(', ')}`;
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;
@@ -584,7 +596,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 	else if (query instanceof QueryAggregate) {
 		const params: any[] = [];
 		let sql = ``;
-		sql += `SELECT ${query.fields ? query.fields!.map<string>(f => f ? f instanceof Field ? fieldToSQL(f) : fnToSQL(f, params, variables) : '') : '*'}`;
+		sql += `SELECT ${query.fields && query.fields.count() > 0 ? query.fields!.map<string>(f => f ? fieldToSQL(f, params, variables) : '').join(', ') : '*'}`;
 
 		if (query.collection) {
 			sql += ` FROM ${collectionToSQL(query.collection!)}`;
@@ -592,20 +604,20 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 			throw new Error(`Expected QuerySelect to be from a collection.`);
 		}
 		if (query.joins) {
-			query.joins!.forEach((join, alias) => {
+			query.joins!.forEach(join => {
 				const joinStm = convertQueryToSQL(join!.query, variables);
 				params.push(...joinStm[0].params);
-				sql += ` JOIN (${joinStm[0].sql}) AS ${alias} ON ${join!.on}`;
+				sql += ` JOIN (${joinStm[0].sql}) AS ${join!.alias} ON ${join!.on}`;
 			});
 		}
 		if (query.conditions) {
 			sql += ` WHERE ${binaryToSQL(query.conditions!, params, variables)}`;
 		}
 		if (query.groups) {
-			sql += ` GROUP BY ${query.groups!.map<string>(field => field instanceof Field ? fieldToSQL(field) : fnToSQL(field!, params, variables)).join(', ')}`;
+			sql += ` GROUP BY ${query.groups!.map<string>(field => field instanceof Field ? fieldToSQL(field, params, variables) : fnToSQL(field!, params, variables)).join(', ')}`;
 		}
 		if (query.sorts) {
-			sql += ` SORT BY ${query.sorts!.map<string>(sort => sort ? fieldDirectionToSQL(sort) : '').join(', ')}`;
+			sql += ` ORDER BY ${query.sorts!.map<string>(sort => sort ? fieldToSQL(sort, params, variables) : '').join(', ')}`;
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;

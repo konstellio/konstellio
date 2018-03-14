@@ -1,4 +1,4 @@
-import { Binary, Comparison, Field, FieldDirection, Function, Join, Query, BinaryExpression, QuerySelect } from './Query';
+import { Binary, Comparison, Field, FieldDirection, Function, Join, Query, BinaryExpression, QuerySelect, FieldAs } from './Query';
 import { List } from 'immutable';
 import { isArray } from 'util';
 
@@ -82,22 +82,8 @@ export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
 	return decomposed;
 }
 
-export function replaceField(source: string, replace: Map<Field, Field>, matches?: Field[]): string
-export function replaceField(source: Field, replace: Map<Field, Field>, matches?: Field[]): Field
-export function replaceField(source: FieldDirection, replace: Map<Field, Field>, matches?: Field[]): FieldDirection
-export function replaceField(source: Function, replace: Map<Field, Field>, matches?: Field[]): Function
-export function replaceField(source: Binary, replace: Map<Field, Field>, matches?: Field[]): Binary
-export function replaceField(source: Comparison, replace: Map<Field, Field>, matches?: Field[]): Comparison
-export function replaceField(source: Field[], replace: Map<Field, Field>, matches?: Field[]): Field[]
-export function replaceField(source: FieldDirection[], replace: Map<Field, Field>, matches?: Field[]): FieldDirection[]
-export function replaceField(source: Function[], replace: Map<Field, Field>, matches?: Field[]): Function[]
-export function replaceField(source: Join[], replace: Map<Field, Field>, matches?: Field[]): Join[]
-export function replaceField(source: List<Field>, replace: Map<Field, Field>, matches?: Field[]): List<Field>
-export function replaceField(source: List<FieldDirection>, replace: Map<Field, Field>, matches?: Field[]): List<FieldDirection>
-export function replaceField(source: List<Function>, replace: Map<Field, Field>, matches?: Field[]): List<Function>
-export function replaceField(source: List<Join>, replace: Map<Field, Field>, matches?: Field[]): List<Join>
 export function replaceField(
-	source: string | Field | FieldDirection | Function | BinaryExpression | List<Field | FieldDirection | Function | Join> | (Field | FieldDirection | Function | Join)[],
+	source: any,
 	replace: Map<Field, Field>,
 	matches: Field[] = []
 ): typeof source {
@@ -110,7 +96,7 @@ export function replaceField(
 				if (matches.indexOf(needle) === -1) {
 					matches.push(needle);
 				}
-				return replace.get(needle)!.name;
+				return replace.get(needle)!.name as any;
 			}
 		}
 		return source;
@@ -118,11 +104,11 @@ export function replaceField(
 	else if (source instanceof Field) {
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
-			if (needle.name === source.name && needle.alias === source.alias) {
+			if (needle.equal(source)) {
 				if (matches.indexOf(needle) === -1) {
 					matches.push(needle);
 				}
-				return replace.get(needle)!;
+				return replace.get(needle)! as any;
 			}
 		}
 		return source;
@@ -130,11 +116,31 @@ export function replaceField(
 	else if (source instanceof FieldDirection) {
 		for (let i = 0, l = needles.length; i < l; ++i) {
 			const needle = needles[i];
-			if (needle.name === source.field.name && needle.alias === source.field.alias) {
+			if (needle.equal(source.field)) {
 				if (matches.indexOf(needle) === -1) {
 					matches.push(needle);
 				}
 				return source.rename(replace.get(needle)!);
+			}
+		}
+		return source;
+	}
+	else if (source instanceof FieldAs) {
+		for (let i = 0, l = needles.length; i < l; ++i) {
+			const needle = needles[i];
+			if (source.field instanceof Field) {
+				if (needle.equal(source.field)) {
+					if (matches.indexOf(needle) === -1) {
+						matches.push(needle);
+					}
+					return source.set(replace.get(needle)!, source.alias);
+				}
+			}
+			else if (source.field instanceof Function) {
+				const replaced = replaceField(source.field, replace, matches);
+				if (source.field !== replaced) {
+					return source.set(replaced, source.alias);
+				}
 			}
 		}
 		return source;
