@@ -174,7 +174,7 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 	): Promise<T[]> {
 		const fieldsUsed: Field[] = [];
 
-		const fields = (options.fields || this.allFields).map<Field | FieldAs>(field => typeof field === 'string' ? q.field(field) : field);
+		const fields = (options.fields || this.allFields.concat(this.allRelations)).map<Field | FieldAs>(field => typeof field === 'string' ? q.field(field) : field);
 
 		const select = fields.filter(field => {
 			if (field instanceof Field) {
@@ -242,14 +242,14 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 
 		const result = await this.database.execute<T>(query);
 		
-		const relationMap = new Map(fields.reduce((fields, field) => {
+		const relationMap = new Map(fields.reduce<[Field, string][]>((fields: [Field, string][], field) => {
 			const map = getNestedFields(field)
 				.map(([field, alias]) => [field, alias instanceof Field ? alias.name : alias.alias] as [Field, string])
 				.filter(([field, alias]) => this.allRelations.find(rel => rel.equal(field)));
 			
 			fields.push(...map);
 			return fields;
-		}, [] as [Field, string][]));
+		}, []));
 		if (relationMap) {
 			await this.fetchRelations(relationMap, result.results, options.locale);
 		}
@@ -497,33 +497,35 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 
 
 		const fields = renamedRelations.map(relation => relation.name);
-		const query = q
-			.select('source', 'target', 'field')
-			.from(relationCollection)
-			.where(q.and(
-				q.in('source', sourceIds),
-				q.eq('collection', this.schema.handle),
-				q.in('field', fields)
-			))
-			.sort(q.sort('seq', 'asc'));
-		
-		const result = await this.database.execute<{ source: string, target: string, field: string }>(query);
+		if (fields.length > 0) {
+			const query = q
+				.select('source', 'target', 'field')
+				.from(relationCollection)
+				.where(q.and(
+					q.in('source', sourceIds),
+					q.eq('collection', this.schema.handle),
+					q.in('field', fields)
+				))
+				.sort(q.sort('seq', 'asc'));
+			
+			const result = await this.database.execute<{ source: string, target: string, field: string }>(query);
 
-		sources.forEach(source => {
-			renamedRelations.forEach((relation, idx) => {
-				const ids = result.results.reduce((ids, row) => {
-					if (row.source === source.id && row.field === relation.name) {
-						ids.push(row.target);
-					}
-					return ids;
-				}, [] as string[]);
+			sources.forEach(source => {
+				renamedRelations.forEach((relation, idx) => {
+					const ids = result.results.reduce((ids, row) => {
+						if (row.source === source.id && row.field === relation.name) {
+							ids.push(row.target);
+						}
+						return ids;
+					}, [] as string[]);
 
-				// TODO find out what is the alias of this relation because getOutputData will discard it
-				const originalRel = relations[idx];
-				const fieldAs = relationMap.get(originalRel);
-				source[fieldAs || relation.name] = ids;
+					// TODO find out what is the alias of this relation because getOutputData will discard it
+					const originalRel = relations[idx];
+					const fieldAs = relationMap.get(originalRel);
+					source[fieldAs || relation.name] = ids;
+				});
 			});
-		});
+		}
 	}
 }
 

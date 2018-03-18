@@ -22,7 +22,7 @@ module.exports = {
 			}
 
 			type PostCursor {
-				cursor: Cursor
+				cursor: String
 				item: Post!
 			}
 		`;
@@ -30,8 +30,19 @@ module.exports = {
 	resolvers() {
 		return {
 			Query: {
-				async latestPost(parent, { first, after }, context, info) {
-					return [];
+				async latestPost(parent, { first, after }, { q, records }, info) {
+					const Post = records.get('Post');
+					const latest = await Post.find({
+						locale: 'fr',
+						sort: [q.sort('postDate', 'desc')],
+						offset: 0,
+						limit: first || 10
+					});
+
+					return latest.map(post => ({
+						cursor: 'bleh',
+						item: post
+					}));
 				}
 			},
 			User: {

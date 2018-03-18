@@ -221,6 +221,7 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 		else if (diff.action === 'drop_collection') {
 			const collectionName = diff.collection;
 			if (stdin && stdout) {
+				// IDEA Find out if a new collection has the same fields & index and ask if we should rename instead of drop
 				const choices = ([['drop', `Drop \`${collectionName}\``], ['abort', `Abort migration`]] as [string, string][])
 				let choice: string;
 				try {
