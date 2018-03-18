@@ -179,7 +179,7 @@ export function replaceField(
 	else if (isArray(source)) {
 		return source.map(source => replaceField(source as Field, replace, matches));
 	}
-	else {
+	else if (source && 'withMutations' in source) {
 		return source.withMutations((source) => {
 			source.forEach((field, idx = 0) => {
 				if (field instanceof Field || field instanceof FieldDirection || field instanceof Function) {
