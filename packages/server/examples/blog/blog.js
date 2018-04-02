@@ -11,7 +11,7 @@ module.exports = {
 				displayName: String!
 			}
 
-			type Post @model(indexes: [{ handle: "Post_slug", type: "unique", fields: { slug: "asc" } }]) {
+			type Post @record(indexes: [{ handle: "Post_slug", type: "unique", fields: { slug: "asc" } }]) {
 				id: ID!
 				title: String! @field(label: "Title", type: "text", localized: true)
 				slug: String! @field(type: "text", field: "slug", on: "title", localized: true)

@@ -178,10 +178,10 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 
 		const select = fields.filter(field => {
 			if (field instanceof Field) {
-				return this.allRelations.find(rel => rel.equal(field) === false);
+				return this.allRelations.find(rel => rel.equal(field)) === undefined;
 			}
 			else if (field.field instanceof Field) {
-				return this.allRelations.find(rel => rel.equal(field.field as Field) === false);
+				return this.allRelations.find(rel => rel.equal(field.field as Field)) === undefined;
 			}
 			return true;
 		});

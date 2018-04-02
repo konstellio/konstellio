@@ -12,6 +12,24 @@ import { Schema, FieldRelation } from './schema';
 import { q } from '@konstellio/db';
 import { isArray } from 'util';
 
+export function getSelectionFromInfo (info: any): string[] {
+	return info.fieldNodes.reduce((fields, fieldNode) => {
+		fieldNode.selectionSet.selections.forEach(selection => {
+			fields.push(selection.name.value);
+		});
+		return fields;
+	}, [] as string[]);
+}
+
+export function getLocaleFromQuery(info: any): string {
+	return info.operation.selectionSet.selections[0].arguments.reduce((locale, arg) => {
+		if (arg.name.value === 'locale') {
+			return arg.value.value;
+		}
+		return locale;
+	}, '');
+}
+
 export async function getResolvers(context: PluginInitContext, plugins: Plugin[], schemas: Schema[]): Promise<IResolvers> {
 	const resolvers: IResolvers = {};
 
@@ -20,11 +38,22 @@ export async function getResolvers(context: PluginInitContext, plugins: Plugin[]
 		.filter(field => field.type === 'relation' && 'model' in field)
 		.forEach((field: FieldRelation) => {
 			resolvers[schema.handle] = Object.assign({}, resolvers[schema.handle], {
-				async [field.handle](parent, { }, { records }) {
-					const target: Record = records.get(field.model)!;
+				async [field.handle](parent, { }, { records }, info) {
+					const selection = getSelectionFromInfo(info);
+					const locale = getLocaleFromQuery(info);
+					const defaultLocale = Object.keys(context.locales)[0];
+
+					const target: Record = records.get(field.schema)!;
 					const ids: string[] = typeof parent[field.handle] !== 'undefined' && isArray(parent[field.handle]) ? parent[field.handle] : [];
-					const results = await target.findByIds(ids, { locale: 'fr' }); // TODO Get locale from current query ?
-					return results[0]; // TODO field does not contain information about if 1 or more results should be returned
+					const results = await target.findByIds(ids, {
+						locale: locale || defaultLocale,
+						fields: selection
+					});
+
+					if (field.multiple) {
+						return results;
+					}
+					return results[0];
 				}
 			});
 		})

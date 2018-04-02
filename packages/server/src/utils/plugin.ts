@@ -3,7 +3,7 @@ import { Driver as CacheDriver } from '@konstellio/cache';
 import { Driver as DBDriver } from '@konstellio/db';
 import { Driver as FSDriver } from '@konstellio/fs';
 import { Driver as MQDriver } from '@konstellio/mq';
-import basePlugin from '../lib/basePlugin';
+import basePlugin from '../lib/core';
 import * as resolvePackage from 'resolve';
 
 export async function loadPlugins(context: PluginInitContext, baseDir: string, plugins = [] as string[]): Promise<Plugin[]> {

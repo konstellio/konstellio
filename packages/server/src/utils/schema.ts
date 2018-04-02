@@ -29,15 +29,16 @@ export interface Schema {
 	handle: string
 	label?: string
 	description?: string
-	shapes: Shape[]
+	fields: Field[]
 	indexes: Index[]
+	shapes: Shape[]
 }
 
 export interface Shape {
 	handle: string
 	label?: string
 	description?: string
-	fields: Field[]
+	fields: string[]
 }
 
 export type Field = FieldBase | FieldRelation;
@@ -142,11 +143,13 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 		dest.handle = ext.handle || dest.handle;
 		dest.label = ext.label || dest.label;
 		dest.description = ext.description || dest.description;
+		dest.fields = dest.fields.concat(ext.fields);
 		dest.indexes = dest.indexes.concat(ext.indexes);
-		dest.shapes[0].handle = ext.shapes[0].handle || dest.shapes[0].handle;
-		dest.shapes[0].label = ext.shapes[0].label || dest.shapes[0].label;
-		dest.shapes[0].description = ext.shapes[0].description || dest.shapes[0].description;
-		dest.shapes[0].fields = dest.shapes[0].fields.concat(ext.shapes[0].fields);
+		dest.shapes = ext.shapes || dest.shapes;
+		// dest.shapes[0].handle = ext.shapes[0].handle || dest.shapes[0].handle;
+		// dest.shapes[0].label = ext.shapes[0].label || dest.shapes[0].label;
+		// dest.shapes[0].description = ext.shapes[0].description || dest.shapes[0].description;
+		// dest.shapes[0].fields = dest.shapes[0].fields.concat(ext.shapes[0].fields);
 
 		return dest;
 	}
@@ -164,8 +167,9 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 					handle: name,
 					label: args.label || name,
 					description: args.description || '',
-					shapes: [],
-					indexes: []
+					fields: [],
+					indexes: [],
+					shapes: []
 				}
 			}
 		},
@@ -223,13 +227,9 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 							handle: name,
 							label: args.label || name,
 							description: args.description || '',
-							shapes: [{
-								handle: name,
-								label: args.label || name,
-								description: args.description || '',
-								fields: fields
-							}],
-							indexes
+							fields,
+							indexes,
+							shapes: []
 						});
 					}
 					// Extend a type that was previously extended
@@ -238,13 +238,9 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 							handle: name,
 							label: args.label || name,
 							description: args.description || '',
-							shapes: [{
-								handle: name,
-								label: args.label || name,
-								description: args.description || '',
-								fields: fields
-							}],
-							indexes
+							fields,
+							indexes,
+							shapes: []
 						})
 					}
 					// Remember this extension
@@ -253,13 +249,9 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 							handle: name,
 							label: args.label || name,
 							description: args.description || '',
-							shapes: [{
-								handle: name,
-								label: args.label || name,
-								description: args.description || '',
-								fields: fields
-							}],
-							indexes: indexes
+							fields,
+							indexes,
+							shapes: []
 						}
 					}
 				}
@@ -269,18 +261,14 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 						handle: name,
 						label: args.label || name,
 						description: args.description || '',
-						shapes: [{
-							handle: name,
-							label: args.label || name,
-							description: args.description || '',
-							fields: fields.concat([{
-								handle: 'id',
-								type: 'text',
-								field: 'text',
-								required: true
-							}])
-						}],
-						indexes: indexes
+						fields: fields.concat([{
+							handle: 'id',
+							type: 'text',
+							field: 'text',
+							required: true
+						}]),
+						indexes,
+						shapes: []
 					};
 					if (typeof temps[name] !== 'undefined') {
 						schemas[name] = extendSchema(schemas[name], temps[name]);
@@ -298,20 +286,27 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 		});
 
 		schemas[handle] = records.reduce((schema, record) => {
+			record.fields.forEach(field => {
+				if (schema.fields.find(f => f.handle === field.handle) === undefined) {
+					schema.fields.push(field);
+				}
+			});
 			schema.indexes = schema.indexes.concat(record.indexes);
-			schema.shapes = schema.shapes.concat(record.shapes);
+			schema.shapes.push({
+				handle: record.handle,
+				label: record.label,
+				description: record.description,
+				fields: record.fields.map(field => field.handle).filter(handle => handle !== 'id')
+			});
 			return schema;
 		}, temps[handle]);
 
-		schemas[handle].shapes = schemas[handle].shapes.reduce((shapes, shape) => {
-			shape.fields.push({
-				handle: '__type',
-				type: 'text',
-				field: 'text',
-				required: true
-			})
-			return shapes;
-		}, schemas[handle].shapes);
+		schemas[handle].fields.push({
+			handle: '__type',
+			type: 'text',
+			field: 'text',
+			required: true
+		});
 	}
 
 	for (let handle in schemas) {

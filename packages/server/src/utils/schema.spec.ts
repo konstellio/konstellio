@@ -17,7 +17,7 @@ before(() => {
 
 describe('Schema', () => {
 
-	it('test', async () => {
+	it('DSL', async () => {
 
 		const typeDefs: string = `
 			scalar Cursor
@@ -117,38 +117,34 @@ describe('Schema', () => {
 				handle: 'User_id',
 				fields: { id: 'asc' }
 			}],
-			shapes: [{
-				handle: 'User',
-				label: 'User',
-				description: '',
-				fields: [{
-					handle: 'username',
-					group: 'default',
-					label: 'Username',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'password',
-					group: 'default',
-					label: 'Password',
-					type: 'text',
-					field: 'password',
-					required: true
-				}, {
-					handle: 'id',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'birthday',
-					group: 'default',
-					label: 'Birthday',
-					type: 'date',
-					field: 'text',
-					required: true
-				}]
-			}],
+			shapes: [],
+			fields: [{
+				handle: 'username',
+				group: 'default',
+				label: 'Username',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'password',
+				group: 'default',
+				label: 'Password',
+				type: 'text',
+				field: 'password',
+				required: true
+			}, {
+				handle: 'id',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'birthday',
+				group: 'default',
+				label: 'Birthday',
+				type: 'date',
+				field: 'text',
+				required: true
+			}]
 		});
 
 		expect(schemas[1]).to.deep.equal({
@@ -168,52 +164,48 @@ describe('Schema', () => {
 				handle: 'File_id',
 				fields: { id: 'asc' }
 			}],
-			shapes: [{
-				handle: 'File',
-				label: 'File',
-				description: '',
-				fields: [{
-					handle: 'path',
-					group: 'default',
-					label: 'path',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'name',
-					group: 'default',
-					label: 'name',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'size',
-					group: 'default',
-					label: 'size',
-					type: 'int',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'creation',
-					group: 'default',
-					label: 'creation',
-					type: 'datetime',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'modification',
-					group: 'default',
-					label: 'modification',
-					type: 'datetime',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'id',
-					type: 'text',
-					field: 'text',
-					required: true
-				}]
-			}],
+			shapes: [],
+			fields: [{
+				handle: 'path',
+				group: 'default',
+				label: 'path',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'name',
+				group: 'default',
+				label: 'name',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'size',
+				group: 'default',
+				label: 'size',
+				type: 'int',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'creation',
+				group: 'default',
+				label: 'creation',
+				type: 'datetime',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'modification',
+				group: 'default',
+				label: 'modification',
+				type: 'datetime',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'id',
+				type: 'text',
+				field: 'text',
+				required: true
+			}]
 		});
 
 		expect(schemas[2]).to.deep.equal({
@@ -233,61 +225,57 @@ describe('Schema', () => {
 				handle: 'Post_id',
 				fields: { id: 'asc' }
 			}],
-			shapes: [{
-				handle: 'Post',
-				label: 'Post',
-				description: '',
-				fields: [{
-					handle: 'title',
-					group: 'default',
-					label: 'Title',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'slug',
-					group: 'default',
-					label: 'slug',
-					type: 'slug',
-					field: 'text',
-					required: true,
-					on: 'title'
-				}, {
-					handle: 'postDate',
-					group: 'default',
-					label: 'Post date',
-					type: 'datetime',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'expireDate',
-					group: 'default',
-					label: 'Expire date',
-					type: 'datetime',
-					field: 'text',
-					required: false
-				}, {
-					handle: 'author',
-					group: 'default',
-					label: 'Author',
-					type: 'relation',
-					field: 'text',
-					required: true,
-					schema: 'User',
-					multiple: true
-				}, {
-					handle: 'content',
-					group: 'default',
-					label: 'Content',
-					type: 'text',
-					field: 'html',
-					required: true,
-				}, {
-					handle: 'id',
-					type: 'text',
-					field: 'text',
-					required: true
-				}]
+			shapes: [],
+			fields: [{
+				handle: 'title',
+				group: 'default',
+				label: 'Title',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'slug',
+				group: 'default',
+				label: 'slug',
+				type: 'slug',
+				field: 'text',
+				required: true,
+				on: 'title'
+			}, {
+				handle: 'postDate',
+				group: 'default',
+				label: 'Post date',
+				type: 'datetime',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'expireDate',
+				group: 'default',
+				label: 'Expire date',
+				type: 'datetime',
+				field: 'text',
+				required: false
+			}, {
+				handle: 'author',
+				group: 'default',
+				label: 'Author',
+				type: 'relation',
+				field: 'text',
+				required: true,
+				schema: 'User',
+				multiple: true
+			}, {
+				handle: 'content',
+				group: 'default',
+				label: 'Content',
+				type: 'text',
+				field: 'html',
+				required: true,
+			}, {
+				handle: 'id',
+				type: 'text',
+				field: 'text',
+				required: true
 			}],
 		});
 
@@ -304,70 +292,61 @@ describe('Schema', () => {
 				handle: 'PageHome',
 				label: 'PageHome',
 				description: '',
-				fields: [{
-					handle: 'heading',
-					group: 'default',
-					label: 'Heading',
-					type: 'text',
-					field: 'text',
-					required: true,
-					localized: true
-				}, {
-					handle: 'welcome',
-					group: 'default',
-					label: 'Welcome',
-					type: 'text',
-					field: 'text',
-					required: true,
-					localized: true
-				}, {
-					handle: 'id',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: '__type',
-					type: 'text',
-					field: 'text',
-					required: true
-				}]
+				fields: ['heading', 'welcome']
 			}, {
 				handle: 'PageContact',
 				label: 'PageContact',
 				description: '',
-				fields: [{
-					handle: 'about',
-					group: 'default',
-					label: 'About',
-					type: 'text',
-					field: 'text',
-					required: true,
-					localized: true
-				}, {
-					handle: 'phone',
-					group: 'default',
-					label: 'Phone',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'email',
-					group: 'default',
-					label: 'Email',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: 'id',
-					type: 'text',
-					field: 'text',
-					required: true
-				}, {
-					handle: '__type',
-					type: 'text',
-					field: 'text',
-					required: true
-				}]
+				fields: ['about', 'phone', 'email']
+			}],
+			fields: [{
+				handle: 'heading',
+				group: 'default',
+				label: 'Heading',
+				type: 'text',
+				field: 'text',
+				required: true,
+				localized: true
+			}, {
+				handle: 'welcome',
+				group: 'default',
+				label: 'Welcome',
+				type: 'text',
+				field: 'text',
+				required: true,
+				localized: true
+			}, {
+				handle: 'id',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'about',
+				group: 'default',
+				label: 'About',
+				type: 'text',
+				field: 'text',
+				required: true,
+				localized: true
+			}, {
+				handle: 'phone',
+				group: 'default',
+				label: 'Phone',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: 'email',
+				group: 'default',
+				label: 'Email',
+				type: 'text',
+				field: 'text',
+				required: true
+			}, {
+				handle: '__type',
+				type: 'text',
+				field: 'text',
+				required: true
 			}]
 		})
 	});

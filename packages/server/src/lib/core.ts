@@ -6,12 +6,12 @@ export default {
 			scalar Cursor
 			scalar Date
 			scalar DateTime
-			type User @model {
+			type User @record {
 				id: ID!
 				username: String! @field(label: "Username", type: "text", field: "text")
 				password: String! @field(label: "Password", type: "text", field: "password") @permission(group: "noone")
 			}
-			type File @model {
+			type File @record {
 				id: ID!
 				path: String! @field(type: "text")
 				name: String! @field(type: "text")
@@ -19,7 +19,7 @@ export default {
 				creation: DateTime! @field(type: "datetime")
 				modification: DateTime! @field(type: "datetime")
 			}
-			type Relation @model(indexes: [
+			type Relation @record(indexes: [
 				{ handle: "Relation_collection", type: "index", fields: { id: "asc", collection: "asc" } },
 				{ handle: "Relation_field", type: "index", fields: { id: "asc", collection: "asc", field: "asc" } },
 				{ handle: "Relation_source", type: "index", fields: { id: "asc", source: "asc", seq: "asc" } },
