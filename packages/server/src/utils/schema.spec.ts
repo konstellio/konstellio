@@ -17,20 +17,20 @@ before(() => {
 
 describe('Schema', () => {
 
-	it('test', () => {
+	it('test', async () => {
 
 		const typeDefs: string = `
 			scalar Cursor
 			scalar Date
 			scalar DateTime
 
-			type User @model(label: "Utilisateurs", indexes: [{ type: "unique", fields: { username: "asc" } }]) {
+			type User @record(label: "Utilisateurs", indexes: [{ handle: "User_username", type: "unique", fields: { username: "asc" } }]) {
 				id: ID!
 				username: String! @field(label: "Username", type: "text")
 				password: String! @field(label: "Password", type: "text", field: "password") @permission(group: "noone")
 			}
 
-			type File @model(indexes: [{ fields: { path: "asc", name: "asc" } }, { fields: { creation: "asc" } }]) {
+			type File @record(indexes: [{ handle: "File_name", fields: { path: "asc", name: "asc" } }, { handle: "File_creation", fields: { creation: "asc" } }]) {
 				id: ID!
 				path: String! @field(type: "text")
 				name: String! @field(type: "text")
@@ -56,12 +56,12 @@ describe('Schema', () => {
 				logout: LogoutResponse @permission(group: "any")
 			}
 
-			extend type User @model(indexes: [{ fields: { birthday: "asc" } }]) {
+			extend type User @record(indexes: [{ handle: "User_birthday", fields: { birthday: "asc" } }]) {
 				birthday: Date! @field(label: "Birthday", type: "date")
 				displayName: String!
 			}
 
-			type Post @model(indexes: [{ fields: { postDate: "asc" } }, { type: "unique", fields: { slug: "asc" } }]) {
+			type Post @record(indexes: [{ handle: "Post_postDate", fields: { postDate: "asc" } }, { handle: "Post_slug", type: "unique", fields: { slug: "asc" } }]) {
 				id: ID!
 				title: String! @field(label: "Title", type: "text")
 				slug: String! @field(type: "slug", on: "title")
@@ -75,222 +75,301 @@ describe('Schema', () => {
 				cursor: Cursor
 				item: Post!
 			}
+
+			union Page @record = PageHome | PageContact
+
+			type PageHome @record {
+				id: ID!
+				heading: String! @field(label: "Heading", type: "text", localized: true)
+				welcome: String! @field(label: "Welcome", type: "text", localized: true)
+			}
+
+			type PageContact @record {
+				id: ID!
+				about: String! @field(label: "About", type: "text", localized: true)
+				phone: String! @field(label: "Phone", type: "text")
+				email: String! @field(label: "Email", type: "text")
+			}
 	
 			extend type Query {
 				latestPost(first: Int, after: Cursor): [PostCursor!]!
+				pages: [Page!]!
 			}
 		`;
 
-		const resolvers: IResolvers = {
-			User: {
-				displayName: {
-					fragment: `fragment UserFragment on User { username }`,
-					async resolve(parent, args, context, info) {
-						return parent.username;
-					}
-				}
-			},
-			Query: {
-				async whoami() {
-					return {
-						id: 'needs-an-ID',
-						username: 'someone'
-					}
-				},
-				async latestPost(parent, { first, after }, context, info) {
-					return [];
-				}
-			},
-			Mutation: {
-				async login(parent, { username, password }, context, info) {
-					return {
-						token: "what-token?"
-					};
-				},
-				async logout() {
-					return {
-						acknowledge: true
-					};
-				}
-			}
-		};
+		const ast = parse(typeDefs);
+		const schemas = parseSchema(ast);
 
-        const ast = parse(typeDefs);
-
-		// Clone & modify `ast` based on some logic (hide @permission field)
-		const context = { groups: ['nobody'] };
-		const astModified = visit(ast, {
-			[Kind.FIELD_DEFINITION](node: FieldDefinitionNode) {
-				const permission = node.directives && node.directives.find(directive => directive.name.value === 'permission');
-				if (permission) {
-					const argGroup = permission.arguments && permission.arguments.find(arg => arg.name.value === 'group');
-					if (argGroup) {
-						const value = (argGroup.value as StringValueNode).value;
-						if (context.groups.indexOf(value) === -1) {
-							return null; // returning null will delete this node
-						}
-					}
-				}
-			}
+		expect(schemas[0]).to.deep.equal({
+			handle: 'User',
+			label: 'User',
+			description: '',
+			indexes: [{
+				type: 'unique',
+				handle: 'User_username',
+				fields: { username: 'asc' }
+			}, {
+				type: 'index',
+				handle: 'User_birthday',
+				fields: { birthday: 'asc' }
+			}, {
+				type: 'primary',
+				handle: 'User_id',
+				fields: { id: 'asc' }
+			}],
+			shapes: [{
+				handle: 'User',
+				label: 'User',
+				description: '',
+				fields: [{
+					handle: 'username',
+					group: 'default',
+					label: 'Username',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'password',
+					group: 'default',
+					label: 'Password',
+					type: 'text',
+					field: 'password',
+					required: true
+				}, {
+					handle: 'id',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'birthday',
+					group: 'default',
+					label: 'Birthday',
+					type: 'date',
+					field: 'text',
+					required: true
+				}]
+			}],
 		});
 
-		// Build GraphQLSchema on that new ast and make it executable with resolvers
-		const schema = makeExecutableSchema({
-			typeDefs: ast,
-			resolvers,
-			resolverValidationOptions: {
-				allowResolversNotInSchema: true
-			}
+		expect(schemas[1]).to.deep.equal({
+			handle: 'File',
+			label: 'File',
+			description: '',
+			indexes: [{
+				type: 'index',
+				handle: 'File_name',
+				fields: { name: 'asc', path: 'asc' }
+			}, {
+				type: 'index',
+				handle: 'File_creation',
+				fields: { creation: 'asc' }
+			}, {
+				type: 'primary',
+				handle: 'File_id',
+				fields: { id: 'asc' }
+			}],
+			shapes: [{
+				handle: 'File',
+				label: 'File',
+				description: '',
+				fields: [{
+					handle: 'path',
+					group: 'default',
+					label: 'path',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'name',
+					group: 'default',
+					label: 'name',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'size',
+					group: 'default',
+					label: 'size',
+					type: 'int',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'creation',
+					group: 'default',
+					label: 'creation',
+					type: 'datetime',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'modification',
+					group: 'default',
+					label: 'modification',
+					type: 'datetime',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'id',
+					type: 'text',
+					field: 'text',
+					required: true
+				}]
+			}],
 		});
 
-        const models = parseSchema(ast);
+		expect(schemas[2]).to.deep.equal({
+			handle: 'Post',
+			label: 'Post',
+			description: '',
+			indexes: [{
+				type: 'index',
+				handle: 'Post_postDate',
+				fields: { postDate: 'asc' }
+			}, {
+				type: 'unique',
+				handle: 'Post_slug',
+				fields: { slug: 'asc' }
+			}, {
+				type: 'primary',
+				handle: 'Post_id',
+				fields: { id: 'asc' }
+			}],
+			shapes: [{
+				handle: 'Post',
+				label: 'Post',
+				description: '',
+				fields: [{
+					handle: 'title',
+					group: 'default',
+					label: 'Title',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'slug',
+					group: 'default',
+					label: 'slug',
+					type: 'slug',
+					field: 'text',
+					required: true,
+					on: 'title'
+				}, {
+					handle: 'postDate',
+					group: 'default',
+					label: 'Post date',
+					type: 'datetime',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'expireDate',
+					group: 'default',
+					label: 'Expire date',
+					type: 'datetime',
+					field: 'text',
+					required: false
+				}, {
+					handle: 'author',
+					group: 'default',
+					label: 'Author',
+					type: 'relation',
+					field: 'text',
+					required: true,
+					schema: 'User',
+					multiple: true
+				}, {
+					handle: 'content',
+					group: 'default',
+					label: 'Content',
+					type: 'text',
+					field: 'html',
+					required: true,
+				}, {
+					handle: 'id',
+					type: 'text',
+					field: 'text',
+					required: true
+				}]
+			}],
+		});
 
-		return Promise.all([
-            graphql(schema, `{ whoami { id displayName } }`).should.eventually.deep.equal({
-                data: {
-                    whoami: {
-                        id: "needs-an-ID",
-                        displayName: "someone"
-                    }
-                }
-            }),
-            expect(models).to.deep.equal([{
-                handle: 'User',
-                label: 'Utilisateurs',
-                description: '',
-                fields: [{
-                    handle: 'username',
-                    group: 'default',
-                    label: 'Username',
-                    type: 'text',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'password',
-                    group: 'default',
-                    label: 'Password',
-                    type: 'text',
-                    field: 'password',
-                    description: ''
-                }, {
-                    handle: 'birthday',
-                    group: 'default',
-                    label: 'Birthday',
-                    type: 'date',
-                    field: 'text',
-                    description: ''
-                }],
-                indexes: [{
-                    type: 'unique',
-                    fields: { username: 'asc' }
-                }, {
-                    type: 'index',
-                    fields: { birthday: 'asc' }
-                }]
-            }, {
-                handle: 'File',
-                label: 'File',
-                description: '',
-                fields: [{
-                    handle: 'path',
-                    group: 'default',
-                    label: 'path',
-                    type: 'text',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'name',
-                    group: 'default',
-                    label: 'name',
-                    type: 'text',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'size',
-                    group: 'default',
-                    label: 'size',
-                    type: 'int',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'creation',
-                    group: 'default',
-                    label: 'creation',
-                    type: 'datetime',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'modification',
-                    group: 'default',
-                    label: 'modification',
-                    type: 'datetime',
-                    field: 'text',
-                    description: ''
-                }],
-                indexes: [{
-                    type: 'index',
-                    fields: { path: 'asc', name: 'asc' }
-                }, {
-                    type: 'index',
-                    fields: { creation: 'asc' }
-                }]
-            }, {
-                handle: 'Post',
-                label: 'Post',
-                description: '',
-                fields: [{
-                    handle: 'title',
-                    group: 'default',
-                    label: 'Title',
-                    type: 'text',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'slug',
-                    group: 'default',
-                    label: 'slug',
-                    type: 'slug',
-                    field: 'text',
-                    description: '',
-                    on: 'title'
-                }, {
-                    handle: 'postDate',
-                    group: 'default',
-                    label: 'Post date',
-                    type: 'datetime',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'expireDate',
-                    group: 'default',
-                    label: 'Expire date',
-                    type: 'datetime',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'author',
-                    group: 'default',
-                    label: 'Author',
-                    type: 'relation',
-                    field: 'text',
-                    description: ''
-                }, {
-                    handle: 'content',
-                    group: 'default',
-                    label: 'Content',
-                    type: 'text',
-                    field: 'html',
-                    description: ''
-                }],
-                indexes: [{
-                    type: 'index',
-                    fields: { postDate: 'asc' }
-                }, {
-                    type: 'unique',
-                    fields: { slug: 'asc' }
-                }]
-            }])
-		])
+		expect(schemas[3]).to.deep.equal({
+			handle: 'Page',
+			label: 'Page',
+			description: '',
+			indexes: [{
+				type: 'primary',
+				handle: 'Page_id',
+				fields: { id: 'asc' }
+			}],
+			shapes: [{
+				handle: 'PageHome',
+				label: 'PageHome',
+				description: '',
+				fields: [{
+					handle: 'heading',
+					group: 'default',
+					label: 'Heading',
+					type: 'text',
+					field: 'text',
+					required: true,
+					localized: true
+				}, {
+					handle: 'welcome',
+					group: 'default',
+					label: 'Welcome',
+					type: 'text',
+					field: 'text',
+					required: true,
+					localized: true
+				}, {
+					handle: 'id',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: '__type',
+					type: 'text',
+					field: 'text',
+					required: true
+				}]
+			}, {
+				handle: 'PageContact',
+				label: 'PageContact',
+				description: '',
+				fields: [{
+					handle: 'about',
+					group: 'default',
+					label: 'About',
+					type: 'text',
+					field: 'text',
+					required: true,
+					localized: true
+				}, {
+					handle: 'phone',
+					group: 'default',
+					label: 'Phone',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'email',
+					group: 'default',
+					label: 'Email',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: 'id',
+					type: 'text',
+					field: 'text',
+					required: true
+				}, {
+					handle: '__type',
+					type: 'text',
+					field: 'text',
+					required: true
+				}]
+			}]
+		})
 	});
 
 })
