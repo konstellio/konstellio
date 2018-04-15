@@ -1,9 +1,10 @@
-import { q, Compare, Column, ColumnType, Index, IndexType, QueryAlterCollection, QueryCreateCollection, QueryCreateCollectionResult, QueryAlterCollectionResult, QueryDescribeCollectionResult, FieldDirection, QueryDropCollection, QueryDropCollectionResult } from '@konstellio/db';
+import { Driver, q, Compare, Column, ColumnType, Index, IndexType, QueryAlterCollection, QueryCreateCollection, QueryCreateCollectionResult, QueryAlterCollectionResult, QueryDescribeCollectionResult, FieldDirection, QueryDropCollection, QueryDropCollectionResult } from '@konstellio/db';
 import { DocumentNode } from 'graphql';
 import { parseSchema, Schema, Field, Index as SchemaIndex } from '../utils/schema';
-import { Plugin, PluginInitContext } from './plugin';
+import { Plugin } from '../plugin';
 import { WriteStream, ReadStream } from 'tty';
 import { promptSelection } from './cli';
+import { Locales } from './config';
 
 function defaultIndexHandle(collection: string, handle: string | undefined, type: IndexType, fields: { [fieldHandle: string]: 'asc' | 'desc' }) {
 	return handle || `${collection}_${Object.keys(fields).join('_')}_${type === IndexType.Primary ? 'pk' : (type === IndexType.Unique ? 'uniq' : 'idx')}`
@@ -74,9 +75,8 @@ function matchLocalizedHandle(handle: string): RegExpMatchArray | null {
 	return handle.match(/^([a-zA-Z0-9_-]+)__([a-z]{2}(-[a-zA-Z]{2})?)$/i);
 }
 
-export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[]): Promise<SchemaDiff[]> {
+export async function getSchemaDiff(database: Driver, locales: Locales, schemas: Schema[]): Promise<SchemaDiff[]> {
 
-	const { database } = context;
 	const diffs: SchemaDiff[] = [];
 
 	const mutedCollections: string[] = ['Relation'];
@@ -84,7 +84,7 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 
 	for (let i = 0, l = schemas.length; i < l; ++i) {
 		const schema = schemas[i];
-		const schemaDesc = schemaToSchemaDescription(context, schema);
+		const schemaDesc = schemaToSchemaDescription(locales, schema);
 		const exists = await database.execute(q.collectionExists(schema.handle));
 
 		mutedCollections.push(schema.handle);
@@ -96,7 +96,7 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 			});
 		} else {
 			const desc = await database.execute(q.describeCollection(schema.handle));
-			const dbSchemaDesc = databaseDescriptionToSchemaDescription(context, desc);
+			const dbSchemaDesc = databaseDescriptionToSchemaDescription(locales, desc);
 			const mutedFields: string[] = [];
 			const mutedIndexes: string[] = [];
 
@@ -180,9 +180,9 @@ export async function getSchemaDiff(context: PluginInitContext, schemas: Schema[
 	return diffs;
 }
 
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[]): Promise<void>
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
-export async function executeSchemaMigration(context: PluginInitContext, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
+export async function executeSchemaMigration(database: Driver, diffs: SchemaDiff[]): Promise<void>
+export async function executeSchemaMigration(database: Driver, diffs: SchemaDiff[], stdin: ReadStream, stdout: WriteStream): Promise<void>
+export async function executeSchemaMigration(database: Driver, diffs: SchemaDiff[], stdin?: ReadStream, stdout?: WriteStream): Promise<void> {
 	const createCollections: QueryCreateCollection[] = [];
 	const dropCollections: QueryDropCollection[] = [];
 	const alterCollections: Map<string, QueryAlterCollection> = new Map();
@@ -353,23 +353,23 @@ export async function executeSchemaMigration(context: PluginInitContext, diffs: 
 	}
 
 	const queries: Promise<QueryCreateCollectionResult | QueryDropCollectionResult | QueryAlterCollectionResult>[] = ([] as Promise<QueryCreateCollectionResult | QueryDropCollectionResult | QueryAlterCollectionResult>[]).concat(
-		dropCollections.map(drop => context.database.execute(drop)),
-		createCollections.map(create => context.database.execute(create)),
-		Array.from(alterCollections.values()).map(alter => context.database.execute(alter))
+		dropCollections.map(drop => database.execute(drop)),
+		createCollections.map(create => database.execute(create)),
+		Array.from(alterCollections.values()).map(alter => database.execute(alter))
 	);
 
 	await Promise.all(queries);
 }
 
-function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): SchemaDescription {
-	const locales = Object.keys(context.locales);
+function schemaToSchemaDescription(locales: Locales, schema: Schema): SchemaDescription {
+	const localeCodes = Object.keys(locales);
 	return {
 		handle: schema.handle,
 		columns: schema.fields.reduce((columns, field) => {
 			if (field.type === 'relation') {
 				return columns;
 			} else if (field.localized) {
-				locales.forEach(code => {
+				localeCodes.forEach(code => {
 					columns.push({ handle: `${field.handle}__${code}`, type: field.type })
 				});
 			} else {
@@ -384,7 +384,7 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 				localized = localized || (field !== undefined && field.localized === true);
 			});
 			if (localized) {
-				locales.forEach(code => {
+				localeCodes.forEach(code => {
 					indexes.push({
 						handle: `${index.handle}__${code}`,
 						type: index.type,
@@ -411,8 +411,8 @@ function schemaToSchemaDescription(context: PluginInitContext, schema: Schema): 
 	};
 }
 
-function databaseDescriptionToSchemaDescription(context: PluginInitContext, description: QueryDescribeCollectionResult): SchemaDescription {
-	const locales = Object.keys(context.locales);
+function databaseDescriptionToSchemaDescription(locales: Locales, description: QueryDescribeCollectionResult): SchemaDescription {
+	const localeCodes = Object.keys(locales);
 
 	return {
 		handle: description.collection.toString(),

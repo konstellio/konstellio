@@ -1,13 +1,18 @@
 
-module.exports = {
-	graphql() {
+module.exports = class BlogPlugin {
+
+	constructor(server) {
+		this.server = server;
+	}
+
+	getGraphQL() {
 		return `
 			extend type Query {
 				latestPost(first: Int, after: Cursor): [PostCursor!]!
 			}
 
 			extend type User {
-				birthday: Date! @field(label: "Birthday", type: "date")
+				birthday: Date @field(label: "Birthday", type: "date")
 				displayName: String!
 			}
 
@@ -26,8 +31,9 @@ module.exports = {
 				item: Post!
 			}
 		`;
-	},
-	resolvers() {
+	}
+
+	getGraphResolvers() {
 		return {
 			Query: {
 				async latestPost(parent, { first, after }, { q, records }, info) {

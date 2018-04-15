@@ -1,7 +1,25 @@
-import { Plugin, PluginInitContext } from '../utils/plugin';
+import { IResolvers } from 'graphql-tools/dist/Interfaces';
+import { DocumentNode } from 'graphql';
+import { Server } from '../server';
+import { Plugin } from '../plugin';
 
-export default {
-	async graphql(context) {
+export class CorePlugin implements Plugin {
+
+	constructor(server: Server) {
+
+	}
+
+	private disposed = false;
+
+	isDisposed() {
+		return this.disposed;
+	}
+
+	async disposeAsync(): Promise<void> {
+		this.disposed = true;
+	}
+
+	async getGraphQL() {
 		return `
 			scalar Cursor
 			scalar Date
@@ -46,8 +64,9 @@ export default {
 				acknowledge: Boolean!
 			}
 		`;
-	},
-	async resolvers() {
+	}
+
+	async getGraphResolvers() {
 		return {
 			Query: {
 				async me() {
@@ -71,4 +90,5 @@ export default {
 			}
 		};
 	}
-} as Plugin;
+
+}

@@ -27,7 +27,7 @@ export interface Config {
 			host?: string
 			port?: number
 		}
-		locales?: { [code: string]: string }
+		locales?: Locales
 		plugins?: string[]
 		database: DBConfig
 		fs: FSConfig
@@ -35,6 +35,10 @@ export interface Config {
 		mq: MQConfig
 	}
 }
+
+export type Locales = {
+	[code: string]: string
+};
 
 export type DBConfig = SQLiteDBConfig | MySQLDBConfig;
 

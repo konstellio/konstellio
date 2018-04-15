@@ -1,17 +1,17 @@
 import { Driver, q, Collection, Field, FieldDirection, FieldAs, Function, Binary, Primitive, Value, Comparison, QuerySelect, Query, ComparisonIn, BinaryExpression, replaceField } from "@konstellio/db";
 import { Schema, Field as SchemaField, FieldRelation } from "./schema";
-import { PluginInitContext } from "./plugin";
 import ObjectID from "bson-objectid"
 import * as Dataloader from "dataloader";
 import { isArray } from "util";
+import { Locales } from "./config";
 
-export async function getRecords(context: PluginInitContext, schemas: Schema[], locales: string[]): Promise<Map<string, Record>> {
+export async function getRecords(database: Driver, locales: Locales, schemas: Schema[]): Promise<Map<string, Record>> {
 	const models = new Map<string, Record>();
 
 	for (let i = 0, l = schemas.length; i < l; ++i) {
 		const schema = schemas[i];
 		if (schema.handle !== 'Relation') {
-			models.set(schema.handle, new Record(context.database, schema, locales, models));
+			models.set(schema.handle, new Record(database, schema, locales, models));
 		}
 	}
 
@@ -34,19 +34,23 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 	private readonly replaceRelationMap: Map<string, Map<Field, Field>>;
 	private readonly replaceSortMap: Map<string, Map<Field, Field>>;
 	private readonly allFields: Field[];
+	private readonly allNonRelations: Field[];
 	private readonly allRelations: Field[];
+	private readonly localeCodes: string[];
 
 	public readonly defaults: I;
 
 	constructor(
 		protected readonly database: Driver,
 		protected readonly schema: Schema,
-		protected readonly locales: string[],
+		protected readonly locales: Locales,
 		protected readonly models: Map<string, Record>
 	) {
+		this.localeCodes = Object.keys(locales);
+
 		this.collection = q.collection(schema.handle);
 
-		const defaultLocales = locales.reduce((locales, locale) => { locales[locale] = undefined; return locales; }, {});
+		const defaultLocales = this.localeCodes.reduce((locales, locale) => { locales[locale] = undefined; return locales; }, {});
 
 		this.defaults = schema.fields.reduce((defaults, field) => {
 			if (field.handle !== 'id') {
@@ -55,8 +59,9 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 			return defaults;
 		}, {} as I);
 
-		this.allFields = schema.fields.filter(field => field.type !== 'relation').map(field => q.field(field.handle));
+		this.allNonRelations = schema.fields.filter(field => field.type !== 'relation').map(field => q.field(field.handle));
 		this.allRelations = schema.fields.filter(field => field.type === 'relation').map(field => q.field(field.handle));
+		this.allFields = this.allNonRelations.concat(this.allRelations);
 
 		this.renameMap = new Map<string, Map<Field, Field>>();
 		this.replaceAllMap = new Map<string, Map<Field, Field>>();
@@ -64,7 +69,7 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 		this.replaceRelationMap = new Map<string, Map<Field, Field>>();
 		this.replaceSortMap = new Map<string, Map<Field, Field>>();
 
-		locales.forEach(locale => {
+		this.localeCodes.forEach(locale => {
 			const renMap = new Map<Field, Field>();
 			const allMap = new Map<Field, Field>();
 			const fldMap = new Map <Field, Field>();
@@ -174,7 +179,16 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 	): Promise<T[]> {
 		const fieldsUsed: Field[] = [];
 
-		const fields = (options.fields || this.allFields.concat(this.allRelations)).map<Field | FieldAs>(field => typeof field === 'string' ? q.field(field) : field);
+		// const fields = (options.fields || this.allFields.concat(this.allRelations)).map<Field | FieldAs>(field => typeof field === 'string' ? q.field(field) : field);
+		const fields = options.fields
+			? options.fields
+				.map<Field | FieldAs>(field => typeof field === 'string' ? q.field(field) : field)
+				.filter(field => {
+					return field instanceof Field
+						? this.allFields.find(f => f.equal(field)) !== undefined
+						: true;
+				})
+			: this.allFields;
 
 		const select = fields.filter(field => {
 			if (field instanceof Field) {
@@ -370,7 +384,7 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 				errors.push(new Error(`Expected ${field.handle} to be an object.`));
 				return false;
 			}
-			return this.locales.reduce((valid, locale) => {
+			return this.localeCodes.reduce((valid, locale) => {
 				if (typeof value[locale] === 'undefined') {
 					errors.push(new Error(`Expected ${field.handle}.${locale} to be defined.`));
 					return false;
@@ -426,7 +440,7 @@ export class Record<I extends RecordInputType = any, O extends RecordType = { id
 		this.schema.fields.forEach(field => {
 			let key = field.handle;
 			if (field.localized === true) {
-				this.locales.forEach(locale => {
+				this.localeCodes.forEach(locale => {
 					if (typeof (<any>data)[key] === 'undefined' || typeof (<any>data)[key][locale] === 'undefined') {
 						throw new Error(`Expected ${key}.${locale} to be defined.`)
 					}

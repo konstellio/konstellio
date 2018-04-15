@@ -1,4 +1,5 @@
-import { Plugin, PluginInitContext, IResolvers } from './plugin';
+import { Plugin } from '../plugin';
+import { IResolvers } from 'graphql-tools/dist/Interfaces';
 import { DocumentNode, Kind, FieldDefinitionNode, ObjectTypeDefinitionNode, TypeExtensionDefinitionNode, StringValueNode, TypeNode, DefinitionNode, ArgumentNode, ValueNode, ListValueNode, ObjectValueNode, TypeDefinitionNode, UnionTypeDefinitionNode, NonNullTypeNode, ListTypeNode } from 'graphql';
 import { parse } from 'graphql/language/parser';
 import { visit } from 'graphql/language/visitor';
@@ -7,23 +8,22 @@ import { DirectiveNode } from 'graphql';
 /*
  * Get Schemas from Plugins
  */
-export async function getSchemaDocument(context: PluginInitContext, plugins: Plugin[]): Promise<DocumentNode> {
-	const schemas = await Promise.all(plugins.map<Promise<string>>(plugin => plugin && plugin.graphql ? plugin.graphql(context) : Promise.resolve('')));
+export async function getSchemaDocument(schemas: string[]): Promise<DocumentNode> {
 	return parse(schemas.join(`\n`), { noLocation: true });
 }
 
 /*
  * Get Resolvers from Plugins
  */
-export async function getSchemaResolvers(plugins: Plugin[]): Promise<IResolvers> {
-	return plugins.reduce((resolvers, plugin) => {
-		Object.keys(plugin.resolvers || {}).forEach(key => {
-			resolvers[key] = resolvers[key] || {};
-			Object.assign(resolvers[key], plugin.resolvers![key]);
-		});
-		return resolvers;
-	}, {} as IResolvers);
-}
+// export async function getSchemaResolvers(plugins: Plugin[]): Promise<IResolvers> {
+// 	return plugins.reduce((resolvers, plugin) => {
+// 		Object.keys(plugin.resolvers || {}).forEach(key => {
+// 			resolvers[key] = resolvers[key] || {};
+// 			Object.assign(resolvers[key], plugin.resolvers![key]);
+// 		});
+// 		return resolvers;
+// 	}, {} as IResolvers);
+// }
 
 export interface Schema {
 	handle: string
@@ -174,105 +174,117 @@ export function parseSchema(ast: DocumentNode): Schema[] {
 			}
 		},
 		[Kind.OBJECT_TYPE_DEFINITION](node: ObjectTypeDefinitionNode, key: string, parent: DefinitionNode) {
-			// that has a @model directive
-			const record = node.directives && node.directives.find(directive => directive.name.value === 'record');
-			if (record) {
-				const name = node.name.value;
-				// Extract arguments
-				const args = record.arguments ? getArgumentsValues(record.arguments) : {};
-				// Extract fields
-				const fields = node.fields.map<Field | undefined>(definition => {
-					const field = definition.directives && definition.directives.find(directive => directive.name.value === 'field');
-					if (field) {
-						const args = field.arguments ? getArgumentsValues(field.arguments) : {};
-						if (args.type === 'relation') {
-							return Object.assign({
-								handle: definition.name.value,
-								field: 'text',
-								group: 'default',
-								label: definition.name.value,
-								required: definition.type.kind === 'NonNullType'
-							}, args, {
-								schema: getNamedType(definition.type),
-								multiple: isNonNullType(definition.type) && isListType(definition.type.type)
-							}) as FieldRelation;
-						} else {
-							return Object.assign({
-								handle: definition.name.value,
-								type: 'text',
-								field: 'text',
-								group: 'default',
-								label: definition.name.value,
-								required: definition.type.kind === 'NonNullType'
-							}, args) as FieldBase;
-						}
-					}
-					return undefined;
-				}).filter<Field>((schema): schema is Field => schema !== undefined);
-
-				// Extract indexes
-				const indexes = args.indexes && args.indexes.map(index => {
-					return Object.assign({
-						handle: '',
-						type: 'index',
-						fields: []
-					}, index);
-				}) || [];
-
-				// Parent is a extension type
-				if (isTypeExtension(parent)) {
-					// Extend existing Schema
-					if (typeof schemas[name] !== 'undefined') {
-						schemas[name] = extendSchema(schemas[name], {
-							handle: name,
-							label: args.label || name,
-							description: args.description || '',
-							fields,
-							indexes,
-							shapes: []
-						});
-					}
-					// Extend a type that was previously extended
-					else if (typeof temps[name] !== 'undefined') {
-						temps[name] = extendSchema(temps[name], {
-							handle: name,
-							label: args.label || name,
-							description: args.description || '',
-							fields,
-							indexes,
-							shapes: []
-						})
-					}
-					// Remember this extension
-					else {
-						temps[name] = {
-							handle: name,
-							label: args.label || name,
-							description: args.description || '',
-							fields,
-							indexes,
-							shapes: []
-						}
+			const name = node.name.value;
+			
+			// Extract fields
+			const fields = node.fields.map<Field | undefined>(definition => {
+				const field = definition.directives && definition.directives.find(directive => directive.name.value === 'field');
+				if (field) {
+					const args = field.arguments ? getArgumentsValues(field.arguments) : {};
+					if (args.type === 'relation') {
+						return Object.assign({
+							handle: definition.name.value,
+							field: 'text',
+							group: 'default',
+							label: definition.name.value,
+							required: definition.type.kind === 'NonNullType'
+						}, args, {
+							schema: getNamedType(definition.type),
+							multiple: isNonNullType(definition.type) && isListType(definition.type.type)
+						}) as FieldRelation;
+					} else {
+						return Object.assign({
+							handle: definition.name.value,
+							type: 'text',
+							field: 'text',
+							group: 'default',
+							label: definition.name.value,
+							required: definition.type.kind === 'NonNullType'
+						}, args) as FieldBase;
 					}
 				}
-				// Is a Object definition
-				else {
-					schemas[name] = {
+				return undefined;
+			}).filter<Field>((schema): schema is Field => schema !== undefined);
+
+			// that has a @model directive
+			const record = node.directives && node.directives.find(directive => directive.name.value === 'record');
+
+			// Extract arguments
+			const args = record && record.arguments ? getArgumentsValues(record.arguments) : {};
+			
+			// Extract indexes
+			const indexes = args.indexes && args.indexes.map(index => {
+				return Object.assign({
+					handle: '',
+					type: 'index',
+					fields: []
+				}, index);
+			}) || [];
+
+			// Parent is a extension type
+			if (isTypeExtension(parent)) {
+				// Extend existing Schema
+				if (typeof schemas[name] !== 'undefined') {
+					schemas[name] = extendSchema(schemas[name], {
 						handle: name,
 						label: args.label || name,
 						description: args.description || '',
-						fields: fields.concat([{
-							handle: 'id',
-							type: 'text',
-							field: 'text',
-							required: true
-						}]),
+						fields,
 						indexes,
 						shapes: []
-					};
-					if (typeof temps[name] !== 'undefined') {
-						schemas[name] = extendSchema(schemas[name], temps[name]);
+					});
+				}
+				// Extend a type that was previously extended
+				else if (typeof temps[name] !== 'undefined') {
+					temps[name] = extendSchema(temps[name], {
+						handle: name,
+						label: args.label || name,
+						description: args.description || '',
+						fields,
+						indexes,
+						shapes: []
+					})
+				}
+				// Remember this extension
+				else {
+					temps[name] = {
+						handle: name,
+						label: args.label || name,
+						description: args.description || '',
+						fields,
+						indexes,
+						shapes: []
 					}
+				}
+			}
+			// Is a Object definition
+			else if (record) {
+				schemas[name] = {
+					handle: name,
+					label: args.label || name,
+					description: args.description || '',
+					fields: fields.concat([{
+						handle: 'id',
+						type: 'text',
+						field: 'text',
+						required: true
+					}]),
+					indexes,
+					shapes: []
+				};
+				if (typeof temps[name] !== 'undefined') {
+					schemas[name] = extendSchema(schemas[name], temps[name]);
+				}
+			}
+			// Remember this definition
+			else {
+				temps[name] = {
+					handle: name,
+					label: args.label || name,
+					description: args.description || '',
+					fields,
+					indexes,
+					shapes: []
 				}
 			}
 		}
