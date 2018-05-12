@@ -418,22 +418,22 @@ export class SQLiteDriver extends Driver {
 }
 
 function collectionToSQL(collection: Collection): string {
-	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
+	return `"${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}"`;
 }
 
 function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
-		return `${field.alias ? `${field.alias}.` : ''}${field.name}`;
+		return `"${field.alias ? `${field.alias}.` : ''}${field.name}"`;
 	}
 	else if (field instanceof FieldAs) {
 		if (field.field instanceof Function) {
-			return `${fnToSQL(field.field, params, variables)} AS ${field.alias}`;
+			return `"${fnToSQL(field.field, params, variables)}" AS "${field.alias}"`;
 		} else {
-			return `${field.field.toString()} AS ${field.alias}`;
+			return `"${field.field.toString()}" AS "${field.alias}"`;
 		}
 	}
 	else {
-		return `${field.field.toString()} ${field.direction.toUpperCase() || 'ASC'}`;
+		return `"${field.field.toString()}" ${field.direction.toUpperCase() || 'ASC'}`;
 	}
 }
 
@@ -730,7 +730,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 		sql += ` (${columns.map<string>(col => {
 			if (col !== undefined) {
 				const defaultValue = col.defaultValue;
-				let def = `${col.name} ${columnType(col.type)}`;
+				let def = `"${col.name}" ${columnType(col.type)}`;
 				if (col.name === autoColName) {
 					def += ` PRIMARY KEY AUTOINCREMENT`;
 				}
