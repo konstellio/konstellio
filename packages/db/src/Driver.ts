@@ -25,5 +25,5 @@ export abstract class Driver {
 	abstract execute(query: Query.QueryDropCollection): Promise<Result.QueryDropCollectionResult>;
 
 
-	abstract compareTypes(a: Query.ColumnType, b: Query.ColumnType): Compare;
+	abstract compareTypes(aType: Query.ColumnType, aSize: number, bType: Query.ColumnType, bSize: number): Compare;
 }

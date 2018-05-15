@@ -46,7 +46,8 @@ import {
 	ChangeDropColumn,
 	ChangeAddIndex,
 	ChangeDropIndex,	
-	ComparisonIn
+	ComparisonIn,
+	Change
 } from '../Query';
 import { List } from 'immutable';
 import { join } from 'path';
@@ -166,8 +167,8 @@ export class SQLiteDriver extends Driver {
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
-	compareTypes(a: ColumnType, b: ColumnType): Compare {
-		if (columnType(a) === columnType(b)) {
+	compareTypes(aType: ColumnType, aSize: number, bType: ColumnType, bSize: number): Compare {
+		if (columnType(aType) === columnType(bType)) {
 			return Compare.Castable;
 		}
 		return Compare.Different;
@@ -320,10 +321,11 @@ export class SQLiteDriver extends Driver {
 			throw new Error(`Expected QueryAlterCollection to be from a collection.`);
 		}
 
-		const changes = query.changes;
-		if (!changes) {
+		if (!query.changes && !query.renamed) {
 			throw new Error(`Expected QueryAlterCollection to contains at least 1 change.`);
 		}
+		
+		const changes = List<Change>(query.changes || []);
 
 		const description = await this.executeDescribeCollection(q.describeCollection(collection));
 
@@ -371,7 +373,7 @@ export class SQLiteDriver extends Driver {
 		);
 
 		await this.executeCreateCollection(create);
-		await runQuery(this, `INSERT INTO ${tmpTable} (${insertColumns.map(col => col.target).join(', ')}) SELECT ${insertColumns.map(col => col.source).join(', ')} FROM ${collectionToSQL(collection)}`, []);
+		await runQuery(this, `INSERT INTO ${tmpTable} (${insertColumns.map(col => `"${col.target}"`).join(', ')}) SELECT ${insertColumns.map(col => `"${col.source}"`).join(', ')} FROM ${collectionToSQL(collection)}`, []);
 		await runQuery(this, `DROP TABLE ${collectionToSQL(collection)}`, []);
 		await runQuery(this, `ALTER TABLE ${tmpTable} RENAME TO ${collectionToSQL(finalCollection)}`, []);
 
@@ -379,11 +381,19 @@ export class SQLiteDriver extends Driver {
 			return changes.findIndex(c => c !== undefined && (index.type === IndexType.Primary || (c.type === 'dropIndex' && c.index === index.name))) === -1;
 		});
 
+		const renamedIndexes = query.renamed
+			? existingIndexes.map(index => new Index(
+				index.name.replace(`${collectionToString(collection)}_`, `${collectionToString(finalCollection)}_`),
+				index.type,
+				index.columns
+			))
+			: existingIndexes;
+
 		const newIndexes = changes.filter(change => {
 			return change !== undefined && change.type === 'addIndex';
 		}).map((change: ChangeAddIndex) => change.index).toArray();
 
-		await Promise.all(existingIndexes.concat(newIndexes).map(index => runQuery(this, indexToSQL(finalCollection, index))));
+		await Promise.all(renamedIndexes.concat(newIndexes).map(index => runQuery(this, indexToSQL(finalCollection, index))));
 
 		return new QueryAlterCollectionResult(true);
 	}
@@ -417,8 +427,12 @@ export class SQLiteDriver extends Driver {
 	}
 }
 
+function collectionToString(collection: Collection): string {
+	return `${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}`;
+}
+
 function collectionToSQL(collection: Collection): string {
-	return `"${collection.namespace ? `${collection.namespace}_` : ''}${collection.name}"`;
+	return `"${collectionToString(collection)}"`;
 }
 
 function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
@@ -535,12 +549,12 @@ function indexToSQL(collection: Collection, index: Index): string {
 	if (index.type === IndexType.Unique) {
 		def += `UNIQUE `;
 	}
-	def += `INDEX ${index.name} ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? col.toString() : '').join(', ')})`;
+	def += `INDEX ${index.name} ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? fieldToSQL(col, []) : '').join(', ')})`;
 
 	return def;
 }
 
-function columnType(type?: ColumnType) {
+function columnType(type: ColumnType) {
 	switch (type) {
 		case ColumnType.Bit:
 		case ColumnType.Boolean:
