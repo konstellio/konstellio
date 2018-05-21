@@ -8,14 +8,12 @@ export interface Node {
 	isDirectory: boolean
 }
 
-export interface IDirectory<F extends File<any, D>, D extends Directory<F, any>> {
-	file(path: string): F
-	directory(path: string): D
-}
-
 export class Stats {
 
 	public constructor(
+		public readonly isFile: boolean,
+		public readonly isDirectory: boolean,
+		public readonly isSymbolicLink: boolean,
 		public readonly size: number,
 		public readonly atime: Date,
 		public readonly mtime: Date,
@@ -26,7 +24,7 @@ export class Stats {
 
 }
 
-export abstract class Driver<F extends File<any, D> = File<any, D>, D extends Directory<F, any> = Directory<F, any>> implements IDirectory<F, D>, IDisposableAsync {
+export abstract class Driver<F extends File = File, D extends Directory = Directory> implements IDisposableAsync {
 
 	constructor(
 		protected readonly fileConstructor: new (driver: Driver<F, D>, path: string) => F,
@@ -47,7 +45,7 @@ export abstract class Driver<F extends File<any, D> = File<any, D>, D extends Di
 	abstract disposeAsync(): Promise<void>
 }
 
-export abstract class File<F extends File<any, D>, D extends Directory<F, any>> implements Node, IDisposableAsync {
+export abstract class File<F extends File<any, D> = File<any, any>, D extends Directory<F, any> = Directory<any, any>> implements Node, IDisposableAsync {
 
 	constructor(
 		protected readonly driver: Driver<F, D>,
@@ -78,7 +76,7 @@ export abstract class File<F extends File<any, D>, D extends Directory<F, any>> 
 	abstract createWriteStream(): WriteStream
 }
 
-export abstract class Directory<F extends File<any, D>, D extends Directory<F, any>> implements Node, IDirectory<F, D>, IDisposableAsync {
+export abstract class Directory<F extends File<any, D> = File<any, any>, D extends Directory<F, any> = Directory<any, any>> implements Node, IDisposableAsync {
 
 	constructor(
 		protected readonly driver: Driver<F, D>,
