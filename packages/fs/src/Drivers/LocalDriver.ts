@@ -1,118 +1,43 @@
-import { exists, unlink, lstat, mkdir, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir } from 'fs';
-import { join, normalize, basename, dirname, sep } from 'path';
-import { Driver, File, Directory, Stats } from '../Driver';
+import { exists, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir, writeFile } from 'fs';
+import * as mkdirp from 'mkdirp';
+import { join, normalize, basename, dirname, sep, relative } from 'path';
+import { Driver, Stats } from '../Driver';
 
-export class LocalDriver extends Driver<LocalFile, LocalDirectory> {
-	protected disposed: boolean
+const ZeroBuffer = new Buffer(0);
 
-	public constructor(
-		public readonly rootDirectory: string,
-		public readonly directoryMode = 0o777,
-		public readonly fileMode = 0o644,
-		public readonly encoding = 'utf8'
-	) {
-		super(LocalFile, LocalDirectory);
-		this.rootDirectory = normalize(this.rootDirectory);
-		this.disposed = false;
-	}
+export class LocalDriver extends Driver {
 
-	isDisposed(): boolean {
-		return this.disposed;
-	}
-
-	disposeAsync(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (this.disposed === false) {
-				this.rootDirectory! = undefined!;
-				this.disposed = true;
-			}
-		});
-	}
-}
-
-export class LocalFile extends File<LocalFile, LocalDirectory> {
-	protected disposed: boolean
+	private disposed: boolean;
 
 	constructor(
-		protected readonly driver: LocalDriver,
-		public readonly path: string
+		public readonly rootDirectory: string,
+		public readonly directoryMode = 0o777,
+		public readonly fileMode = 0o644
 	) {
-		super(driver, path);
+		super();
 		this.disposed = false;
-	}
-
-	get realPath(): string {
-		return join(this.driver.rootDirectory, this.path);
 	}
 
 	isDisposed(): boolean {
 		return this.disposed;
 	}
 
-	disposeAsync(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (this.disposed === false) {
-				this.disposed = true;
-			}
-		});
-	}
-
-	exists(): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			exists(this.realPath, exists => resolve(exists));
-		});
-	}
-
-	unlink(): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			unlink(this.realPath, err => {
-				if (err) {
-					return reject(err);
-				}
-				resolve(true);
-			});
-		});
-	}
-
-	copy(destPath: string): Promise<LocalFile> {
-		destPath = normalize(destPath);
-		if (destPath.substr(0, 3) === `..${sep}` || destPath === '..') {
-			throw new RangeError(`Specified destPath is trying to reach out of this filesystem.`);
+	async disposeAsync(): Promise<void> {
+		if (this.disposed === false) {
+			this.disposed = true;
 		}
-		const realPath = join(this.driver.rootDirectory, destPath);
-		return new Promise((resolve, reject) => {
-			copyFile(this.realPath, realPath, err => {
-				if (err) {
-					return reject(err);
-				}
-				resolve(this.driver.file(destPath));
-			});
-		});
 	}
 
-	rename(newPath: string): Promise<LocalFile> {
-		newPath = normalize(newPath);
-		if (newPath.substr(0, 3) === `..${sep}` || newPath === '..') {
-			throw new RangeError(`Specified newPath is trying to reach out of this filesystem.`);
-		}
-		const realPath = join(this.driver.rootDirectory, newPath);
+	stat(path: string): Promise<Stats> {
 		return new Promise((resolve, reject) => {
-			rename(this.realPath, realPath, err => {
-				if (err) {
-					return reject(err);
-				}
-				resolve(this.driver.file(newPath));
-			});
-		});
-	}
-
-	stat(): Promise<Stats> {
-		return new Promise((resolve, reject) => {
-			lstat(this.realPath, (err, stats) => {
+			lstat(join(this.rootDirectory, path), (err, stats) => {
 				if (err) {
 					return reject(err);
 				}
 				resolve(new Stats(
+					stats.isFile(),
+					stats.isDirectory(),
+					stats.isSymbolicLink(),
 					stats.size,
 					stats.atime,
 					stats.mtime,
@@ -122,121 +47,139 @@ export class LocalFile extends File<LocalFile, LocalDirectory> {
 		});
 	}
 
-	createReadStream(): ReadStream {
-		return createReadStream(
-			this.realPath
-		);
+	exists(path: string): Promise<boolean> {
+		return this.stat(path).then(() => true, () => false);
 	}
 
-	createWriteStream(): WriteStream {
-		return createWriteStream(
-			this.realPath,
-			{
-				mode: this.driver.fileMode,
-				encoding: this.driver.encoding,
-				autoClose: true
-			}
-		);
-	}
-}
-
-export class LocalDirectory extends Directory<LocalFile, LocalDirectory> {
-	protected disposed: boolean
-
-	constructor(
-		protected readonly driver: LocalDriver,
-		public readonly path: string
-	) {
-		super(driver, path);
-		this.disposed = false;
-	}
-
-	get realPath(): string {
-		return join(this.driver.rootDirectory, this.path);
-	}
-
-	isDisposed(): boolean {
-		return this.disposed;
-	}
-
-	disposeAsync(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (this.disposed === false) {
-				this.disposed = true;
-			}
-		});
-	}
-
-	exists(): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			exists(this.realPath, exists => resolve(exists));
-		});
-	}
-
-	create(): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			mkdir(
-				this.realPath,
-				this.driver.directoryMode,
-				err => {
+	async unlink(path: string, recursive = false): Promise<void> {
+		const stats = await this.stat(path);
+		if (stats.isFile) {
+			return await new Promise<void>((resolve, reject) => {
+				unlink(join(this.rootDirectory, path), (err) => {
 					if (err) {
 						return reject(err);
 					}
-					resolve(true);
+					return resolve();
+				})
+			})
+		}
+		else if (stats.isDirectory) {
+			const children = await this.readDirectory(path, true);
+			for (const [child, stats] of children) {
+				await this.unlink(join(path, child), true);
+				await new Promise<void>((resolve, reject) => {
+					unlink(join(this.rootDirectory, path), (err) => {
+						if (err) {
+							return reject(err);
+						}
+						return resolve();
+					});
+				});
+			}
+		}
+	}
+
+	async copy(source: string, destination: string): Promise<void> {
+		const stats = await this.stat(source);
+		if (stats.isFile) {
+			return await new Promise<void>((resolve, reject) => {
+				copyFile(
+					join(this.rootDirectory, source),
+					join(this.rootDirectory, destination),
+					(err) => {
+						if (err) {
+							return reject(err);
+						}
+						return resolve();
+					}
+				);
+			});
+		}
+		else if (stats.isDirectory) {
+			debugger;
+		}
+	}
+
+	rename(oldPath: string, newPath: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			rename(
+				join(this.rootDirectory, oldPath),
+				join(this.rootDirectory, newPath),
+				(err) => {
+					if (err) {
+						return reject(err);
+					}
+					return resolve()
 				}
 			);
 		});
 	}
 
-	unlink(): Promise<boolean> {
-		return new Promise((resolve, reject) => {
-			unlink(this.realPath, err => {
+	createReadStream(path: string): ReadStream {
+		return createReadStream(
+			join(this.rootDirectory, path)
+		);
+	}
+
+	createWriteStream(path: string, overwrite?: boolean, encoding?: string): WriteStream {
+		return createWriteStream(
+			join(this.rootDirectory, path),
+			{
+				mode: this.fileMode,
+				encoding: encoding,
+				autoClose: true
+			}
+		);
+	}
+	
+	createFile(path: string, recursive?: boolean): Promise<void> {
+		return new Promise(async (resolve, reject) => {
+			const dirPath = dirname(path);
+			await this.createDirectory(dirPath, recursive);
+
+			writeFile(join(this.rootDirectory, path), ZeroBuffer, (err) => {
 				if (err) {
 					return reject(err);
 				}
-				resolve(true);
+				return resolve();
+			});
+		});
+
+	}
+
+	createDirectory(path: string, recursive?: boolean): Promise<void> {
+		return new Promise((resolve, reject) => {
+			mkdirp(join(this.rootDirectory, path), this.directoryMode, (err) => {
+				if (err) {
+					return reject(err);
+				}
+				return resolve();
 			});
 		});
 	}
 
-	rename(newPath: string): Promise<LocalDirectory> {
-		newPath = normalize(newPath);
-		if (newPath.substr(0, 3) === `..${sep}` || newPath === '..') {
-			throw new RangeError(`Specified newPath is trying to reach out of this filesystem.`);
-		}
-		const realPath = join(this.driver.rootDirectory, newPath);
+	readDirectory(path: string): Promise<string[]>
+	readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		return new Promise((resolve, reject) => {
-			rename(this.realPath, realPath, err => {
+			readdir(join(this.rootDirectory, path), (err, entries) => {
 				if (err) {
-					return reject(err);
+					return reject(err)
 				}
-				resolve(this.driver.directory(newPath));
+				if (stat !== true) {
+					return resolve(entries);
+				}
+
+				Promise.all(entries.map<Promise<Stats>>(entry => {
+					const entryPath = join(path, entry);
+					return this.stat(entryPath);
+				}))
+				.then(
+					(stats) => resolve(entries.map((entry, idx) => [entry, stats[idx]] as [string, Stats])),
+					(err) => reject(err)
+				)
 			});
 		});
 	}
 
-	readdir(): Promise<(LocalFile | LocalDirectory)[]> {
-		return new Promise((resolve, reject) => {
-			readdir(this.realPath, (err, entries) => {
-				if (err) {
-					return reject(err);
-				}
-				const results = entries.map<Promise<LocalFile | LocalDirectory>>(entry => new Promise((resolve, reject) => {
-					const path = join(this.path, entry);
-					const realPath = join(this.realPath, entry);
-					lstat(realPath, (err, stat) => {
-						if (err) {
-							return reject(err);
-						}
-						return resolve(
-							stat.isDirectory()
-								? this.driver.directory(path)
-								: this.driver.file(path)
-						);
-					});
-				}));
-				Promise.all(results).then(resolve).catch(reject);
-			});
-		});
-	}
 }
