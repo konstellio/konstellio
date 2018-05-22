@@ -36,14 +36,6 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	constructor() {
 		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
 
-		// switch (uri.scheme) {
-		// 	case 'local':
-		// 		this.getDriver(uri) = new kfs.LocalDriver(uri.authority);
-		// 		break;
-		// 	default:
-		// 		throw vscode.FileSystemError.Unavailable;
-		// }
-
 		this._drivers = new Map();
 	}
 
@@ -52,7 +44,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 		if (this._drivers.has(hash) === false) {
 			switch (uri.scheme) {
 				case 'kfslocal':
-					this._drivers.set(hash, new kfs.LocalDriver(uri.authority));
+					this._drivers.set(hash, new kfs.LocalDriver(''));
 					break;
 				default:
 					throw vscode.FileSystemError.Unavailable;
