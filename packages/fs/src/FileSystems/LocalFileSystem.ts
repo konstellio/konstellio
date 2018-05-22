@@ -1,11 +1,11 @@
 import { exists, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir, writeFile } from 'fs';
 import * as mkdirp from 'mkdirp';
 import { join, normalize, basename, dirname, sep, relative } from 'path';
-import { Driver, Stats } from '../Driver';
+import { FileSystem, Stats } from '../FileSystem';
 
 const ZeroBuffer = new Buffer(0);
 
-export class LocalDriver extends Driver {
+export class LocalFileSystem extends FileSystem {
 
 	private disposed: boolean;
 

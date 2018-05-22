@@ -1,4 +1,4 @@
-import { Driver, Stats } from './Driver';
+import { FileSystem, Stats } from './FileSystem';
 import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
@@ -6,13 +6,13 @@ should();
 import { Readable, Writable } from 'stream';
 import { ReadStream, WriteStream } from 'fs';
 
-export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
+export function driverShouldBehaveLikeAFileSystem (fs: FileSystem) {
 	it('can stat a file', async () => {
-		const stats = await driver.stat('Griffin/Peter.txt');
+		const stats = await fs.stat('Griffin/Peter.txt');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read file', async () => {
-		const stream = driver.createReadStream('Griffin/Peter.txt');
+		const stream = fs.createReadStream('Griffin/Peter.txt');
 		expect(stream).to.be.an.instanceof(ReadStream);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {
@@ -26,7 +26,7 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 		expect(data.toString('utf8')).to.equal('Peter Griffin');
 	});
 	it('can write file', async () => {
-		const writeStream = driver.createWriteStream('Griffin/Christ.txt');
+		const writeStream = fs.createWriteStream('Griffin/Christ.txt');
 		expect(writeStream).to.be.an.instanceof(WriteStream);
 
 		await new Promise<void>((resolve, reject) => {
@@ -36,7 +36,7 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 			});
 		});
 
-		const readStream = driver.createReadStream('Griffin/Christ.txt');
+		const readStream = fs.createReadStream('Griffin/Christ.txt');
 		expect(readStream).to.be.an.instanceof(ReadStream);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {
@@ -50,24 +50,24 @@ export function driverShouldBehaveLikeAFileSystem (driver: Driver) {
 		expect(data.toString('utf8')).to.equal('Christ Griffin');
 	});
 	it('can rename file', async () => {
-		await driver.createFile('Griffin/Christ.txt');
-		await driver.rename('Griffin/Christ.txt', 'Griffin/Christ2.txt');
+		await fs.createFile('Griffin/Christ.txt');
+		await fs.rename('Griffin/Christ.txt', 'Griffin/Christ2.txt');
 
-		const exists = await driver.exists('Griffin/Christ.txt');
+		const exists = await fs.exists('Griffin/Christ.txt');
 		expect(exists).to.equal(false);
 	});
 	it('can copy file', async () => {
-		await driver.copy('Griffin/Peter.txt', 'Griffin/Peter2.txt');
+		await fs.copy('Griffin/Peter.txt', 'Griffin/Peter2.txt');
 
-		const exists = await driver.exists('Griffin/Peter.txt');
+		const exists = await fs.exists('Griffin/Peter.txt');
 		expect(exists).to.equal(true);
 	});
 	it('can stat a directory', async () => {
-		const stats = await driver.stat('Griffin');
+		const stats = await fs.stat('Griffin');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read a directory', async () => {
-		const children = await driver.readDirectory('Griffin');
+		const children = await fs.readDirectory('Griffin');
 		expect(children).to.deep.equal([
 			'Christ2.txt',
 			'Lois.txt',

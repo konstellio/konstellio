@@ -18,7 +18,7 @@ export class Stats {
 
 }
 
-export abstract class Driver implements IDisposableAsync {
+export abstract class FileSystem implements IDisposableAsync {
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
 	abstract stat(path: string): Promise<Stats>
