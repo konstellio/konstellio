@@ -4,8 +4,6 @@ import * as mkdirp from 'mkdirp';
 import { join, normalize, basename, dirname, sep, relative } from 'path';
 import { FileSystem, Stats } from '../FileSystem';
 
-const ZeroBuffer = new Buffer(0);
-
 export class LocalFileSystem extends FileSystem {
 
 	private disposed: boolean;
@@ -131,21 +129,6 @@ export class LocalFileSystem extends FileSystem {
 				autoClose: true
 			}
 		);
-	}
-	
-	createFile(path: string, recursive?: boolean): Promise<void> {
-		return new Promise(async (resolve, reject) => {
-			const dirPath = dirname(path);
-			await this.createDirectory(dirPath, recursive);
-
-			writeFile(join(this.rootDirectory, path), ZeroBuffer, (err) => {
-				if (err) {
-					return reject(err);
-				}
-				return resolve();
-			});
-		});
-
 	}
 
 	createDirectory(path: string, recursive?: boolean): Promise<void> {

@@ -19,6 +19,8 @@ export class Stats {
 
 }
 
+const ZeroBuffer = new Buffer(0);
+
 export abstract class FileSystem implements IDisposableAsync {
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
@@ -29,7 +31,16 @@ export abstract class FileSystem implements IDisposableAsync {
 	abstract rename(oldPath: string, newPath: string): Promise<void>
 	abstract readDirectory(path: string): Promise<string[]>
 	abstract readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
-	abstract createFile(path: string, recursive?: boolean): Promise<void>
+
+	createEmptyFile(path: string): Promise<void> {
+		return this.createWriteStream(path)
+		.then((stream) => new Promise<void>((resolve, reject) => {
+			stream.on('error', (err) => reject(err));
+			stream.on('end', () => setTimeout(() => resolve(), 100));
+			stream.end(ZeroBuffer);
+		}));
+	}
+
 	abstract createDirectory(path: string, recursive?: boolean): Promise<void>
 	abstract createReadStream(path: string): Promise<Readable>
 	abstract createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable>

@@ -50,7 +50,7 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 		expect(data.toString('utf8')).to.equal('Christ Griffin');
 	});
 	it('can rename file', async () => {
-		await fs.createFile('Griffin/Christ.txt');
+		await fs.createEmptyFile('Griffin/Christ.txt');
 		await fs.rename('Griffin/Christ.txt', 'Griffin/Christ2.txt');
 
 		const exists = await fs.exists('Griffin/Christ.txt');
