@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import * as kfs from '@konstellio/fs';
 import { dirname } from 'path';
+import { FTPFileSystem } from '@konstellio/fs';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -20,8 +21,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// }
 
 	const provider = new KonstellioFileSystemProvider();
-	const disposable = vscode.workspace.registerFileSystemProvider('kfslocal', provider, { isCaseSensitive: process.platform === 'linux' });
-	context.subscriptions.push(disposable);
+	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kfslocal', provider, { isCaseSensitive: process.platform === 'linux' }));
+	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kfsftp', provider, { isCaseSensitive: true }));
 }
 
 // this method is called when your extension is deactivated
@@ -31,7 +32,7 @@ export function deactivate() {
 class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 
 	private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
-	private _drivers: Map<string, kfs.Driver>;
+	private _drivers: Map<string, kfs.FileSystem>;
 
 	constructor() {
 		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -39,12 +40,17 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 		this._drivers = new Map();
 	}
 
-	getDriver(uri: vscode.Uri): kfs.Driver {
-		const hash = uri.authority;
+	getDriver(uri: vscode.Uri): kfs.FileSystem {
+		const hash = uri.scheme + uri.authority;
 		if (this._drivers.has(hash) === false) {
 			switch (uri.scheme) {
 				case 'kfslocal':
-					this._drivers.set(hash, new kfs.LocalDriver(''));
+					this._drivers.set(hash, new kfs.LocalFileSystem(''));
+					break;
+				case 'kfsftp':
+					this._drivers.set(hash, new FTPFileSystem({
+						// ...
+					}));
 					break;
 				default:
 					throw vscode.FileSystemError.Unavailable;
@@ -64,7 +70,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
 		const driver = this.getDriver(uri);
 		try {
-			const stats = await driver.stat(uri.fsPath);
+			const stats = await driver.stat(uri.path);
 			return new FileStat(stats);
 		}
 		catch (err) {
@@ -74,12 +80,12 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
 		const driver = this.getDriver(uri);
-		const exists = await driver.exists(uri.fsPath);
+		const exists = await driver.exists(uri.path);
 		if (exists === false) {
 			throw vscode.FileSystemError.FileNotFound;
 		}
 
-		const children = await driver.readDirectory(uri.fsPath, true);
+		const children = await driver.readDirectory(uri.path, true);
 		const results = children.map(([path, stats]) => [
 			path,
 			stats.isFile
@@ -93,22 +99,22 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	}
 
 	async createDirectory(uri: vscode.Uri): Promise<void> {
-		await this.getDriver(uri).createDirectory(uri.fsPath, true);
+		await this.getDriver(uri).createDirectory(uri.path, true);
 	}
 
 	async readFile(uri: vscode.Uri): Promise<Uint8Array> {
 		const driver = this.getDriver(uri);
 
-		const exists = await driver.exists(uri.fsPath);
+		const exists = await driver.exists(uri.path);
 		if (exists === false) {
 			throw vscode.FileSystemError.FileNotFound;
 		}
 
-		const stats = await driver.stat(uri.fsPath);
+		const stats = await driver.stat(uri.path);
 		if (stats.isFile !== true) {
 			throw vscode.FileSystemError.FileNotADirectory();
 		}
-		const readStream = await driver.createReadStream(uri.fsPath);
+		const readStream = await driver.createReadStream(uri.path);
 		const data = await new Promise<Buffer>((resolve, reject) => {
 			const chunks: Buffer[] = [];
 			readStream.on('error', (err: Error) => reject(err));
@@ -121,20 +127,20 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): Promise<void> {
 		const driver = this.getDriver(uri);
 
-		const exists = await driver.exists(uri.fsPath);
+		const exists = await driver.exists(uri.path);
 		if (exists === false) {
 			if (options.create === false) {
 				throw vscode.FileSystemError.FileNotFound();
 			}
 
-			await driver.createDirectory(dirname(uri.fsPath));
+			await driver.createDirectory(dirname(uri.path));
 		} else {
 			if (options.overwrite === false) {
 				throw vscode.FileSystemError.FileExists();
 			}
 		}
 
-		const writeStream = await driver.createWriteStream(uri.fsPath, options.overwrite);
+		const writeStream = await driver.createWriteStream(uri.path, options.overwrite);
 
 		await new Promise<void>((resolve, reject) => {
 			writeStream.end(content, (err: Error) => {
@@ -149,18 +155,18 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	async delete(uri: vscode.Uri, options: { recursive: boolean }): Promise<void> {
 		const driver = this.getDriver(uri);
 
-		const exists = await driver.exists(uri.fsPath);
+		const exists = await driver.exists(uri.path);
 		if (exists === false) {
 			throw vscode.FileSystemError.FileNotFound;
 		}
 		
-		await driver.unlink(uri.fsPath, options.recursive);
+		await driver.unlink(uri.path, options.recursive);
 	}
 
 	async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
 		const driver = this.getDriver(oldUri);
 
-		const exists = await driver.exists(newUri.fsPath);
+		const exists = await driver.exists(newUri.path);
 		if (exists === true) {
 			if (options.overwrite === false) {
 				throw vscode.FileSystemError.FileExists();
@@ -170,18 +176,18 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 			}
 		}
 
-		const parentExists = await driver.exists(dirname(newUri.fsPath));
+		const parentExists = await driver.exists(dirname(newUri.path));
 		if (parentExists === false) {
-			await this.createDirectory(newUri.with({ path: dirname(newUri.fsPath) }));
+			await this.createDirectory(newUri.with({ path: dirname(newUri.path) }));
 		}
 
-		await driver.rename(oldUri.fsPath, newUri.fsPath);
+		await driver.rename(oldUri.path, newUri.path);
 	}
 
 	async copy(source: vscode.Uri, destination: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
 		const driver = this.getDriver(source);
 
-		const exists = await driver.exists(destination.fsPath);
+		const exists = await driver.exists(destination.path);
 		if (exists === true) {
 			if (options.overwrite === false) {
 				throw vscode.FileSystemError.FileExists();
@@ -191,12 +197,12 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 			}
 		}
 
-		const parentExists = await driver.exists(dirname(destination.fsPath));
+		const parentExists = await driver.exists(dirname(destination.path));
 		if (parentExists === false) {
-			await this.createDirectory(destination.with({ path: dirname(destination.fsPath) }));
+			await this.createDirectory(destination.with({ path: dirname(destination.path) }));
 		}
 
-		await driver.copy(source.fsPath, destination.fsPath);
+		await driver.copy(source.path, destination.path);
 	}
 
 }
