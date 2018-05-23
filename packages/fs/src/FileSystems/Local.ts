@@ -1,4 +1,5 @@
-import { exists, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, ReadStream, WriteStream, readdir, writeFile } from 'fs';
+import { exists, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, readdir, writeFile } from 'fs';
+import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
 import { join, normalize, basename, dirname, sep, relative } from 'path';
 import { FileSystem, Stats } from '../FileSystem';
@@ -68,7 +69,7 @@ export class LocalFileSystem extends FileSystem {
 			for (const [child, stats] of children) {
 				await this.unlink(join(path, child), true);
 				await new Promise<void>((resolve, reject) => {
-					unlink(join(this.rootDirectory, path), (err) => {
+					unlink(join(path, child), (err) => {
 						if (err) {
 							return reject(err);
 						}
@@ -115,13 +116,13 @@ export class LocalFileSystem extends FileSystem {
 		});
 	}
 
-	createReadStream(path: string): ReadStream {
+	async createReadStream(path: string): Promise<Readable> {
 		return createReadStream(
 			join(this.rootDirectory, path)
 		);
 	}
 
-	createWriteStream(path: string, overwrite?: boolean, encoding?: string): WriteStream {
+	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
 		return createWriteStream(
 			join(this.rootDirectory, path),
 			{

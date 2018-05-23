@@ -1,6 +1,7 @@
 import { IDisposableAsync } from '@konstellio/disposable';
 import { ReadStream, WriteStream } from "fs";
 import { join, normalize, basename, dirname, sep } from 'path';
+import { Readable, Writable } from 'stream';
 
 export class Stats {
 
@@ -30,6 +31,6 @@ export abstract class FileSystem implements IDisposableAsync {
 	abstract readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
 	abstract createFile(path: string, recursive?: boolean): Promise<void>
 	abstract createDirectory(path: string, recursive?: boolean): Promise<void>
-	abstract createReadStream(path: string): ReadStream
-	abstract createWriteStream(path: string, overwrite?: boolean, encoding?: string): WriteStream
+	abstract createReadStream(path: string): Promise<Readable>
+	abstract createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable>
 }

@@ -1,1 +1,2 @@
-export * from './LocalFileSystem';
+export * from './Local';
+export * from './FTP';

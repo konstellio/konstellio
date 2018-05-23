@@ -6,13 +6,13 @@ should();
 import { Readable, Writable } from 'stream';
 import { ReadStream, WriteStream } from 'fs';
 
-export function driverShouldBehaveLikeAFileSystem (fs: FileSystem) {
+export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 	it('can stat a file', async () => {
 		const stats = await fs.stat('Griffin/Peter.txt');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read file', async () => {
-		const stream = fs.createReadStream('Griffin/Peter.txt');
+		const stream = await fs.createReadStream('Griffin/Peter.txt');
 		expect(stream).to.be.an.instanceof(ReadStream);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {
@@ -26,7 +26,7 @@ export function driverShouldBehaveLikeAFileSystem (fs: FileSystem) {
 		expect(data.toString('utf8')).to.equal('Peter Griffin');
 	});
 	it('can write file', async () => {
-		const writeStream = fs.createWriteStream('Griffin/Christ.txt');
+		const writeStream = await fs.createWriteStream('Griffin/Christ.txt');
 		expect(writeStream).to.be.an.instanceof(WriteStream);
 
 		await new Promise<void>((resolve, reject) => {
@@ -36,7 +36,7 @@ export function driverShouldBehaveLikeAFileSystem (fs: FileSystem) {
 			});
 		});
 
-		const readStream = fs.createReadStream('Griffin/Christ.txt');
+		const readStream = await fs.createReadStream('Griffin/Christ.txt');
 		expect(readStream).to.be.an.instanceof(ReadStream);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {

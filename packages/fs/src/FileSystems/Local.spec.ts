@@ -2,16 +2,16 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { LocalFileSystem } from './LocalFileSystem';
+import { LocalFileSystem } from './Local';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { driverShouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
 
 describe('Local', () => {
 
 	const tmp = mkdtempSync(join(tmpdir(), 'konstellio-'));
-	const driver: LocalFileSystem = new LocalFileSystem(tmp);
+	const fs = new LocalFileSystem(tmp);
 
 	before(() => {
 		mkdirSync(join(tmp, 'Griffin'));
@@ -20,6 +20,6 @@ describe('Local', () => {
 		writeFileSync(join(tmp, 'Griffin/Stewie.txt'), 'Stewie Griffin');
 	});
 	
-	driverShouldBehaveLikeAFileSystem(driver);
+	shouldBehaveLikeAFileSystem(fs);
 
 })
