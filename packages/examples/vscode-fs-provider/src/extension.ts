@@ -21,8 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// }
 
 	const provider = new KonstellioFileSystemProvider();
-	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kfslocal', provider, { isCaseSensitive: process.platform === 'linux' }));
-	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kfsftp', provider, { isCaseSensitive: true }));
+	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('ftp', provider, { isCaseSensitive: true }));
 }
 
 // this method is called when your extension is deactivated
@@ -44,10 +43,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 		const hash = uri.scheme + uri.authority;
 		if (this._drivers.has(hash) === false) {
 			switch (uri.scheme) {
-				case 'kfslocal':
-					this._drivers.set(hash, new kfs.LocalFileSystem(''));
-					break;
-				case 'kfsftp':
+				case 'ftp':
 					this._drivers.set(hash, new FTPFileSystem({
 						// ...
 					}));

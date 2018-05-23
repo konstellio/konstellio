@@ -11,8 +11,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onFileSystem:kfslocal",
-        "onFileSystem:kfsftp"
+        "onFileSystem:ftp"
     ],
     "main": "./out/extension",
     "contributes": {
