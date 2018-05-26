@@ -3,6 +3,7 @@ import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
 import { join, normalize, basename, dirname, sep, relative } from 'path';
 import { FileSystem, Stats } from '../FileSystem';
+import { FileAlreadyExists, FileNotFound } from '../Errors';
 
 export class LocalFileSystem extends FileSystem {
 
@@ -115,12 +116,23 @@ export class LocalFileSystem extends FileSystem {
 	}
 
 	async createReadStream(path: string): Promise<Readable> {
+		const exists = await this.exists(path);
+		if (exists === false) {
+			throw new FileNotFound();
+		}
+		
 		return createReadStream(
 			join(this.rootDirectory, path)
 		);
 	}
 
 	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+		const exists = await this.exists(path);
+		if (exists) {
+			if (overwrite !== true) {
+				throw new FileAlreadyExists();
+			}
+		}
 		return createWriteStream(
 			join(this.rootDirectory, path),
 			{

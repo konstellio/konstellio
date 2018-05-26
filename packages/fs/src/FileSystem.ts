@@ -43,5 +43,5 @@ export abstract class FileSystem implements IDisposableAsync {
 
 	abstract createDirectory(path: string, recursive?: boolean): Promise<void>
 	abstract createReadStream(path: string): Promise<Readable>
-	abstract createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable>
+	abstract createWriteStream(path: string, overwrite?: boolean): Promise<Writable>
 }
