@@ -28,7 +28,6 @@ export enum SFTPConnectionState {
 }
 
 export interface SFTPFileSystemOptions extends ConnectConfig {
-	
 }
 
 export class SFTPFileSystem extends FileSystemQueued {
@@ -66,13 +65,11 @@ export class SFTPFileSystem extends FileSystemQueued {
 							return;
 						}
 
-						// TODO: SUDO ?
-
 						this.connectionState = SFTPConnectionState.Ready;
 						this.sftp = sftp;
 
-						this.connection!.emit('sftp', this.sftp);
-					})
+						this.connection!.emit('sftpready');
+					});
 				});
 			}
 
@@ -81,11 +78,11 @@ export class SFTPFileSystem extends FileSystemQueued {
 				resolve([this.connection!, this.sftp!]);
 			};
 			const onError = (err) => {
-				this.connection!.removeListener('sftp', onReady);
+				this.connection!.removeListener('sftpready', onReady);
 				reject(err);
 			}
 
-			this.connection!.once('sftp', onReady);
+			this.connection!.once('sftpready', onReady);
 			this.connection!.once('error', onError);
 
 			if (this.connectionState !== SFTPConnectionState.Connecting) {

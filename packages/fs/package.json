@@ -42,6 +42,7 @@
     "ssh2": "^0.6.1"
   },
   "dependencies": {
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "parse-listing": "^1.1.3"
   }
 }
