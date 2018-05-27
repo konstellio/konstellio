@@ -10,7 +10,7 @@ import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
 
 describe('Local', () => {
 
-	const tmp = mkdtempSync(join(tmpdir(), 'konstellio-'));
+	const tmp = mkdtempSync(join(tmpdir(), 'konstellio-local-'));
 	const fs = new LocalFileSystem(tmp);
 
 	before(() => {

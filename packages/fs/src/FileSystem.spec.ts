@@ -5,15 +5,28 @@ use(require("chai-as-promised"));
 should();
 import { Readable, Writable } from 'stream';
 import { ReadStream, WriteStream } from 'fs';
+import { OperationNotSupported } from './Errors';
 
 export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
+	it('can stat a directory', async () => {
+		const stats = await fs.stat('Griffin');
+		expect(stats).to.be.an.instanceof(Stats);
+	});
+	it('can read a directory', async () => {
+		const children = await fs.readDirectory('Griffin');
+		expect(children).to.deep.equal([
+			'Lois.txt',
+			'Peter.txt',
+			'Stewie.txt'
+		]);
+	}).timeout(10000);
 	it('can stat a file', async () => {
 		const stats = await fs.stat('Griffin/Peter.txt');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read file', async () => {
 		const stream = await fs.createReadStream('Griffin/Peter.txt');
-		expect(stream).to.be.an.instanceof(ReadStream);
+		expect(stream).to.be.an.instanceof(Readable);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {
 			const chunks: Buffer[] = [];
@@ -24,10 +37,10 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 
 		expect(data).to.be.an.instanceOf(Buffer);
 		expect(data.toString('utf8')).to.equal('Peter Griffin');
-	});
+	}).timeout(10000);
 	it('can write file', async () => {
 		const writeStream = await fs.createWriteStream('Griffin/Christ.txt');
-		expect(writeStream).to.be.an.instanceof(WriteStream);
+		expect(writeStream).to.be.an.instanceof(Writable);
 
 		await new Promise<void>((resolve, reject) => {
 			writeStream.end(Buffer.from('Christ Griffin'), (err) => {
@@ -37,7 +50,7 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 		});
 
 		const readStream = await fs.createReadStream('Griffin/Christ.txt');
-		expect(readStream).to.be.an.instanceof(ReadStream);
+		expect(readStream).to.be.an.instanceof(Readable);
 
 		const data = await new Promise<Buffer>((resolve, reject) => {
 			const chunks: Buffer[] = [];
@@ -48,32 +61,22 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 
 		expect(data).to.be.an.instanceOf(Buffer);
 		expect(data.toString('utf8')).to.equal('Christ Griffin');
-	});
+	}).timeout(10000);
 	it('can rename file', async () => {
-		await fs.createEmptyFile('Griffin/Christ.txt');
-		await fs.rename('Griffin/Christ.txt', 'Griffin/Christ2.txt');
+		await fs.rename('Griffin/Peter.txt', 'Griffin/Peter2.txt');
 
-		const exists = await fs.exists('Griffin/Christ.txt');
+		const exists = await fs.exists('Griffin/Peter.txt');
 		expect(exists).to.equal(false);
 	});
 	it('can copy file', async () => {
-		await fs.copy('Griffin/Peter.txt', 'Griffin/Peter2.txt');
+		try {
+			await fs.copy('Griffin/Lois.txt', 'Griffin/Lois2.txt');
 
-		const exists = await fs.exists('Griffin/Peter.txt');
-		expect(exists).to.equal(true);
+			const exists = await fs.exists('Griffin/Lois.txt');
+			expect(exists).to.equal(true);
+		}
+		catch (err) {
+			expect(err).to.be.an.instanceof(OperationNotSupported);
+		}
 	});
-	it('can stat a directory', async () => {
-		const stats = await fs.stat('Griffin');
-		expect(stats).to.be.an.instanceof(Stats);
-	});
-	it('can read a directory', async () => {
-		const children = await fs.readDirectory('Griffin');
-		expect(children).to.deep.equal([
-			'Christ2.txt',
-			'Lois.txt',
-			'Peter.txt',
-			'Peter2.txt',
-			'Stewie.txt'
-		]);
-	}).timeout(10000);
 }
