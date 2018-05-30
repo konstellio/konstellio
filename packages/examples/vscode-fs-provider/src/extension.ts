@@ -43,7 +43,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 	getDriver(uri: vscode.Uri): Promise<kfs.FileSystem> {
 		const hash = `${uri.scheme}://${uri.authority}?${uri.query}#${uri.fragment}`;
 		if (this._drivers.has(hash) === false) {
-			this._drivers.set(hash, new Promise((resolve, _reject) => {
+			this._drivers.set(hash, new Promise(async (resolve, _reject) => {
 				const reject = (reason?: any) => {
 					this._drivers.delete(hash);
 					return _reject(reason);
@@ -56,29 +56,25 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 				let pass: string | undefined = auth.join(':');
 				let passphrase: string | undefined;
 
-				// TODO: resolve with password/passphrase...
+				if (query.promptPassword) {
+					pass = await this.chainShowInputBox({
+						prompt: `Enter password for ${user}@${url.hostname}`,
+						password: true
+					});
+					if (pass === undefined) {
+						return reject(vscode.FileSystemError.Unavailable(`Needs a password.`));
+					}
+				}
 
-				// if (query.promptPassword) {
-				// 	console.log('prompt pass', user);
-				// 	pass = await this.chainShowInputBox({
-				// 		prompt: `Enter password for ${user}@${url.hostname}`
-				// 	});
-				// 	if (pass === undefined) {
-				// 		return reject(vscode.FileSystemError.Unavailable(`Needs a password.`));
-				// 	}
-				// 	console.log('pass', user, pass);
-				// }
-
-				// if (query.promptPassphrase) {
-				// 	console.log('prompt passphrase', user);
-				// 	passphrase = await this.chainShowInputBox({
-				// 		prompt: `Enter passphrase for ${user}@${url.hostname}`
-				// 	});
-				// 	if (passphrase === undefined) {
-				// 		return reject(vscode.FileSystemError.Unavailable(`Needs a passphrase.`));
-				// 	}
-				// 	console.log('passphrase', user, passphrase);
-				// }
+				if (query.promptPassphrase) {
+					passphrase = await this.chainShowInputBox({
+						prompt: `Enter passphrase for ${user}@${url.hostname}`,
+						password: true
+					});
+					if (passphrase === undefined) {
+						return reject(vscode.FileSystemError.Unavailable(`Needs a passphrase.`));
+					}
+				}
 
 				switch (uri.scheme) {
 					case 'ftp':
@@ -118,7 +114,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 							}));
 						}
 					default:
-						return reject(vscode.FileSystemError.Unavailable());
+						return reject(vscode.FileSystemError.Unavailable(uri));
 				}
 			}));
 		}
