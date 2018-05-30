@@ -11,7 +11,9 @@
         "Other"
     ],
     "activationEvents": [
-        "onFileSystem:ftp"
+        "onFileSystem:ftp",
+        "onFileSystem:ftps",
+        "onFileSystem:sftp"
     ],
     "main": "./out/extension",
     "contributes": {
