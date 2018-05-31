@@ -26,6 +26,7 @@ const ZeroBuffer = new Buffer(0);
 export abstract class FileSystem implements IDisposableAsync {
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
+	abstract clone(): FileSystem
 	abstract stat(path: string): Promise<Stats>
 	abstract exists(path: string): Promise<boolean>
 	abstract unlink(path: string, recursive?: boolean): Promise<void>
@@ -93,6 +94,7 @@ export abstract class FileSystemQueued extends FileSystem {
 
 	abstract isDisposed(): boolean
 	abstract disposeAsync(): Promise<void>
+	abstract clone(): FileSystemQueued
 
 	protected async enqueue(cmd: QueuedCommandStat): Promise<Stats>
 	protected async enqueue(cmd: QueuedCommandList): Promise<string[]>

@@ -45,6 +45,10 @@ export class SFTPFileSystem extends FileSystemQueued {
 		this.connectionState = SFTPConnectionState.Closed;
 	}
 
+	clone() {
+		return new SFTPFileSystem(this.options);
+	}
+
 	protected getConnection(): Promise<[Client, SFTPWrapper]> {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === SFTPConnectionState.Disconnecting) {

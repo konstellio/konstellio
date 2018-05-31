@@ -28,6 +28,10 @@ export class LocalFileSystem extends FileSystem {
 		}
 	}
 
+	clone() {
+		return new LocalFileSystem(this.rootDirectory, this.directoryMode, this.fileMode);
+	}
+
 	stat(path: string): Promise<Stats> {
 		return new Promise((resolve, reject) => {
 			lstat(join(this.rootDirectory, path), (err, stats) => {

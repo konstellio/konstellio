@@ -44,6 +44,10 @@ export class FTPFileSystem extends FileSystemQueued {
 		this.connectionState = FTPConnectionState.Closed;
 	}
 
+	clone() {
+		return new FTPFileSystem(this.options);
+	}
+
 	protected getConnection(): Promise<FTPClient> {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === FTPConnectionState.Disconnecting) {

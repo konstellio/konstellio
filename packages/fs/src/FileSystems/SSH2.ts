@@ -46,6 +46,10 @@ export class SSH2FileSystem extends FileSystemQueued {
 		this.connectionState = SSH2ConnectionState.Closed;
 	}
 
+	clone() {
+		return new SSH2FileSystem(this.options);
+	}
+
 	protected getConnection(): Promise<Client> {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === SSH2ConnectionState.Disconnecting) {
