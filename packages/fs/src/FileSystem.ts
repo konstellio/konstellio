@@ -1,3 +1,4 @@
+import * as assert from 'assert';
 import { IDisposableAsync } from '@konstellio/disposable';
 import { ReadStream, WriteStream } from "fs";
 import { join, normalize, basename, dirname, sep } from 'path';
@@ -219,4 +220,81 @@ export abstract class FileSystemQueued extends FileSystem {
 			return this.enqueue({ cmd: 'ls-stat', path });
 		}
 	}
+}
+
+export class FileSystemMirror extends FileSystem {
+
+	private disposed: boolean;
+
+	constructor(protected readonly fss: FileSystem[]) {
+		super();
+		assert(fss.length > 0, `Expected at least one file system.`);
+		this.disposed = false;
+	}
+
+	isDisposed() {
+		return this.disposed;
+	}
+
+	async disposeAsync(): Promise<void> {
+		if (this.isDisposed() === false) {
+			await Promise.all(this.fss.map(fs => fs.disposeAsync()));
+			this.disposed = true;
+		}
+	}
+
+	clone(): FileSystemMirror {
+		return new FileSystemMirror(this.fss);
+	}
+
+	stat(path: string): Promise<Stats> {
+		return this.fss[0].stat(path);
+	}
+
+	exists(path: string): Promise<boolean> {
+		return this.fss[0].exists(path);
+	}
+
+	unlink(path: string, recursive?: boolean): Promise<void> {
+		return Promise.all(this.fss.map(fs => fs.unlink(path, recursive))).then(() => {});
+	}
+
+	copy(source: string, destination: string): Promise<void> {
+		return Promise.all(this.fss.map(fs => fs.copy(source, destination))).then(() => {});
+	}
+
+	rename(oldPath: string, newPath: string): Promise<void> {
+		return Promise.all(this.fss.map(fs => fs.copy(oldPath, newPath))).then(() => {});
+	}
+
+	readDirectory(path: string): Promise<string[]>
+	readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		return this.fss[0].readDirectory(path, stat!);
+	}
+	
+	createDirectory(path: string, recursive?: boolean): Promise<void> {
+		return Promise.all(this.fss.map(fs => fs.createDirectory(path, recursive))).then(() => {});
+	}
+
+	async createReadStream(path: string): Promise<Readable> {
+		return this.fss[0].createReadStream(path);
+	}
+
+	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
+		const stream = new Transform({
+			transform(chunk, encoding, done) {
+				this.push(chunk);
+				done();
+			}
+		});
+
+		for (const fs of this.fss) {
+			const writeStream = await fs.createWriteStream(path, overwrite);
+			stream.pipe(writeStream);
+		}
+
+		return stream;
+	}
+
 }
