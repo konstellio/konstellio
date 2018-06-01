@@ -243,7 +243,7 @@ export class FileSystemMirror extends FileSystem {
 		}
 	}
 
-	clone(): FileSystemMirror {
+	clone() {
 		return new FileSystemMirror(this.fss);
 	}
 
@@ -295,6 +295,48 @@ export class FileSystemMirror extends FileSystem {
 		}
 
 		return stream;
+	}
+
+}
+
+export class FileSystemPool extends FileSystemQueued {
+
+	private disposed: boolean;
+	private pool: FileSystemQueued[];
+
+	constructor(protected readonly fss: FileSystemQueued[]) {
+		super();
+		assert(fss.length > 0, `Expected at least one file system.`);
+		this.disposed = false;
+		this.pool = this.fss.concat();
+	}
+
+	isDisposed() {
+		return this.disposed;
+	}
+
+	async disposeAsync(): Promise<void> {
+		if (this.isDisposed() === false) {
+			await Promise.all(this.fss.map(fs => fs.disposeAsync()));
+			this.disposed = true;
+		}
+	}
+
+	clone() {
+		return new FileSystemPool(this.fss);
+	}
+
+	protected async nextAvailableFS(): Promise<FileSystem> {
+		return this.pool[0];
+	}
+
+	protected async processCommand(cmd: QueuedCommand, resolve: (value?: any) => void | Promise<void>, reject: (reason?: any) => void | Promise<void>, next: () => void | Promise<void>): Promise<void> {
+		const fs = await this.nextAvailableFS();
+
+		switch (cmd.cmd) {
+			case 'stat':
+
+				break;
 	}
 
 }

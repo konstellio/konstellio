@@ -1,7 +1,7 @@
 
 
-export default class Deferred<T> {
-	private readonly promise: Promise<T>;
+export default class Deferred<T = any> {
+	public readonly promise: Promise<T>;
 
 	public readonly resolve: (value?: T | Promise<T>) => void;
 	public readonly reject: (reason?: any) => void
@@ -32,3 +32,43 @@ export default class Deferred<T> {
 		return this.promise.catch(onrejected);
 	}
 }
+
+class Lock {
+	private waiter: Deferred[];
+
+	constructor(private locked = true) {
+		this.waiter = [];
+	}
+
+	lock(): void {
+		this.locked = true;
+	}
+
+	release(): void {
+		for (const waiter of this.waiter) {
+			waiter.resolve();
+		}
+		this.waiter = [];
+	}
+
+	async wait(): Promise<void> {
+		if (this.locked) {
+			const waiter = new Deferred();
+			this.waiter.push(waiter);
+			return waiter.promise;
+		}
+	}
+}
+
+(async () => {
+
+	const l = new Lock();
+
+	console.log('Lock');
+	setTimeout(() => l.release(), 1000);
+
+	await l.wait();
+
+	console.log('release');
+
+});
