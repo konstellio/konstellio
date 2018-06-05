@@ -13,6 +13,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/konstellio/promised.git"
+  },
   "engines": {
     "node": ">=8.9.0"
   },
