@@ -1,5 +1,5 @@
-import { FileSystem, Stats, FileSystemQueued, QueuedCommand } from '../FileSystem';
-import Deferred from '../Deferred';
+import { FileSystem, Stats } from '../FileSystem';
+import { Pool } from '@konstellio/promised';
 import { Client, SFTPWrapper, ConnectConfig } from 'ssh2';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
@@ -27,15 +27,46 @@ export enum SFTPConnectionState {
 	Ready
 }
 
-export interface SFTPFileSystemOptions extends ConnectConfig {
+export interface SFTPFileSystemAlgorithms {
+    kex?: string[];
+    cipher?: string[];
+    serverHostKey?: string[];
+    hmac?: string[];
+    compress?: string[];
 }
 
-export class SFTPFileSystem extends FileSystemQueued {
+export interface SFTPFileSystemOptions {
+    host?: string;
+    port?: number;
+    forceIPv4?: boolean;
+    forceIPv6?: boolean;
+    hostHash?: "md5" | "sha1";
+    hostVerifier?: (keyHash: string) => boolean;
+    username?: string;
+    password?: string;
+    agent?: string;
+    privateKey?: Buffer | string;
+    passphrase?: string;
+    localHostname?: string;
+    localUsername?: string;
+    tryKeyboard?: boolean;
+    keepaliveInterval?: number;
+    keepaliveCountMax?: number;
+    readyTimeout?: number;
+    strictVendor?: boolean;
+    sock?: NodeJS.ReadableStream;
+    agentForward?: boolean;
+    algorithms?: SFTPFileSystemAlgorithms;
+    debug?: (information: string) => any;
+}
+
+export class SFTPFileSystem extends FileSystem {
 
 	private disposed: boolean;
 	protected connection?: Client;
 	protected connectionState: SFTPConnectionState;
 	protected sftp?: SFTPWrapper;
+	private pool: Pool;
 
 	constructor(
 		protected readonly options: SFTPFileSystemOptions
@@ -43,6 +74,7 @@ export class SFTPFileSystem extends FileSystemQueued {
 		super();
 		this.disposed = false;
 		this.connectionState = SFTPConnectionState.Closed;
+		this.pool = new Pool([{}]);
 	}
 
 	clone() {
@@ -96,124 +128,6 @@ export class SFTPFileSystem extends FileSystemQueued {
 		});
 	}
 
-	protected async processCommand(cmd: QueuedCommand, resolve: (value?: any) => void | Promise<void>, reject: (reason?: any) => void | Promise<void>, next: () => void | Promise<void>): Promise<void> {
-
-		const [, sftp] = await this.getConnection();
-
-		switch (cmd.cmd) {
-			case 'stat':
-				sftp.stat(normalizePath(cmd.path), (err, stat) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve(new Stats(
-							stat.isFile(),
-							stat.isDirectory(),
-							stat.isSymbolicLink(),
-							stat.size,
-							new Date(stat.atime),
-							new Date(stat.mtime),
-							new Date(stat.mtime)
-						));
-					}
-					return next();
-				});
-				break;
-			case 'ls':
-			case 'ls-stat':
-				sftp.readdir(normalizePath(cmd.path), (err, entries) => {
-					if (err) {
-						reject(err);
-						return next();
-					}
-
-					entries = entries.filter(entry => entry.filename !== '.' && entry.filename !== '..');
-
-					if (cmd.cmd === 'ls') {
-						resolve(entries.map(entry => entry.filename));
-						return next();
-					}
-
-					resolve(entries.map(entry => [
-						entry.filename,
-						new Stats(
-							(entry.attrs.mode & constants.S_IFREG) > 0,
-							(entry.attrs.mode & constants.S_IFDIR) > 0,
-							(entry.attrs.mode & constants.S_IFLNK) > 0,
-							entry.attrs.size,
-							new Date(entry.attrs.atime),
-							new Date(entry.attrs.mtime),
-							new Date(entry.attrs.mtime)
-						)
-					] as [string, Stats]));
-					return next();
-				});
-				break;
-			case 'rmfile':
-				sftp.unlink(normalizePath(cmd.path), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'rmdir':
-				// TODO: recursive ?
-				sftp.rmdir(normalizePath(cmd.path), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'mkdir':
-				// TODO: recursive ?
-				sftp.mkdir(normalizePath(cmd.path), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'rename':
-				sftp.rename(normalizePath(cmd.oldPath), normalizePath(cmd.newPath), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			// case 'copy':
-			// 	reject(new OperationNotSupported(cmd.cmd));
-			// 	next();
-			// 	break;
-			case 'get':
-				const readStream = sftp.createReadStream(normalizePath(cmd.path));
-				readStream.on('end', next);
-				readStream.on('error', next);
-				resolve(readStream);
-				break;
-			case 'put':
-				const writeStream = cmd.stream.pipe(sftp.createWriteStream(normalizePath(cmd.path)));
-				writeStream.on('finish', next);
-				writeStream.on('error', next);
-				resolve(writeStream);
-				break;
-			default:
-				reject(new OperationNotSupported(cmd.cmd));
-				next();
-				break;
-		}
-	}
-
 	isDisposed(): boolean {
 		return this.disposed;
 	}
@@ -226,9 +140,222 @@ export class SFTPFileSystem extends FileSystemQueued {
 				this.connection!.destroy();
 				(this as any).connection = undefined;
 			}
+			this.pool.dispose();
 			(this as any).queue = undefined;
 			(this as any).queueMap = undefined;
+			(this as any).pool = undefined;
 		}
+	}
+
+	async stat(path: string): Promise<Stats> {
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+
+		return new Promise<Stats>((resolve, reject) => {
+			sftp.stat(normalizePath(path), (err, stat) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve(new Stats(
+						stat.isFile(),
+						stat.isDirectory(),
+						stat.isSymbolicLink(),
+						stat.size,
+						new Date(stat.atime),
+						new Date(stat.mtime),
+						new Date(stat.mtime)
+					));
+				}
+				this.pool.release(token);
+			});
+		});
+	}
+
+	exists(path: string): Promise<boolean> {
+		return this.stat(path).then(() => true, () => false);
+	}
+
+	async unlink(path: string, recursive = false): Promise<void> {
+		const token = await this.pool.acquires();
+		const [conn, sftp] = await this.getConnection();
+		const stats = await this.stat(path);
+		if (stats.isFile) {
+			return new Promise<void>((resolve, reject) => {
+				sftp.unlink(normalizePath(path), (err) => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+					this.pool.release(token);
+				});
+			});
+		}
+		else if (stats.isDirectory) {
+			return new Promise<void>((resolve, reject) => {
+				// if (recursive === true) {
+				// 	return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
+				// 		conn.exec(`rm -fr "${normalizePath(path)}"`, (err, stream) => {
+				// 			if (err) {
+				// 				return reject(err);
+				// 			}
+			
+				// 			const chunks: Buffer[] = [];
+			
+				// 			stream.on('exit', (code, signal) => {
+				// 				resolve([code, signal, Buffer.concat(chunks)]);
+				// 			});
+			
+				// 			stream.on('data', chunk => {
+				// 				chunks.push(chunk);
+				// 			});
+				// 		});
+				// 	}).then(([code, signal, out]) => {
+				// 		// TODO: check error ?
+				// 		this.pool.release(token);
+				// 	});
+				// } else {
+					sftp.rmdir(normalizePath(path), (err) => {
+						if (err) {
+							reject(err);
+						} else {
+							resolve();
+						}
+						this.pool.release(token);
+					});
+				// }
+			})
+		}
+	}
+
+	async copy(source: string, destination: string): Promise<void> {
+		throw new OperationNotSupported('copy');
+		// const token = await this.pool.acquires();
+		// const [conn] = await this.getConnection();
+		// return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
+		// 	conn.exec(`cp -r "${normalizePath(source)}" "${normalizePath(destination)}"`, (err, stream) => {
+		// 		if (err) {
+		// 			return reject(err);
+		// 		}
+
+		// 		const chunks: Buffer[] = [];
+
+		// 		stream.on('exit', (code, signal) => {
+		// 			resolve([code, signal, Buffer.concat(chunks)]);
+		// 		});
+
+		// 		stream.on('data', chunk => {
+		// 			chunks.push(chunk);
+		// 		});
+		// 	});
+		// }).then(([code, signal, out]) => {
+		// 	// TODO: check error ?
+		// 	this.pool.release(token);
+		// });
+	}
+
+	async rename(oldPath: string, newPath: string): Promise<void> {
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+		return new Promise<void>((resolve, reject) => {
+			sftp.rename(normalizePath(oldPath), normalizePath(newPath), (err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+				this.pool.release(token);
+			});
+		});
+	}
+
+	async createReadStream(path: string): Promise<Readable> {
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+		return new Promise<Readable>((resolve, reject) => {
+			const readStream = sftp.createReadStream(normalizePath(path));
+			readStream.on('end', () => this.pool.release(token));
+			readStream.on('error', () => this.pool.release(token));
+			resolve(readStream);
+		});
+	}
+
+	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+		const exists = await this.exists(path);
+		if (exists) {
+			if (overwrite !== true) {
+				throw new FileAlreadyExists();
+			}
+		}
+		
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+		const stream = new Transform({
+			transform(chunk, encoding, done) {
+				this.push(chunk);
+				done();
+			}
+		});
+
+		return new Promise<Writable>((resolve, reject) => {
+			const writeStream = stream.pipe(sftp.createWriteStream(normalizePath(path)));
+			writeStream.on('finish', () => this.pool.release(token));
+			writeStream.on('error', () => this.pool.release(token));
+			resolve(writeStream);
+		});
+	}
+
+	async createDirectory(path: string, recursive?: boolean): Promise<void> {
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+		return new Promise<void>((resolve, reject) => {
+			sftp.mkdir(normalizePath(path), (err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+				this.pool.release(token);
+			});
+		});
+	}
+
+	async readDirectory(path: string): Promise<string[]>
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		const token = await this.pool.acquires();
+		const [, sftp] = await this.getConnection();
+		return new Promise<(string | [string, Stats])[]>((resolve, reject) => {
+			sftp.readdir(normalizePath(path), (err, entries) => {
+				if (err) {
+					reject(err);
+					this.pool.release(token);
+					return;
+				}
+
+				entries = entries.filter(entry => entry.filename !== '.' && entry.filename !== '..');
+
+				if (stat !== true) {
+					resolve(entries.map(entry => entry.filename));
+					this.pool.release(token);
+					return;
+				}
+
+				resolve(entries.map(entry => [
+					entry.filename,
+					new Stats(
+						(entry.attrs.mode & constants.S_IFREG) > 0,
+						(entry.attrs.mode & constants.S_IFDIR) > 0,
+						(entry.attrs.mode & constants.S_IFLNK) > 0,
+						entry.attrs.size,
+						new Date(entry.attrs.atime),
+						new Date(entry.attrs.mtime),
+						new Date(entry.attrs.mtime)
+					)
+				] as [string, Stats]));
+				this.pool.release(token);
+			});
+		});
 	}
 
 }

@@ -1,8 +1,9 @@
-import { FileSystemQueued, Stats, QueuedCommand } from '../FileSystem';
-import Deferred from '../Deferred';
+import { FileSystem, Stats } from '../FileSystem';
+import { Pool } from '@konstellio/promised';
 import * as FTPClient from 'ftp';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
+import { ConnectionOptions } from 'tls';
 import { FileNotFound, OperationNotSupported, FileAlreadyExists } from '../Errors';
 
 function normalizePath(path: string) {
@@ -26,15 +27,25 @@ export enum FTPConnectionState {
 	Ready
 }
 
-export interface FTPFileSystemOptions extends FTPClient.Options {
+export interface FTPFileSystemOptions {
+	host?: string;
+	port?: number;
+	secure?: string | boolean;
+	secureOptions?: ConnectionOptions;
+	user?: string;
+	password?: string;
+	connTimeout?: number;
+	pasvTimeout?: number;
+	keepalive?: number;
 	debug?: (msg: string) => void
 }
 
-export class FTPFileSystem extends FileSystemQueued {
+export class FTPFileSystem extends FileSystem {
 
 	private disposed: boolean;
 	private connection?: FTPClient;
 	private connectionState: FTPConnectionState;
+	private pool: Pool;
 
 	constructor(
 		private readonly options: FTPFileSystemOptions
@@ -42,6 +53,7 @@ export class FTPFileSystem extends FileSystemQueued {
 		super();
 		this.disposed = false;
 		this.connectionState = FTPConnectionState.Closed;
+		this.pool = new Pool([{}]);
 	}
 
 	clone() {
@@ -85,133 +97,6 @@ export class FTPFileSystem extends FileSystemQueued {
 		});
 	}
 
-	protected async processCommand(cmd: QueuedCommand, resolve: (value?: any) => void | Promise<void>, reject: (reason?: any) => void | Promise<void>, next: () => void | Promise<void>): Promise<void> {
-		
-		const conn = await this.getConnection();
-
-		switch (cmd.cmd) {
-			case 'stat':
-				const path = normalizePath(cmd.path);
-				if (path === '/') {
-					resolve(new Stats(false, true, false, 0, new Date(), new Date(), new Date()));
-					return next();
-				}
-				cmd.path = dirname(path);
-				cmd.filename = basename(path);
-			case 'ls':
-			case 'ls-stat':
-				conn.list(normalizePath(cmd.path), (err, entries) => {
-					if (err) {
-						reject(err);
-						return next();
-					}
-
-					entries = entries.filter(entry => entry.name !== '.' && entry.name !== '..');
-
-					if (cmd.cmd === 'stat') {
-						const entry = entries.find(entry => entry.name === cmd.filename);
-						if (entry) {
-							resolve(new Stats(
-								entry.type === '-',
-								entry.type === 'd',
-								entry.type === 'l',
-								parseInt(entry.size),
-								entry.date,
-								entry.date,
-								entry.date
-							));
-						} else {
-							reject(new FileNotFound(cmd.path));
-						}
-						return next();
-					}
-
-					if (cmd.cmd === 'ls') {
-						resolve(entries.map(entry => entry.name));
-						return next();
-					}
-
-					resolve(entries.map(entry => [
-						entry.name,
-						new Stats(
-							entry.type === '-',
-							entry.type === 'd',
-							entry.type === 'l',
-							parseInt(entry.size),
-							entry.date,
-							entry.date,
-							entry.date
-						)
-					] as [string, Stats]));
-					return next();
-				});
-				break;
-			case 'rmfile':
-				conn.delete(normalizePath(cmd.path), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'rmdir':
-				conn.rmdir(normalizePath(cmd.path), cmd.recursive === true, (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'mkdir':
-				conn.mkdir(normalizePath(cmd.path), cmd.recursive === true, (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			case 'rename':
-				conn.rename(normalizePath(cmd.oldPath), normalizePath(cmd.newPath), (err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-					return next();
-				});
-				break;
-			// case 'copy':
-			// 	reject(new OperationNotSupported(cmd.cmd));
-			// 	next();
-			// 	break;
-			case 'get':
-				conn.get(normalizePath(cmd.path), (err, stream) => {
-					if (err) {
-						reject(err);
-						return next();
-					}
-					stream.on('finish', next);
-					stream.on('error', next);
-					resolve(stream);
-				});
-				break;
-			case 'put':
-				conn.put(cmd.stream, normalizePath(cmd.path), next);
-				resolve(cmd.stream);
-				break;
-			default:
-				reject(new OperationNotSupported(cmd.cmd));
-				next();
-				break;
-		}
-	}
-
 	isDisposed(): boolean {
 		return this.disposed;
 	}
@@ -224,9 +109,169 @@ export class FTPFileSystem extends FileSystemQueued {
 				this.connection.destroy();
 				(this as any).connection = undefined;
 			}
+			this.pool.dispose();
 			(this as any).queue = undefined;
 			(this as any).queueMap = undefined;
+			(this as any).pool = undefined;
 		}
+	}
+
+	async stat(path: string): Promise<Stats> {
+		const normalized = normalizePath(path);
+		const filename = basename(path);
+		const entries = await this.readDirectory(dirname(path), true);
+		const entry = entries.find(([name]) => name === filename);
+		if (entry) {
+			return entry[1];
+		}
+		throw new FileNotFound(path);
+	}
+
+	exists(path: string): Promise<boolean> {
+		return this.stat(path).then(() => true, () => false);
+	}
+
+	async unlink(path: string, recursive = false): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const stats = await this.stat(path);
+		if (stats.isFile) {
+			return new Promise<void>((resolve, reject) => {
+				conn.delete(normalizePath(path), (err) => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+					this.pool.release(token);
+				});
+			});
+		}
+		else if (stats.isDirectory) {
+			return new Promise<void>((resolve, reject) => {
+				conn.rmdir(normalizePath(path), recursive, (err) => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+					this.pool.release(token);
+				});
+			})
+		}
+	}
+
+	async copy(source: string, destination: string): Promise<void> {
+		throw new OperationNotSupported('copy');
+	}
+
+	async rename(oldPath: string, newPath: string): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		return new Promise<void>((resolve, reject) => {
+			conn.rename(normalizePath(oldPath), normalizePath(newPath), (err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+				this.pool.release(token);
+			});
+		});
+	}
+
+	async createReadStream(path: string): Promise<Readable> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		return new Promise<Readable>((resolve, reject) => {
+			conn.get(normalizePath(path), (err, stream) => {
+				if (err) {
+					reject(err);
+					this.pool.release(token);
+					return;
+				}
+				stream.on('finish', () => this.pool.release(token));
+				stream.on('error', () => this.pool.release(token));
+				resolve(stream as Readable);
+			});
+		});
+	}
+
+	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+		const exists = await this.exists(path);
+		if (exists) {
+			if (overwrite !== true) {
+				throw new FileAlreadyExists();
+			}
+		}
+
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+
+		const stream = new Transform({
+			transform(chunk, encoding, done) {
+				this.push(chunk);
+				done();
+			}
+		});
+
+		return new Promise<Writable>((resolve, reject) => {
+			conn.put(stream, normalizePath(path), () => this.pool.release(token));
+			resolve(stream);
+		});
+	}
+
+	async createDirectory(path: string, recursive?: boolean): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		return new Promise<void>((resolve, reject) => {
+			conn.mkdir(normalizePath(path), recursive === true, (err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+				this.pool.release(token);
+			});
+		});
+	}
+
+	async readDirectory(path: string): Promise<string[]>
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		return new Promise<(string | [string, Stats])[]>((resolve, reject) => {
+			conn.list(normalizePath(path), (err, entries) => {
+				if (err) {
+					reject(err);
+					this.pool.release(token);
+					return;
+				}
+
+				entries = entries.filter(entry => entry.name !== '.' && entry.name !== '..');
+
+				if (stat !== true) {
+					resolve(entries.map(entry => entry.name));
+					this.pool.release(token);
+					return;
+				}
+
+				resolve(entries.map(entry => [
+					entry.name,
+					new Stats(
+						entry.type === '-',
+						entry.type === 'd',
+						entry.type === 'l',
+						parseInt(entry.size),
+						entry.date,
+						entry.date,
+						entry.date
+					)
+				] as [string, Stats]));
+				this.pool.release(token);
+			});
+		});
 	}
 
 }

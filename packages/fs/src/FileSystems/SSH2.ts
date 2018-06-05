@@ -1,5 +1,5 @@
-import { FileSystem, Stats, FileSystemQueued, QueuedCommand } from '../FileSystem';
-import Deferred from '../Deferred';
+import { FileSystem, Stats } from '../FileSystem';
+import { Pool } from '@konstellio/promised';
 import { Client, ConnectConfig, ClientChannel } from 'ssh2';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
@@ -28,15 +28,46 @@ export enum SSH2ConnectionState {
 	Ready
 }
 
-export interface SSH2FileSystemOptions extends ConnectConfig {
+export interface SSH2FileSystemAlgorithms {
+    kex?: string[];
+    cipher?: string[];
+    serverHostKey?: string[];
+    hmac?: string[];
+    compress?: string[];
+}
+
+export interface SSH2FileSystemOptions {
+    host?: string;
+    port?: number;
+    forceIPv4?: boolean;
+    forceIPv6?: boolean;
+    hostHash?: "md5" | "sha1";
+    hostVerifier?: (keyHash: string) => boolean;
+    username?: string;
+    password?: string;
+    agent?: string;
+    privateKey?: Buffer | string;
+    passphrase?: string;
+    localHostname?: string;
+    localUsername?: string;
+    tryKeyboard?: boolean;
+    keepaliveInterval?: number;
+    keepaliveCountMax?: number;
+    readyTimeout?: number;
+    strictVendor?: boolean;
+    sock?: NodeJS.ReadableStream;
+    agentForward?: boolean;
+    algorithms?: SSH2FileSystemAlgorithms;
+	debug?: (information: string) => any;
 	sudo?: boolean | string
 }
 
-export class SSH2FileSystem extends FileSystemQueued {
+export class SSH2FileSystem extends FileSystem {
 
 	private disposed: boolean;
 	protected connection?: Client;
 	protected connectionState: SSH2ConnectionState;
+	private pool: Pool;
 
 	constructor(
 		protected readonly options: SSH2FileSystemOptions
@@ -44,6 +75,7 @@ export class SSH2FileSystem extends FileSystemQueued {
 		super();
 		this.disposed = false;
 		this.connectionState = SSH2ConnectionState.Closed;
+		this.pool = new Pool([{}]);
 	}
 
 	clone() {
@@ -87,159 +119,6 @@ export class SSH2FileSystem extends FileSystemQueued {
 		});
 	}
 
-	protected async processCommand(cmd: QueuedCommand, resolve: (value?: any) => void | Promise<void>, reject: (reason?: any) => void | Promise<void>, next: () => void | Promise<void>): Promise<void> {
-
-		const conn = await this.getConnection();
-
-		const exec = async (cmd: string): Promise<[number | null, string | undefined, Buffer]> => {
-			return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
-				conn.exec(cmd, (err, stream) => {
-					if (err) {
-						return reject(err);
-					}
-
-					const chunks: Buffer[] = [];
-
-					stream.on('exit', (code, signal) => {
-						return resolve([code, signal, Buffer.concat(chunks)]);
-					});
-
-					stream.on('data', chunk => {
-						chunks.push(chunk);
-					});
-				})
-			});
-		};
-
-		const sudo = this.options.sudo === true
-			? `sudo -s `
-			: typeof this.options.sudo === 'string'
-				? `sudo -i -u ${this.options.sudo} `
-				: ''
-
-		switch (cmd.cmd) {
-			case 'stat':
-				try {
-					const [code, signal, stat] = await exec(`${sudo}stat "${normalizePath(cmd.path)}"`);
-					if (code === 1) {
-						reject(new FileNotFound(cmd.path));
-					} else {
-						resolve(parseStat(stat.toString('utf8')));
-					}
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'ls':
-			case 'ls-stat':
-				try {
-					const [, , ls] = await exec(`${sudo}ls -la "${normalizePath(cmd.path)}"`);
-					parseEntries(ls.toString('utf8'), (err, entries) => {
-						if (err) {
-							reject(err);
-						} else {
-							if (cmd.cmd === 'ls') {
-								resolve(entries.map(entry => entry.name));
-							} else {
-								resolve(entries.map(entry => [
-									entry.name,
-									new Stats(
-										entry.type === 0,
-										entry.type === 1,
-										entry.type === 2,
-										parseInt(entry.size),
-										new Date(entry.time),
-										new Date(entry.time),
-										new Date(entry.time)
-									)
-								]));
-							}
-						}
-						return next();
-					});
-				} catch (err) {
-					reject(err);
-					next();
-				}
-				break;
-			case 'rmfile':
-				try {
-					await exec(`${sudo}rm -f "${normalizePath(cmd.path)}"`);
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'rmdir':
-				try {
-					await exec(`${sudo}rm -fr "${normalizePath(cmd.path)}"`);
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'mkdir':
-				try {
-					await exec(`${sudo}mkdir ${cmd.recursive === true ? '-p' : ''} "${normalizePath(cmd.path)}"`);
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'rename':
-				try {
-					await exec(`${sudo}mv "${normalizePath(cmd.oldPath)}" "${normalizePath(cmd.newPath)}"`);
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'copy':
-				try {
-					await exec(`${sudo}cp -r "${normalizePath(cmd.source)}" "${normalizePath(cmd.destination)}"`);
-					resolve();
-				} catch (err) {
-					reject(err);
-				}
-				next();
-				break;
-			case 'get':
-				conn.exec(`${sudo}cat "${normalizePath(cmd.path)}"`, (err, chan) => {
-					if (err) {
-						reject(err);
-						return next();
-					}
-					chan.on('end', next);
-					chan.on('error', next);
-					resolve(chan);
-				});
-				break;
-			case 'put':
-				// conn.exec(`${sudo}cat > "${normalizePath(cmd.path)}"`, (err, chan) => {
-				// conn.exec(`${sudo}cat | ${sudo}tee "${normalizePath(cmd.path)}"`, (err, chan) => {
-				conn.exec(`${sudo}bash -c 'cat > "${normalizePath(cmd.path)}"'`, (err, chan) => {
-					if (err) {
-						reject(err);
-						return next();
-					}
-
-					chan.on('finish', next);
-					chan.on('error', next);
-					resolve(chan);
-				});
-				break;
-			default:
-				reject(new OperationNotSupported(cmd.cmd));
-				next();
-				break;
-		}
-	}
-
 	isDisposed(): boolean {
 		return this.disposed;
 	}
@@ -252,11 +131,186 @@ export class SSH2FileSystem extends FileSystemQueued {
 				this.connection!.destroy();
 				(this as any).connection = undefined;
 			}
+			this.pool.dispose();
 			(this as any).queue = undefined;
 			(this as any).queueMap = undefined;
+			(this as any).pool = undefined;
 		}
 	}
 
+	protected getSudo() {
+		return this.options.sudo === true
+			? `sudo -s `
+			: typeof this.options.sudo === 'string'
+				? `sudo -i -u ${this.options.sudo} `
+				: '';
+	}
+
+	protected async exec (conn: Client, cmd: string): Promise<[number | null, string | undefined, Buffer]> {
+		return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
+			const sudo = this.getSudo();
+
+			conn.exec(sudo + cmd, (err, stream) => {
+				if (err) {
+					return reject(err);
+				}
+
+				const chunks: Buffer[] = [];
+
+				stream.on('exit', (code, signal) => {
+					return resolve([code, signal, Buffer.concat(chunks)]);
+				});
+
+				stream.on('data', chunk => {
+					chunks.push(chunk);
+				});
+			});
+		});
+	};
+
+	async stat(path: string): Promise<Stats> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const [code, signal, stat] = await this.exec(conn, `stat "${normalizePath(path)}"`);
+		this.pool.release(token);
+		if (code === 1) {
+			throw new FileNotFound(path);
+		} else {
+			return parseStat(stat.toString('utf8'));
+		}
+	}
+
+	exists(path: string): Promise<boolean> {
+		return this.stat(path).then(() => true, () => false);
+	}
+
+	async unlink(path: string, recursive = false): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const stats = await this.stat(path);
+		if (stats.isFile) {
+			const [code, signal, stat] = await this.exec(conn, `rm -f "${normalizePath(path)}"`);
+			// TODO: check error ?
+			this.pool.release(token);
+		}
+		else if (stats.isDirectory) {
+			const [code, signal, stat] = await this.exec(conn, `rm -fr "${normalizePath(path)}"`);
+			// TODO: check error ?
+			this.pool.release(token);
+		}
+	}
+
+	async copy(source: string, destination: string): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const [code, signal, stat] = await this.exec(conn, `cp -r "${normalizePath(source)}" "${normalizePath(destination)}"`);
+		// TODO: check error ?
+		this.pool.release(token);
+	}
+
+	async rename(oldPath: string, newPath: string): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const [code, signal, stat] = await this.exec(conn, `mv "${normalizePath(oldPath)}" "${normalizePath(newPath)}"`);
+		// TODO: check error ?
+		this.pool.release(token);
+	}
+
+	async createReadStream(path: string): Promise<Readable> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const sudo = this.getSudo();
+		return new Promise<Readable>((resolve, reject) => {
+			conn.exec(`${sudo}cat "${normalizePath(path)}"`, (err, chan) => {
+				if (err) {
+					reject(err);
+					this.pool.release(token);
+					return;
+				}
+				chan.on('end', () => this.pool.release(token));
+				chan.on('error', () => this.pool.release(token));
+				resolve(chan);
+			});
+		});
+	}
+
+	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+		const exists = await this.exists(path);
+		if (exists) {
+			if (overwrite !== true) {
+				throw new FileAlreadyExists();
+			}
+		}
+
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+
+		const stream = new Transform({
+			transform(chunk, encoding, done) {
+				this.push(chunk);
+				done();
+			}
+		});
+
+		const sudo = this.getSudo();
+
+		return new Promise<Writable>((resolve, reject) => {
+			// conn.exec(`${sudo}cat > "${normalizePath(cmd.path)}"`, (err, chan) => {
+			// conn.exec(`${sudo}cat | ${sudo}tee "${normalizePath(cmd.path)}"`, (err, chan) => {
+			conn.exec(`${sudo}bash -c 'cat > "${normalizePath(path)}"'`, (err, chan) => {
+				if (err) {
+					reject(err);
+					this.pool.release(token);
+					return;
+				}
+
+				chan.on('finish', () => this.pool.release(token));
+				chan.on('error', () => this.pool.release(token));
+				resolve(chan);
+			});
+		});
+	}
+
+	async createDirectory(path: string, recursive?: boolean): Promise<void> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const [code, signal, stat] = await this.exec(conn, `mkdir ${recursive === true ? '-p' : ''} "${normalizePath(path)}"`);
+		// TODO: check error ?
+		this.pool.release(token);
+	}
+
+	async readDirectory(path: string): Promise<string[]>
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		const token = await this.pool.acquires();
+		const conn = await this.getConnection();
+		const [, , ls] = await this.exec(conn, `ls -la "${normalizePath(path)}"`);
+		return new Promise<(string | [string, Stats])[]>((resolve, reject) => {
+			parseEntries(ls.toString('utf8'), (err, entries) => {
+				if (err) {
+					reject(err);
+				} else {
+					if (stat !== true) {
+						resolve(entries.map(entry => entry.name));
+					} else {
+						resolve(entries.map(entry => [
+							entry.name,
+							new Stats(
+								entry.type === 0,
+								entry.type === 1,
+								entry.type === 2,
+								parseInt(entry.size),
+								new Date(entry.time),
+								new Date(entry.time),
+								new Date(entry.time)
+							)
+						]));
+					}
+				}
+				this.pool.release(token);
+			});
+		});
+	}
 }
 
 function parseStat(stat: string): Stats {
