@@ -1,6 +1,6 @@
 import { IDisposable } from '@konstellio/disposable';
 
-export default class Deferred<T = any> implements IDisposable {
+export class Deferred<T = any> implements IDisposable {
 	private disposed: boolean;
 
 	public readonly promise: Promise<T>;

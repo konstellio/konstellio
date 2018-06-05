@@ -1,7 +1,7 @@
-import Deferred from "./Deferred";
+import { Deferred } from "./Deferred";
 import { IDisposable } from '@konstellio/disposable';
 
-export default class Pool<T = any> implements IDisposable {
+export class Pool<T = any> implements IDisposable {
 	private disposed: boolean;
 	private waiters: Deferred<T>[];
 	private pool: T[];

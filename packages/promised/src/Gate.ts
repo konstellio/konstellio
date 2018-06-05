@@ -1,7 +1,7 @@
-import Deferred from "./Deferred";
+import { Deferred } from "./Deferred";
 import { IDisposable } from '@konstellio/disposable';
 
-export default class Gate implements IDisposable {
+export class Gate implements IDisposable {
 	private waiters: Deferred[];
 	private disposed: boolean;
 

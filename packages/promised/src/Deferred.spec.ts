@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import Deferred from './Deferred';
+import { Deferred } from './Deferred';
 
 describe('Deferred', () => {
 

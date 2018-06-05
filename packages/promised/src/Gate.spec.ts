@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import Gate from './Gate';
+import { Gate } from './Gate';
 
 describe('Gate', () => {
 
