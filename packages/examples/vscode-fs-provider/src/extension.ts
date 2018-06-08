@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import * as kfs from '@konstellio/fs';
 import { readFileSync } from 'fs';
 import { dirname } from 'path';
-import { FileNotFound, FileAlreadyExists, SFTPFileSystem, SSH2FileSystem, FTPFileSystem } from '@konstellio/fs';
+import { FileNotFound, FileAlreadyExists, SFTPFileSystem, SSH2FileSystem, FTPFileSystem, CouldNotConnect } from '@konstellio/fs';
 import { parse as parseUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
 
@@ -49,7 +49,7 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 					return _reject(reason);
 				};
 
-				const url = parseUrl(uri.toString(true));
+				const url = parseUrl(uri.toString(false));
 				const query = parseQuery(url.query);
 				const auth = (url.auth || '').split(':');
 				const user = auth.shift();
@@ -322,7 +322,11 @@ class KonstellioFileSystemProvider implements vscode.FileSystemProvider {
 }
 
 function handleError(error: Error, uri?: vscode.Uri): void {
-	if (error instanceof FileNotFound) {
+	if (error instanceof CouldNotConnect) {
+		vscode.window.showErrorMessage(error.message);
+		throw vscode.FileSystemError.Unavailable(uri);
+	}
+	else if (error instanceof FileNotFound) {
 		throw vscode.FileSystemError.FileNotFound(uri);
 	}
 	else if (error instanceof FileAlreadyExists) {
