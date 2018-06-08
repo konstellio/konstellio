@@ -2,7 +2,7 @@
     "name": "konstellio-fs-provider",
     "displayName": "Konstellio FS Provider",
     "description": "",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "konstellio",
     "engines": {
         "vscode": "^1.23.0"
