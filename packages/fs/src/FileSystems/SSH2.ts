@@ -3,7 +3,7 @@ import { Pool } from '@konstellio/promised';
 import { Client, ConnectConfig, ClientChannel } from 'ssh2';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists } from '../Errors';
+import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 import { constants } from 'fs';
 import { parseEntries, parseEntry } from 'parse-listing';
 
@@ -106,7 +106,7 @@ export class SSH2FileSystem extends FileSystem {
 			};
 			const onError = (err) => {
 				this.connection!.removeListener('ready', onReady);
-				reject(err);
+				reject(new CouldNotConnect(err));
 			}
 
 			this.connection!.once('ready', onReady);

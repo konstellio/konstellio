@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@konstellio/disposable": "^0.0.12",
-    "@konstellio/promised": "^0.0.2",
+    "@konstellio/promised": "0.0.3",
     "@types/chai-as-promised": "^7.1.0",
     "@types/ftp": "^0.3.29",
     "@types/mkdirp": "^0.5.2",
@@ -39,7 +39,7 @@
   },
   "peerDependencies": {
     "@konstellio/disposable": "^0.0.12",
-    "@konstellio/promised": "^0.0.2",
+    "@konstellio/promised": "^0.0.3",
     "ftp": "^0.3.10",
     "ssh2": "^0.6.1"
   },

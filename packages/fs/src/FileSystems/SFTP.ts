@@ -3,7 +3,7 @@ import { Pool } from '@konstellio/promised';
 import { Client, SFTPWrapper, ConnectConfig } from 'ssh2';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists } from '../Errors';
+import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 import { constants } from 'fs';
 
 function normalizePath(path: string) {
@@ -115,7 +115,7 @@ export class SFTPFileSystem extends FileSystem {
 			};
 			const onError = (err) => {
 				this.connection!.removeListener('sftpready', onReady);
-				reject(err);
+				reject(new CouldNotConnect(err));
 			}
 
 			this.connection!.once('sftpready', onReady);

@@ -3,6 +3,13 @@ export class FileSystemError extends Error {
 
 }
 
+export class CouldNotConnect extends FileSystemError {
+	constructor(error?: Error) {
+		super(`Could not connect to file system : ${error && error.stack}`);
+		(this as any).code = 'ERR_COULD_NOT_CONNECT';
+	}
+}
+
 export class FileNotFound extends FileSystemError {
 	constructor(file?: string) {
 		super(file ? `File ${file} not found.` : `File not found`);

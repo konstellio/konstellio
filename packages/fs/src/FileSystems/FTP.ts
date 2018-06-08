@@ -4,7 +4,7 @@ import * as FTPClient from 'ftp';
 import { Duplex, Readable, Writable, Transform } from 'stream';
 import { join, dirname, basename, sep } from 'path';
 import { ConnectionOptions } from 'tls';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists } from '../Errors';
+import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 
 function normalizePath(path: string) {
 	path = path.split(sep).join('/').trim();
@@ -84,7 +84,7 @@ export class FTPFileSystem extends FileSystem {
 			};
 			const onError = (err) => {
 				this.connection!.removeListener('ready', onReady);
-				reject(err);
+				reject(new CouldNotConnect(err));
 			}
 
 			this.connection!.once('ready', onReady);
@@ -118,8 +118,11 @@ export class FTPFileSystem extends FileSystem {
 
 	async stat(path: string): Promise<Stats> {
 		const normalized = normalizePath(path);
-		const filename = basename(path);
-		const entries = await this.readDirectory(dirname(path), true);
+		if (normalized === '/') {
+			return new Stats(false, true, false, 0, new Date(), new Date(), new Date());
+		}
+		const filename = basename(normalized);
+		const entries = await this.readDirectory(dirname(normalized), true);
 		const entry = entries.find(([name]) => name === filename);
 		if (entry) {
 			return entry[1];
