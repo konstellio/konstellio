@@ -13,11 +13,42 @@
     "activationEvents": [
         "onFileSystem:ftp",
         "onFileSystem:ftps",
-        "onFileSystem:sftp"
+        "onFileSystem:sftp",
+        "konstelliofs:downloadSelected",
+        "konstelliofs:uploadHere"
     ],
     "main": "./out/extension",
     "contributes": {
-        "commands": []
+        "commands": [
+            {
+                "command": "konstelliofs.downloadSelected",
+                "title": "Download"
+            },
+            {
+                "command": "konstelliofs.uploadFilesHere",
+                "title": "Upload files here"
+            },
+            {
+                "command": "konstelliofs.uploadFoldersHere",
+                "title": "Upload folders here"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "konstelliofs.downloadSelected",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                },
+                {
+                    "command": "konstelliofs.uploadFilesHere",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                },
+                {
+                    "command": "konstelliofs.uploadFoldersHere",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
@@ -37,7 +68,7 @@
     },
     "dependencies": {
         "@konstellio/disposable": "0.0.12",
-        "@konstellio/fs": "0.0.5",
+        "@konstellio/fs": "0.0.6",
         "@konstellio/promised": "0.0.3",
         "ftp": "^0.3.10",
         "ssh2": "^0.6.1"
