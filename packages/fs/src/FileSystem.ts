@@ -174,68 +174,113 @@ export class FileSystemPool extends FileSystem {
 
 	async stat(path: string): Promise<Stats> {
 		const fs = await this.pool.acquires();
-		const stat = await fs.stat(path);
-		this.pool.release(fs);
-		return stat;
+		try {
+			const stat = await fs.stat(path);
+			this.pool.release(fs);
+			return stat;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async exists(path: string): Promise<boolean> {
 		const fs = await this.pool.acquires();
-		const exists = await fs.exists(path);
-		this.pool.release(fs);
-		return exists;
+		try {
+			const exists = await fs.exists(path);
+			this.pool.release(fs);
+			return exists;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async unlink(path: string, recursive?: boolean): Promise<void> {
 		const fs = await this.pool.acquires();
-		const unlink = await fs.unlink(path, recursive);
-		this.pool.release(fs);
-		return unlink;
+		try {
+			const unlink = await fs.unlink(path, recursive);
+			this.pool.release(fs);
+			return unlink;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async copy(source: string, destination: string): Promise<void> {
 		const fs = await this.pool.acquires();
-		const copy = await fs.copy(source, destination);
-		this.pool.release(fs);
-		return copy;
+		try {
+			const copy = await fs.copy(source, destination);
+			this.pool.release(fs);
+			return copy;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async rename(oldPath: string, newPath: string): Promise<void> {
 		const fs = await this.pool.acquires();
-		const rename = await fs.rename(oldPath, newPath);
-		this.pool.release(fs);
-		return rename;
+		try {
+			const rename = await fs.rename(oldPath, newPath);
+			this.pool.release(fs);
+			return rename;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async readDirectory(path: string): Promise<string[]>
 	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const fs = await this.pool.acquires();
-		const entries = await fs.readDirectory(path, stat === true);
-		this.pool.release(fs);
-		return entries;
+		try {
+			const entries = await fs.readDirectory(path, stat === true);
+			this.pool.release(fs);
+			return entries;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 	
 	async createDirectory(path: string, recursive?: boolean): Promise<void> {
 		const fs = await this.pool.acquires();
-		const mkdir = await fs.createDirectory(path, recursive);
-		this.pool.release(fs);
-		return mkdir;
+		try {
+			const mkdir = await fs.createDirectory(path, recursive);
+			this.pool.release(fs);
+			return mkdir;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async createReadStream(path: string): Promise<Readable> {
 		const fs = await this.pool.acquires();
-		const stream = await fs.createReadStream(path);
-		stream.on('end', () => this.pool.release(fs));
-		stream.on('error', () => this.pool.release(fs));
-		return stream;
+		try {
+			const stream = await fs.createReadStream(path);
+			stream.on('end', () => this.pool.release(fs));
+			stream.on('error', () => this.pool.release(fs));
+			return stream;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 
 	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		const fs = await this.pool.acquires();
-		const stream = await fs.createWriteStream(path, overwrite);
-		stream.on('finish', () => this.pool.release(fs));
-		stream.on('error', () => this.pool.release(fs));
-		return stream;
+		try {
+			const stream = await fs.createWriteStream(path, overwrite);
+			stream.on('finish', () => this.pool.release(fs));
+			stream.on('error', () => this.pool.release(fs));
+			return stream;
+		} catch (err) {
+			this.pool.release(fs);
+			throw err;
+		}
 	}
 }
