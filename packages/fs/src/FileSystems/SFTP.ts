@@ -176,9 +176,9 @@ export class SFTPFileSystem extends FileSystem {
 	}
 
 	async unlink(path: string, recursive = false): Promise<void> {
+		const stats = await this.stat(path);
 		const token = await this.pool.acquires();
 		const [conn, sftp] = await this.getConnection();
-		const stats = await this.stat(path);
 		if (stats.isFile) {
 			return new Promise<void>((resolve, reject) => {
 				sftp.unlink(normalizePath(path), (err) => {

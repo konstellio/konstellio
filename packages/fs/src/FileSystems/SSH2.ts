@@ -185,9 +185,9 @@ export class SSH2FileSystem extends FileSystem {
 	}
 
 	async unlink(path: string, recursive = false): Promise<void> {
+		const stats = await this.stat(path);
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const stats = await this.stat(path);
 		if (stats.isFile) {
 			const [code, signal, stat] = await this.exec(conn, `rm -f "${normalizePath(path)}"`);
 			// TODO: check error ?

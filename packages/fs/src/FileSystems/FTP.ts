@@ -135,9 +135,9 @@ export class FTPFileSystem extends FileSystem {
 	}
 
 	async unlink(path: string, recursive = false): Promise<void> {
+		const stats = await this.stat(path);
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const stats = await this.stat(path);
 		if (stats.isFile) {
 			return new Promise<void>((resolve, reject) => {
 				conn.delete(normalizePath(path), (err) => {
