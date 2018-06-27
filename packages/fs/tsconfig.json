@@ -8,6 +8,9 @@
 		"rootDir": "./src",
 		"sourceMap": true,
 		"strictNullChecks": true,
-		"target": "es6"
+		"target": "es6",
+		"lib": [
+			"esnext"
+		]
 	}
 }

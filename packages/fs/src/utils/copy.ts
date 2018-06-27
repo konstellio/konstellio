@@ -15,9 +15,8 @@ export async function copy(fsSource: FileSystem, source: string, fsDestination: 
 			readStream.pipe(writeStream);
 		});
 	} else {
-		const tree = await lstree(fsSource, source);
 		let first = true;
-		for (const [path, stat] of tree) {
+		for await (const [path, stat] of lstree(fsSource, source)) {
 			if (first) {
 				first = false;
 				await fsDestination.createDirectory(dirname(path), true);

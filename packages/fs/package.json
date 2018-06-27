@@ -8,6 +8,7 @@
     "compile": "tsc --pretty",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
+    "test:ts2": "mocha --require ts-node/register --full-trace src/utils/copy.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
   },
   "keywords": [],

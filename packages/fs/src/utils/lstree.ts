@@ -1,18 +1,17 @@
 import { FileSystem, Stats } from "../FileSystem";
 
+export async function* lstree(fs: FileSystem, path: string): AsyncIterableIterator<[string, Stats]> {
+	const pathToList = [path];
 
-export async function lstree(fs: FileSystem, path: string): Promise<[string, Stats][]> {
-	const entries = await fs.readDirectory(path, true);
-
-	entries.forEach(entry => {
-		entry[0] = path + '/' + entry[0]
-	});
-
-	for (const [fullPath, stat] of entries) {
-		if (stat.isFile === false) {
-			entries.push(...(await lstree(fs, fullPath)));
-		}
+	while (pathToList.length > 0) {
+		const path = pathToList.shift()!;
+		const pathEntries = await fs.readDirectory(path, true);
+		for (const entry of pathEntries) {
+			entry[0] = path + '/' + entry[0];
+			yield entry;
+			if (entry[1].isFile === false) {
+				pathToList.push(entry[0]);
+			}
+		};
 	}
-
-	return entries;
 }
