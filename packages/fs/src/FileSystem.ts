@@ -22,7 +22,7 @@ export class Stats {
 
 }
 
-const ZeroBuffer = new Buffer(0);
+const ZeroBuffer = Buffer.alloc(0);
 
 export abstract class FileSystem implements IDisposableAsync {
 	abstract isDisposed(): boolean
