@@ -1,4 +1,4 @@
-import { Driver, Compare } from '../Driver';
+import { Driver, Compare, Features } from '../Driver';
 import {
 	QuerySelectResult,
 	QueryAggregateResult,
@@ -86,6 +86,7 @@ function allQuery<T = any> (driver: SQLiteDriver, sql: string, params = [] as an
 }
 
 export class SQLiteDriver extends Driver {
+	readonly features: Features;
 
 	options: SQLiteDriverConstructor
 	driver: any
@@ -93,6 +94,9 @@ export class SQLiteDriver extends Driver {
 	constructor (options: SQLiteDriverConstructor) {
 		super();
 		this.options = options;
+		this.features = {
+			join: true
+		}
 	}
 
 	connect(): Promise<SQLiteDriver> {
@@ -654,7 +658,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 
 		const objects = query.objects;
 		if (objects !== undefined && objects.count() > 0) {
-			sql += `(${objects.get(0).map<string>((value, key) => key!).join(', ')}) `;
+			sql += `(${objects.get(0).map<string>((value, key) => `"${key}"`).join(', ')}) `;
 			sql += `VALUES ${objects.map<string>(obj => {
 				return `(${obj!.map<string>(value => {
 					params.push(value);
@@ -679,7 +683,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 		if (query.object) {
 			sql += ` ${query.object!.map<string>((value, key) => {
 				params.push(value);
-				return `${key} = ?`;
+				return `"${key}" = ?`;
 			}).join(', ')}`;
 		} else {
 			throw new Error(`Expected QueryUpdate to have some data.`);

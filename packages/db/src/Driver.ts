@@ -6,7 +6,12 @@ export enum Compare {
 	Castable = 1 << 1
 }
 
+export interface Features {
+	join: boolean
+}
+
 export abstract class Driver {
+	abstract readonly features: Features;
 
 	abstract connect(): Promise<Driver>;
 
@@ -23,7 +28,6 @@ export abstract class Driver {
 	abstract execute(query: Query.QueryAlterCollection): Promise<Result.QueryAlterCollectionResult>;
 	abstract execute(query: Query.QueryCollectionExists): Promise<Result.QueryCollectionExistsResult>;
 	abstract execute(query: Query.QueryDropCollection): Promise<Result.QueryDropCollectionResult>;
-
 
 	abstract compareTypes(aType: Query.ColumnType, aSize: number, bType: Query.ColumnType, bSize: number): Compare;
 }
