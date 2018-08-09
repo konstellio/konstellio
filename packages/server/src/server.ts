@@ -1,213 +1,355 @@
 import { Driver as CacheDriver } from '@konstellio/cache';
-import { Driver as DBDriver, q } from '@konstellio/db';
-import { Driver as FSDriver } from '@konstellio/fs';
+import { Driver as DBDriver } from '@konstellio/db';
+import { FileSystem } from '@konstellio/fs';
 import { Driver as MQDriver } from '@konstellio/mq';
-import { EventEmitter } from '@konstellio/eventemitter';
 import { IDisposableAsync } from '@konstellio/disposable';
-import { createServer, Server as HTTPServer } from 'http';
-import { Express } from '../node_modules/@types/express-serve-static-core/index';
-import * as express from 'express';
-import * as resolvePackage from 'resolve';
-import { promisify } from 'util';
-import { graphqlExpress } from 'apollo-server-express';
-import playgroundExpress from 'graphql-playground-middleware-express';
-import * as bodyParser from 'body-parser';
-import { IResolvers } from 'graphql-tools/dist/Interfaces';
-import { makeExecutableSchema } from 'graphql-tools';
+import * as assert from 'assert';
+import { Config, CacheConfig, DBConfig, FSConfig, MQConfig } from './utilities/config';
+import * as fastify from 'fastify';
+import { runHttpQuery } from 'apollo-server-core';
+import { Plugin } from './plugin';
+import CorePlugin from './plugins/core';
+import { parse, InlineFragmentNode, OperationDefinitionNode, Kind } from 'graphql';
+import { mergeAST } from './utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
+import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
+import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions } from './collection';
+import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
+import { renderPlaygroundPage } from 'graphql-playground-html';
 
-import { Config, Locales } from './utils/config';
-import { createDatabase, createFilesystem, createCache, createMessageQueue } from './utils/driver';
-import { PluginConstructor, Plugin } from './plugin';
-import { CorePlugin } from './plugins/core';
-import { getSchemaDocument, parseSchema } from './utils/schema';
-import { getSchemaDiff, executeSchemaMigration } from './utils/migration';
-import { getRecords, Record } from './utils/record';
-import { getResolvers } from './utils/graph';
-
-const resolve: (path: string, opts: resolvePackage.AsyncOpts) => Promise<string> = <any>promisify(resolvePackage);
-
-export enum ServerStartMode {
-	Normal = ~(~0 << 2),
-	GraphQL = 1 << 0,
-	Worker = 1 << 1
+export enum ServerListenMode {
+	All = ~(~0 << 2),
+	Graphql = 1 << 0,
+	Websocket = 2 << 0,
+	Worker = 3 << 1
 }
 
-export interface ServerStartOptions {
+export interface ServerListenOptions {
 	skipMigration?: boolean
-	mode?: ServerStartMode
+	mode?: ServerListenMode
 }
 
-export interface ServerStartStatus {
-	mode: ServerStartMode
+export interface ServerListenStatus {
+	mode: ServerListenMode
 	family?: string
 	address?: string
 	port?: number
 }
 
+type PluginMap = { [key: string]: Plugin }
+
+export async function createServer(config: Config): Promise<Server> {
+	const [db, fs, cache, mq] = await Promise.all([
+		createDatabase(config.database),
+		createFilesystem(config.fs || { driver: 'local', root: __dirname}),
+		createCache(config.cache || { driver: 'memory' }),
+		createMessageQueue(config.mq || { driver: 'memory' })
+	]);
+
+	return new Server(
+		config,
+		db,
+		fs,
+		cache,
+		mq
+	);
+}
+
 export class Server implements IDisposableAsync {
 
-	static async create(config: Config, cwd = './'): Promise<Server> {
-		const [db, fs, cache, queue] = await Promise.all([
-			createDatabase(config.konstellio.database),
-			createFilesystem(config.konstellio.fs),
-			createCache(config.konstellio.cache),
-			createMessageQueue(config.konstellio.mq)
-		]);
-
-		const pluginPaths = config.konstellio.plugins || [];
-		const plugins: PluginConstructor[] = [CorePlugin];
-		for (let path of pluginPaths) {
-			const realPath = await resolve(path, { basedir: cwd });
-			plugins.push(require(realPath) as PluginConstructor);
-		}
-
-		return new Server(
-			config,
-			db,
-			fs,
-			cache,
-			queue,
-			plugins
-		);
-	}
-
-	private disposed: boolean;
-	private expressApp?: Express;
-	private httpServer?: HTTPServer;
-
-	public readonly plugins: Plugin[];
+	private disposed: boolean
+	private plugins: Plugin[]
+	private server: fastify.FastifyInstance | undefined
 
 	constructor(
 		public readonly config: Config,
 		public readonly database: DBDriver,
-		public readonly filesystem: FSDriver,
+		public readonly fs: FileSystem,
 		public readonly cache: CacheDriver,
-		public readonly queue: MQDriver,
-		pluginConstructors: PluginConstructor[]
+		public readonly mq: MQDriver
 	) {
 		this.disposed = false;
-
-		this.plugins = pluginConstructors.map(constructor => new constructor(this));
+		this.plugins = [];
 	}
 
-	start({ skipMigration, mode }: ServerStartOptions = {}): Promise<ServerStartStatus> {
-		return new Promise(async (resolve, reject) => {
-			if (this.isDisposed()) {
-				return reject(new Error(`Can not call Server.listen on a disposed server.`));
-			}
+	async disposeAsync(): Promise<void> {
+		if (this.disposed === true) {
+			return;
+		}
 
-			skipMigration = !!skipMigration;
-			mode = mode || ServerStartMode.Normal;
+		// FIXME: Expose missing disposeAsync;
 
-			const status: ServerStartStatus = { mode };
-			
-			const pluginGraphQLs = await Promise.all(this.plugins.map<Promise<string>>(plugin => plugin.getGraphQL ? plugin.getGraphQL() : Promise.resolve('')));
-			const graphDocument = await getSchemaDocument(pluginGraphQLs);
-			const graphSchemas = parseSchema(graphDocument);
-
-			const locales: Locales = this.config.konstellio.locales || { en: 'English' };
-			const schemaDiffs = await getSchemaDiff(this.database, locales, graphSchemas);
-
-			if (schemaDiffs.length > 0) {
-				if (skipMigration === true || !!process.stdout.isTTY === false) {
-					return reject(new Error(`Schema has change and some migration is required. Please use a terminal to complete the migration wizard.`));
-				}
-				try {
-					await executeSchemaMigration(this.database, schemaDiffs, process.stdin as ReadStream, process.stdout as WriteStream);
-				}
-				catch (err) {
-					return reject(new Error(`Could not complete schema migration : ${err.stack}`));
-				}
-			}
-
-			const schemaRecords = await getRecords(this.database, locales, graphSchemas);
-
-			const pluginGraphResolvers = await Promise.all(this.plugins.map<Promise<IResolvers>>(plugin => plugin.getGraphResolvers ? plugin.getGraphResolvers(graphDocument) : Promise.resolve({})));
-			const graphResolvers = await getResolvers(locales, pluginGraphResolvers, graphSchemas);
-
-			const graphSchema = makeExecutableSchema({
-				typeDefs: graphDocument,
-				resolvers: graphResolvers,
-				resolverValidationOptions: {
-					allowResolversNotInSchema: true
-				}
-			});
-
-			if (mode & ServerStartMode.GraphQL) {
-				await new Promise((resolve, reject) => {
-					this.expressApp = express();
-					this.expressApp.disable('x-powered-by');
-
-					// TODO auth request
-
-					this.expressApp.use(
-						'/playground',
-						playgroundExpress({
-							endpoint: '/graphql'
-						})
-					);
-
-					this.expressApp.use(
-						'/graphql',
-						bodyParser.urlencoded({ extended: true }),
-						bodyParser.json(),
-						graphqlExpress((req) => {
-
-							// TODO reduce graphDocument for request user
-
-							return {
-								schema: graphSchema,
-								context: {
-									q,
-									req,
-									records: schemaRecords
-								}
-							}
-						})
-					);
-
-					const onError = err => reject(err);
-					this.httpServer = createServer(this.expressApp);
-					this.httpServer.once('error', onError);
-					this.httpServer.listen(
-						this.config.konstellio.server && this.config.konstellio.server.port || 8080,
-						this.config.konstellio.server && this.config.konstellio.server.host || '127.0.0.1',
-						() => {
-							this.httpServer!.removeListener('error', onError);
-							const addr = this.httpServer!.address();
-							status.family = addr.family;
-							status.address = addr.address;
-							status.port = addr.port;
-							resolve();
-						}
-					);
-				})
-			}
-
-			return resolve(status);
-		});
-	}
-
-	disposeAsync(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (this.disposed === true) {
-				return resolve();
-			}
-			
-			if (this.httpServer) {
-				const onError = err => reject(err);
-				this.httpServer.once('error', onError);
-				this.httpServer.close(() => {
-					this.httpServer!.removeListener('error', onError);
-					this.disposed = true;
-					resolve();
-				});
-			}
-		});
+		// await this.database.disposeAsync();
+		await this.fs.disposeAsync();
+		await this.cache.disposeAsync();
+		// await this.mq.disposeAsync();
 	}
 
 	isDisposed(): boolean {
 		return this.disposed;
 	}
+
+	register(plugin: Plugin) {
+		assert(plugin.identifier, 'Plugin needs an identifier');
+		this.plugins.push(plugin);
+	}
+
+	async listen({ skipMigration, mode }: ServerListenOptions = {}): Promise<ServerListenStatus> {
+		if (this.isDisposed()) {
+			throw new Error(`Can not call Server.listen on a disposed server.`);
+		}
+
+		skipMigration = !!skipMigration;
+		mode = mode || ServerListenMode.All;
+		const status: ServerListenStatus = { mode };
+
+		// Reorder plugin to respect their dependencies
+		const pluginOrder = [CorePlugin as Plugin].concat(reorderPluginOnDependencies(this.plugins));
+
+		// Gather plugins type definition
+		const typeDefs = await Promise.all(pluginOrder.map(async (plugin) => {
+			return plugin.getTypeDef ? plugin.getTypeDef(this) : '';
+		}));
+
+		// Parse type definition to AST
+		const ASTs = typeDefs.map(typeDef => parse(typeDef));
+
+		// Let plugin extend AST by providing an other layer of type definition
+		const typeDefExtensions: string[] = [];
+		for (const ast of ASTs) {
+			const extended = await Promise.all(pluginOrder.reduce((typeDefs, plugin) => {
+				if (plugin.getTypeExtension) {
+					typeDefs.push(Promise.resolve(plugin.getTypeExtension(this, ast)));
+				}
+				return typeDefs;
+			}, [
+				Promise.resolve(createTypeExtensionsFromDefinitions(ast, this.config.locales))
+			] as Promise<string>[]));
+
+			const typeDefExtension = extended.join(`\n`).trim();
+			if (typeDefExtension) {
+				typeDefExtensions.push(typeDefExtension);
+			}
+		}
+		ASTs.push(...typeDefExtensions.map(typeDef => parse(typeDef)));
+
+		// TODO: Create relation table depending on database
+
+		// Merge every AST
+		const mergedAST = mergeAST(ASTs);
+
+		// Create input type from definitions
+		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);
+
+		// Gather plugins resolvers
+		const resolvers = await Promise.all(pluginOrder.map(async (plugin) => {
+			return plugin.getResolvers ? plugin.getResolvers(this) : {};
+		}));
+
+		// Merge every resolvers
+		const mergedResolvers = resolvers.reduce((resolvers, resolver) => {
+			Object.keys(resolver).forEach(key => {
+				resolvers[key] = Object.assign(resolvers[key] || {}, resolver[key]);
+			});
+			return resolvers;
+		}, {});
+
+		// Create fragment from resolvers
+		const fragments = Object.keys(mergedResolvers).reduce((fragments, typeName) => {
+			const type = mergedResolvers[typeName];
+			return Object.keys(type).reduce((fragments, fieldName) => {
+				const field = type[fieldName];
+				if (typeof field === 'object' && typeof field.resolve === 'function' && typeof field.fragment === 'string') {
+					fragments.push({ field: fieldName, fragment: field.fragment });
+				}
+				return fragments;
+			}, fragments);
+		}, [] as { field: string, fragment: string }[]);
+
+		// Do migration
+		if (skipMigration === false) {
+			const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales);
+			const dbSchema = await createSchemaFromDatabase(this.database, this.config.locales);
+			const schemaDiffs = await promptSchemaDiffs(
+				process.stdin as ReadStream,
+				process.stdout as WriteStream,
+				computeSchemaDiff(dbSchema, astSchema, this.database.compareTypes),
+				this.database.compareTypes
+			);
+
+			if (schemaDiffs.length > 0) {
+				await executeSchemaDiff(schemaDiffs, this.database);
+			}
+		}
+
+		// TODO: Create collections with mergedAST
+
+		const baseSchema = makeExecutableSchema({
+			typeDefs: [mergedAST, inputTypeDefinitions] as any,
+			resolvers: mergedResolvers
+		});
+
+		const extendedSchema = transformSchema(baseSchema, [
+			new ReplaceFieldWithFragment(baseSchema, fragments)
+		]);
+
+		debugger;
+		
+		if (mode & ServerListenMode.Graphql) {
+			const app = fastify();
+			app.get('/', async (req, res) => {
+				res.send({
+					mode,
+					plugins: this.plugins
+				});
+			});
+
+			// TODO: Auth => https://github.com/fastify/fastify-cookie/blob/master/plugin.js
+			// TODO: Create a websocker server => https://github.com/fastify/fastify-websocket/blob/master/index.js
+
+			app.get('/playground', async (req, res) => {
+				const html = renderPlaygroundPage({
+					endpoint: '/graphql',
+					version: '1.6.6'
+				});
+				res.header('Content-Type', 'text/html');
+				res.send(html);
+			});
+
+			app.route({
+				method: ['GET', 'POST'],
+				url: '/graphql',
+				async handler(req, res) {
+					// TODO: Build schema for this request & cache it
+					try {
+						const result = await runHttpQuery([req, res], {
+							method: 'POST',
+							options: {
+								schema: extendedSchema as any
+							},
+							query: req.body || req.query
+						});
+						// res.header('Content-Length', Buffer.byteLength(result, 'utf8').toString()); // FIXME: Required ?
+						res.send(JSON.parse(result));
+					} catch (error) {
+						if (error.name === 'HttpQueryError') {
+							for (let key in error.headers) {
+								res.header(key, error.headers[key]);
+							}
+							// res.code(error.statusCode); // FIXME: Required ?
+							res.send(JSON.parse(error.message));
+						}
+					}
+				}
+			});
+
+			await new Promise((resolve, reject) => {
+				app.listen(
+					this.config.http && this.config.http.port || 8080,
+					this.config.http && this.config.http.host || '127.0.0.1',
+					(err) => {
+						if (err) return reject(err);
+						const addr = app.server.address();
+						status.family = addr.family;
+						status.address = addr.address;
+						status.port = addr.port;
+						resolve();
+					}
+				);
+			});
+
+			this.server = app;
+		}
+
+		return status;
+	}
+}
+
+function parseFragmentToInlineFragment(
+	definitions: string,
+): InlineFragmentNode {
+	if (definitions.trim().startsWith('fragment')) {
+		const document = parse(definitions);
+		for (const definition of document.definitions) {
+			if (definition.kind === Kind.FRAGMENT_DEFINITION) {
+				return {
+					kind: Kind.INLINE_FRAGMENT,
+					typeCondition: definition.typeCondition,
+					selectionSet: definition.selectionSet,
+				};
+			}
+		}
+	}
+
+	const query = parse(`{${definitions}}`)
+		.definitions[0] as OperationDefinitionNode;
+	for (const selection of query.selectionSet.selections) {
+		if (selection.kind === Kind.INLINE_FRAGMENT) {
+			return selection;
+		}
+	}
+
+	throw new Error('Could not parse fragment');
+}
+
+function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {
+	return plugins.sort((a, b) => {
+		const aONb = (a.dependencies || []).indexOf(b.identifier) > -1;
+		const bONa = (b.dependencies || []).indexOf(a.identifier) > -1;
+		if (aONb) {
+			if (bONa) {
+				throw new Error(`Detected circular plugin dependency between ${a.identifier} and ${b.identifier}`);
+			}
+			return 1;
+		}
+		return bONa ? -1 : 0;
+	});
+}
+
+async function createDatabase(config: DBConfig): Promise<DBDriver> {
+	if (config.driver === 'sqlite') {
+		const { SQLiteDriver } = require('@konstellio/db');
+		return new SQLiteDriver(
+			config.filename === 'mock://memory'
+				? Object.assign({}, config, { filename: ':memory:' })
+				: config
+		).connect();
+	}
+
+	throw new ReferenceError(`Unsupported database driver ${config.driver}.`);
+}
+
+async function createFilesystem(config: FSConfig): Promise<FileSystem> {
+	if (config.driver === 'local') {
+		const { LocalFileSystem } = require('@konstellio/fs');
+		return new LocalFileSystem(config.root);
+	}
+
+	throw new ReferenceError(`Unsupported file system driver ${config.driver}.`);
+}
+
+async function createCache(config: CacheConfig): Promise<CacheDriver> {
+	if (config.driver === 'memory') {
+		const { RedisMockDriver } = require('@konstellio/cache');
+		return new RedisMockDriver().connect();
+	}
+	else if (config.driver === 'redis') {
+		const { RedisDriver } = require('@konstellio/cache');
+		return new RedisDriver(config.uri).connect();
+	}
+
+	throw new ReferenceError(`Unsupported cache driver ${config!.driver}.`);
+}
+
+async function createMessageQueue(config: MQConfig): Promise<MQDriver> {
+	if (config.driver === 'memory') {
+		const { MemoryDriver } = require('@konstellio/mq');
+		return new MemoryDriver().connect();
+	}
+	else if (config.driver === 'amqp') {
+		const { AMQPDriver } = require('@konstellio/mq');
+		return new AMQPDriver(config.uri).connect();
+	}
+
+	throw new ReferenceError(`Unsupported message queue driver ${config!.driver}.`);
 }

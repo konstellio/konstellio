@@ -1,17 +1,14 @@
-import { Server } from './server';
-import { IResolvers } from 'graphql-tools/dist/Interfaces';
-import { DocumentNode } from 'graphql';
-
-export interface PluginConstructor {
-	new(server: Server): Plugin;
-}
+import { DocumentNode } from "graphql";
+import { IResolvers } from "graphql-tools";
+import { Server } from "./server";
 
 export interface Plugin {
-	isDisposed(): boolean;
-	disposeAsync(): Promise<void>;
+	identifier: string
+	dependencies?: string[]
 
-	getGraphQL?: () => Promise<string>;
-	getGraphResolvers?: (ast: DocumentNode) => Promise<IResolvers>;
-	getRoutes?: () => Promise<any>;
-	getTasks?: () => Promise<any>;
+	getTypeDef?: (server: Server) => string | Promise<string>
+	getTypeExtension?: (server: Server, document: DocumentNode) => string | Promise<string>
+	getResolvers?: (server: Server) => IResolvers | Promise<IResolvers>
+	getRoutes?: (server: Server) => Promise<any>
+	getTasks?: (server: Server) => Promise<any>
 }

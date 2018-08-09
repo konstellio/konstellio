@@ -1,62 +1,66 @@
-import { IResolvers } from 'graphql-tools/dist/Interfaces';
-import { DocumentNode } from 'graphql';
-import { Server } from '../server';
 import { Plugin } from '../plugin';
+import { IResolvers } from 'graphql-tools';
+import { Server } from '../server';
+import { DocumentNode } from 'graphql';
 
-export class CorePlugin implements Plugin {
-
-	constructor(server: Server) {
-
-	}
-
-	private disposed = false;
-
-	isDisposed() {
-		return this.disposed;
-	}
-
-	async disposeAsync(): Promise<void> {
-		this.disposed = true;
-	}
-
-	async getGraphQL() {
+export default {
+	identifier: 'konstellio/core',
+	async getTypeDef(): Promise<string> {
 		return `
 			scalar Cursor
 			scalar Date
 			scalar DateTime
-			type User @record {
-				id: ID!
-				username: String! @field(label: "Username", type: "text", field: "text")
-				password: String! @field(label: "Password", type: "text", field: "password") @permission(group: "noone")
+
+			enum Group {
+				Guest
 			}
-			type File @record {
+
+			type User
+			@collection
+			@index(handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }])
+			{
 				id: ID!
-				path: String! @field(type: "text")
-				name: String! @field(type: "text")
-				size: Int! @field(type: "int")
-				creation: DateTime! @field(type: "datetime")
-				modification: DateTime! @field(type: "datetime")
+				username: String!
+				password: String!
+				group: Group
 			}
-			type Relation @record(indexes: [
-				{ handle: "Relation_collection", type: "index", fields: { id: "asc", collection: "asc" } },
-				{ handle: "Relation_field", type: "index", fields: { id: "asc", collection: "asc", field: "asc" } },
-				{ handle: "Relation_source", type: "index", fields: { id: "asc", source: "asc", seq: "asc" } },
-				{ handle: "Relation_target", type: "index", fields: { id: "asc", target: "asc" } }
-			]) {
+
+			type File
+			@collection
+			{
 				id: ID!
-				collection: String! @field(type: "text")
-				field: String! @field(type: "text")
-				source: ID! @field(type: "text")
-				target: ID! @field(type: "text")
-				seq: String! @field(type: "int")
+				path: String!
+				name: String!
+				size: Int!
+				creation: DateTime!
+				modification: DateTime!
 			}
+
+			type Relation
+			@collection
+			@index(handle: "Relation_collection", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }])
+			@index(handle: "Relation_field", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }, { field: "field", direction: "asc" }])
+			@index(handle: "Relation_source", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "source", direction: "asc" }, { field: "seq", direction: "asc" }])
+			@index(handle: "Relation_target", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "target", direction: "asc" }])
+			{
+				id: ID!
+				collection: String!
+				field: String!
+				source: ID!
+				target: ID!
+				seq: String!
+			}
+
 			type Query {
 				me: User!
 			}
+
 			type Mutation {
-				login(username: String!, password: String!): LoginResponse @permission(group: "nobody")
-				logout: LogoutResponse @permission(group: "any")
+				login(username: String!, password: String!): LoginResponse
+				logout: LogoutResponse
+				createUser(data: UserInput): Boolean
 			}
+
 			type LoginResponse {
 				token: String!
 			}
@@ -64,15 +68,18 @@ export class CorePlugin implements Plugin {
 				acknowledge: Boolean!
 			}
 		`;
-	}
+	},
 
-	async getGraphResolvers() {
+	async getResolvers(): Promise<IResolvers> {
 		return {
 			Query: {
-				async me() {
+				async me(parent, args, context, info) {
+					// console.log(getSelectionsFromInfo(info));
 					return {
-						id: 'needs-an-ID',
-						username: 'someone'
+						id: 'bleh',
+						username: 'mgrenier',
+						group: 'Author',
+						birthday: '1986-03-17'
 					}
 				}
 			},
@@ -88,7 +95,6 @@ export class CorePlugin implements Plugin {
 					};
 				}
 			}
-		};
+		}
 	}
-
 }
