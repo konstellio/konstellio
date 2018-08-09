@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "clean": "lerna clean --yes",
-    "init": "lerna bootstrap --hoist"
+    "init": "lerna bootstrap"
   },
   "devDependencies": {
     "lerna": "^3.0.0-rc.0"
-  }
+  },
+  "workspaces": ["packages/*"]
 }
