@@ -17,7 +17,7 @@
   "peerDependencies": {
     "@konstellio/disposable": "^0.x",
     "redis": "^2.8.0",
-    "redis-mock": "^0.20.0"
+    "redis-mock": "^0.29.0"
   },
   "devDependencies": {
     "@konstellio/disposable": "^0.x",
