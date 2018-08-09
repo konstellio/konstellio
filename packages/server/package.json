@@ -12,26 +12,34 @@
   },
   "author": "",
   "license": "MIT",
+  "peerDependencies": {
+    "@konstellio/cache": "^0.x",
+    "@konstellio/db": "^0.x",
+    "@konstellio/disposable": "^0.x",
+    "@konstellio/eventemitter": "^0.x",
+    "@konstellio/fs": "^0.x",
+    "@konstellio/mq": "^0.x"
+  },
   "devDependencies": {
-    "@konstellio/cache": "^0.0.3",
-    "@konstellio/db": "^0.0.11",
-    "@konstellio/disposable": "^0.0.12",
-    "@konstellio/eventemitter": "^0.0.12",
-    "@konstellio/fs": "^0.0.3",
-    "@konstellio/mq": "^0.0.9",
-    "@types/chai-as-promised": "^7.1.0",
-    "@types/graphql": "^0.11.6",
-    "@types/joi": "^13.0.8",
-    "@types/mocha": "^2.2.44",
-    "@types/node": "^8.0.53",
-    "@types/resolve": "^0.0.6",
+    "@konstellio/cache": "^0.x",
+    "@konstellio/db": "^0.x",
+    "@konstellio/disposable": "^0.x",
+    "@konstellio/eventemitter": "^0.x",
+    "@konstellio/fs": "^0.x",
+    "@konstellio/mq": "^0.x",
+    "@types/chai-as-promised": "7.1.0",
+    "@types/graphql": "^0.13.4",
+    "@types/joi": "^13.4.1",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.5.7",
+    "@types/resolve": "^0.0.8",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
-    "istanbul": "^0.4.5",
-    "mocha": "^4.0.1",
+    "istanbul": "^1.1.0-alpha.1",
+    "mocha": "^5.2.0",
     "rimraf": "^2.6.2",
-    "ts-node": "^3.3.0",
-    "typescript": "^2.7.2"
+    "ts-node": "^7.0.0",
+    "typescript": "^3.0.1"
   },
   "dependencies": {
     "apollo-link": "^1.2.2",
@@ -47,13 +55,5 @@
     "graphql-playground-html": "^1.5.6",
     "graphql-tools": "3.0.5",
     "joi": "^13.3.0"
-  },
-  "peerDependencies": {
-    "@konstellio/cache": "^0.0.3",
-    "@konstellio/db": "^0.0.11",
-    "@konstellio/disposable": "^0.0.12",
-    "@konstellio/eventemitter": "^0.0.12",
-    "@konstellio/fs": "^0.0.3",
-    "@konstellio/mq": "^0.0.9"
   }
 }
