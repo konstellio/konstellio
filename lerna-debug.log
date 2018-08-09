@@ -1,0 +1,24 @@
+0 silly argv { _: [ 'import' ],
+0 silly argv   progress: true,
+0 silly argv   sort: true,
+0 silly argv   ci: false,
+0 silly argv   loglevel: 'info',
+0 silly argv   lernaVersion: '3.0.0-rc.0',
+0 silly argv   '$0':
+0 silly argv    'C:\\Users\\mgrenier\\AppData\\Roaming\\npm\\node_modules\\lerna\\cli.js',
+0 silly argv   dir: 'F:\\Developpement\\2018\\konstellio\\disposable' }
+1 info version 3.0.0-rc.0
+2 verbose rootPath F:\Developpement\2018\konstellio\konstellio
+3 error Error: Command failed: git rev-parse HEAD
+3 error fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
+3 error Use '--' to separate paths from revisions, like this:
+3 error 'git <command> [<revision>...] -- [<file>...]'
+3 error
+3 error HEAD
+3 error
+3 error     at makeError (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\execa\index.js:172:9)
+3 error     at Function.module.exports.sync (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\execa\index.js:341:15)
+3 error     at Object.execSync (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\@lerna\child-process\index.js:22:16)
+3 error     at ImportCommand.getCurrentSHA (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\@lerna\import\index.js:118:34)
+3 error     at ImportCommand.initialize (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\@lerna\import\index.js:90:31)
+3 error     at Promise.resolve.then (C:\Users\mgrenier\AppData\Roaming\npm\node_modules\lerna\node_modules\@lerna\command\index.js:242:24)
