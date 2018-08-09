@@ -43,8 +43,8 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 		expect(writeStream).to.be.an.instanceof(Writable);
 
 		await new Promise<void>((resolve, reject) => {
-			writeStream.end(Buffer.from('Christ Griffin'), (err) => {
-				if (err) return reject(err);
+			writeStream.end(Buffer.from('Christ Griffin'), 'utf8', () => {
+				// if (err) return reject(err);
 				return resolve();
 			});
 		});
