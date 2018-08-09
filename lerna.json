@@ -5,7 +5,7 @@
         "*.md",
         "*.spec.ts"
       ]
-    },
+    }
   },
   "packages": [
     "packages/*"
