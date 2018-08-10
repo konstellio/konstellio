@@ -66,7 +66,7 @@ export function promptSelection(stdin: ReadStream, stdout: WriteStream, question
 			resetSelection = -(out.split(EOL).length);
 		}
 
-		function onKeyPress(chunk, key) {
+		function onKeyPress(_: Buffer, key: any) {
 			if (key.name === 'up') {
 				selectedIndex = Math.max(0, selectedIndex - 1);
 				drawSelections();

@@ -1,10 +1,7 @@
 import * as assert from 'assert';
 import { IDisposableAsync } from '@konstellio/disposable';
-import { ReadStream, WriteStream } from "fs";
-import { join, normalize, basename, dirname, sep } from 'path';
 import { Readable, Writable, Transform } from 'stream';
-import { Deferred, Pool } from '@konstellio/promised';
-import { FileNotFound, FileAlreadyExists } from './Errors';
+import { Pool } from '@konstellio/promised';
 
 export class Stats {
 
@@ -128,7 +125,7 @@ export class FileSystemMirror extends FileSystem {
 
 	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		const stream = new Transform({
-			transform(chunk, encoding, done) {
+			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
 			}

@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { Driver, Message } from './Driver';
+import { Driver } from './Driver';
 import { Disposable } from '@konstellio/disposable';
 
 function wait(ms: number): Promise<void> {
@@ -66,7 +66,7 @@ export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 		it('can consume task', async () => {
 			let count = 0;
 
-			const consumer = await driver.consume('bar2', (msg) => {
+			const consumer = await driver.consume('bar2', () => {
 				++count;
 			});
 			expect(consumer).to.be.an.instanceOf(Disposable);
@@ -79,7 +79,7 @@ export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 		it('can stop consuming task', async () => {
 			let count = 0;
 
-			const consumer = await driver.consume('bar3', (msg) => {
+			const consumer = await driver.consume('bar3', () => {
 				++count;
 			});
 			expect(consumer).to.be.an.instanceOf(Disposable);
@@ -105,13 +105,13 @@ export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 		});
 
 		it('can get error from rpc', async () => {
-			const consumer = await driver.consume('bar5', (msg) => {
+			const consumer = await driver.consume('bar5', () => {
 				throw new Error('Fake error');
 			});
 			expect(consumer).to.be.an.instanceOf(Disposable);
 
 			try {
-				const result = await driver.rpc('bar5', { bar: 'Hello World' }, 2000).should.be.rejected;
+				await driver.rpc('bar5', { bar: 'Hello World' }, 2000).should.be.rejected;
 			} catch (err) {
 				expect(err.message).to.equal('Fake error');
 			}
@@ -124,7 +124,7 @@ export function driverShouldBehaveLikeAMessageQueue(driver: Driver) {
 			await wait(500);
 			expect(count).to.equal(0);
 
-			const consumer = await driver.consume('bar6', (msg) => {
+			const consumer = await driver.consume('bar6', () => {
 				++count;
 			});
 			expect(consumer).to.be.an.instanceOf(Disposable);

@@ -2,19 +2,19 @@ import { Disposable, CompositeDisposable } from '@konstellio/disposable';
 import { EventEmitter } from '@konstellio/eventemitter';
 import * as uuid from 'uuid/v4';
 import { Driver, SubscribListener, ConsumeListener, Message, Payload } from '../Driver';
-import { Options, Connection, Channel as LibChannel, Message as LibMessage } from 'amqplib/callback_api';
-import { clearTimeout, setInterval, clearInterval } from 'timers';
+import { Connection, Channel as LibChannel, Message as LibMessage } from 'amqplib/callback_api';
+import { clearTimeout } from 'timers';
 
 let connect: (url: string, socketOptions: any, callback: (err: any, connection: Connection) => void) => void;
 try { connect = require('amqplib/callback_api').connect; } catch(e) { }
 
 export class AMQPDriver extends Driver {
 
-	private client: Connection;
+	private client!: Connection;
 	private emitter: EventEmitter
 	private disposable: CompositeDisposable
-	private replyToChannel: LibChannel
-	private replyToQueue: string
+	private replyToChannel!: LibChannel
+	private replyToQueue!: string
 	private channels: Map<string, { channel: LibChannel, queue: string }>;
 	private queues: Map<string, LibChannel>;
 
@@ -42,9 +42,8 @@ export class AMQPDriver extends Driver {
 						this.replyToQueue = res.queue;
 
 						const consumerTag = uuid();
-						const disposable = new Disposable(() => new Promise<void>((resolve, reject) => {
-							this.replyToChannel.close((err) => {
-								// if (err) return reject(err);
+						const disposable = new Disposable(() => new Promise<void>((resolve) => {
+							this.replyToChannel.close(() => {
 								resolve();
 							});
 						}));
@@ -129,7 +128,7 @@ export class AMQPDriver extends Driver {
 			this.client.createChannel((err, channel) => {
 				if (err) return reject(err);
 				channel.prefetch(1);
-				channel.assertQueue(name, { exclusive: true }, (err, res) => {
+				channel.assertQueue(name, { exclusive: true }, (err) => {
 					if (err) return reject(err);
 					this.queues.set(name, channel);
 					resolve(channel);
@@ -145,7 +144,7 @@ export class AMQPDriver extends Driver {
 			payload = topic;
 			topic = '';
 		}
-		const { channel, queue } = await this.getChannel(name, topic);
+		const { channel } = await this.getChannel(name, topic);
 		channel.publish(name, topic, Buffer.from(JSON.stringify(payload)));
 	}
 
@@ -161,7 +160,7 @@ export class AMQPDriver extends Driver {
 			throw new Error(`Expected listener to be of type SubscribListener, got ${listener}.`);
 		}
 
-		const { channel, queue } = await this.getChannel(name, topic);
+		await this.getChannel(name, topic);
 
 		const disposable = this.emitter.on(`channel:${name}:${topic}`, listener);
 		this.disposable.add(disposable);

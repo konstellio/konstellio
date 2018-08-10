@@ -2,7 +2,7 @@ import 'mocha';
 import { expect, use, should, AssertionError } from 'chai';
 use(require("chai-as-promised"));
 should();
-process.on('unhandledRejection', (reason: Error | null, promise: Promise<void>) => { }); // and then Node deprecation warning goes away !
+process.on('unhandledRejection', () => { }); // and then Node deprecation warning goes away !
 
 import { EventEmitter, isEventEmitterInterface } from './EventEmitter';
 
@@ -27,7 +27,7 @@ describe('EventEmitter', () => {
 	});
 
 	it('can remove handler', () => {
-		const event = new EventEmitter();
+		// const event = new EventEmitter();
 	});
 
 	it('can emit event', () => {
@@ -40,16 +40,16 @@ describe('EventEmitter', () => {
 			expect(d1).to.equal('a');
 			expect(d2).to.equal('b');
 		});
-		event.on('t2', (d1, d2) => {
+		event.on('t2', () => {
 			toDecrease--;
 		});
-		event.once('t2', (d1, d2) => {
+		event.once('t2', () => {
 			toDecrease--;
 		});
-		event.many('t2', 3, (d1, d2) => {
+		event.many('t2', 3, () => {
 			toDecrease--;
 		});
-		event.on('t3', (d1, d2) => {
+		event.on('t3', () => {
 			toDecrease--;
 		});
 
@@ -73,7 +73,7 @@ describe('EventEmitter', () => {
 	const event = new EventEmitter();
 	let toDecrease = 12;
 
-	event.on('t1', (d1, d2) => {
+	event.on('t1', () => {
 		return new Promise((resolve) => {
 			setTimeout(() => {
 				toDecrease--;

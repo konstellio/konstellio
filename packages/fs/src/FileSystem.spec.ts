@@ -4,7 +4,6 @@ import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import { Readable, Writable } from 'stream';
-import { ReadStream, WriteStream } from 'fs';
 import { OperationNotSupported } from './Errors';
 
 export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
@@ -42,9 +41,8 @@ export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 		const writeStream = await fs.createWriteStream('Griffin/Christ.txt');
 		expect(writeStream).to.be.an.instanceof(Writable);
 
-		await new Promise<void>((resolve, reject) => {
+		await new Promise<void>((resolve) => {
 			writeStream.end(Buffer.from('Christ Griffin'), 'utf8', () => {
-				// if (err) return reject(err);
 				return resolve();
 			});
 		});

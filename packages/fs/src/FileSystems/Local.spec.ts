@@ -1,5 +1,5 @@
 import 'mocha';
-import { use, expect, should } from 'chai';
+import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import { LocalFileSystem } from './Local';

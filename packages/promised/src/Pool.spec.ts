@@ -30,8 +30,8 @@ describe('Pool', () => {
 
 	it('defer', async () => {
 		const a = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
-		const b = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
-		const c = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
+		// const b = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
+		// const c = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
 
 		const g = new Pool();
 

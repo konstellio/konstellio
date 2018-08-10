@@ -1,9 +1,9 @@
 import { FileSystem, Stats } from '../FileSystem';
 import { Pool } from '@konstellio/promised';
-import { Client, SFTPWrapper, ConnectConfig } from 'ssh2';
-import { Duplex, Readable, Writable, Transform } from 'stream';
-import { join, dirname, basename, sep } from 'path';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
+import { Client, SFTPWrapper } from 'ssh2';
+import { Readable, Writable, Transform } from 'stream';
+import { sep } from 'path';
+import { OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 import { constants } from 'fs';
 
 function normalizePath(path: string) {
@@ -113,7 +113,7 @@ export class SFTPFileSystem extends FileSystem {
 				this.connection!.removeListener('error', onError);
 				resolve([this.connection!, this.sftp!]);
 			};
-			const onError = (err) => {
+			const onError = (err: Error) => {
 				this.connection!.removeListener('sftpready', onReady);
 				reject(new CouldNotConnect(err));
 			}
@@ -175,10 +175,10 @@ export class SFTPFileSystem extends FileSystem {
 		return this.stat(path).then(() => true, () => false);
 	}
 
-	async unlink(path: string, recursive = false): Promise<void> {
+	async unlink(path: string): Promise<void> {
 		const stats = await this.stat(path);
 		const token = await this.pool.acquires();
-		const [conn, sftp] = await this.getConnection();
+		const [, sftp] = await this.getConnection();
 		if (stats.isFile) {
 			return new Promise<void>((resolve, reject) => {
 				sftp.unlink(normalizePath(path), (err) => {
@@ -228,7 +228,7 @@ export class SFTPFileSystem extends FileSystem {
 		}
 	}
 
-	async copy(source: string, destination: string): Promise<void> {
+	async copy(): Promise<void> {
 		throw new OperationNotSupported('copy');
 		// const token = await this.pool.acquires();
 		// const [conn] = await this.getConnection();
@@ -272,7 +272,7 @@ export class SFTPFileSystem extends FileSystem {
 	async createReadStream(path: string): Promise<Readable> {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
-		return new Promise<Readable>((resolve, reject) => {
+		return new Promise<Readable>((resolve) => {
 			const readStream = sftp.createReadStream(normalizePath(path));
 			readStream.on('end', () => this.pool.release(token));
 			readStream.on('error', () => this.pool.release(token));
@@ -280,7 +280,7 @@ export class SFTPFileSystem extends FileSystem {
 		});
 	}
 
-	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		const exists = await this.exists(path);
 		if (exists) {
 			if (overwrite !== true) {
@@ -291,13 +291,13 @@ export class SFTPFileSystem extends FileSystem {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
 		const stream = new Transform({
-			transform(chunk, encoding, done) {
+			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
 			}
 		});
 
-		return new Promise<Writable>((resolve, reject) => {
+		return new Promise<Writable>((resolve) => {
 			const writeStream = stream.pipe(sftp.createWriteStream(normalizePath(path)));
 			writeStream.on('finish', () => this.pool.release(token));
 			writeStream.on('error', () => this.pool.release(token));
@@ -305,7 +305,7 @@ export class SFTPFileSystem extends FileSystem {
 		});
 	}
 
-	async createDirectory(path: string, recursive?: boolean): Promise<void> {
+	async createDirectory(path: string): Promise<void> {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
 		return new Promise<void>((resolve, reject) => {

@@ -1,8 +1,7 @@
 import 'mocha';
-import { use, expect, should } from 'chai';
+import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { spawn, ChildProcess } from 'child_process';
 import { RedisMockDriver } from './RedisMockDriver';
 
 describe('RedisMock', () => {

@@ -1,14 +1,14 @@
 import 'mocha';
-import { use, expect, should } from 'chai';
+import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import * as fs from 'fs';
-import { SSH2FileSystem } from './SSH2';
-import { FtpSrv, FileSystem } from 'ftp-srv';
-import { tmpdir } from 'os';
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+// import * as fs from 'fs';
+// import { SSH2FileSystem } from './SSH2';
+// import { FtpSrv, FileSystem } from 'ftp-srv';
+// import { tmpdir } from 'os';
+// import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'fs';
+// import { join } from 'path';
+// import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
 
 describe('SSH2', () => {
 

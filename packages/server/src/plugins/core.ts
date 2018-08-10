@@ -1,7 +1,4 @@
-import { Plugin } from '../plugin';
 import { IResolvers } from 'graphql-tools';
-import { Server } from '../server';
-import { DocumentNode } from 'graphql';
 
 export default {
 	identifier: 'konstellio/core',
@@ -36,21 +33,6 @@ export default {
 				modification: DateTime!
 			}
 
-			type Relation
-			@collection
-			@index(handle: "Relation_collection", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }])
-			@index(handle: "Relation_field", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }, { field: "field", direction: "asc" }])
-			@index(handle: "Relation_source", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "source", direction: "asc" }, { field: "seq", direction: "asc" }])
-			@index(handle: "Relation_target", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "target", direction: "asc" }])
-			{
-				id: ID!
-				collection: String!
-				field: String!
-				source: ID!
-				target: ID!
-				seq: String!
-			}
-
 			type Query {
 				me: User!
 			}
@@ -73,7 +55,7 @@ export default {
 	async getResolvers(): Promise<IResolvers> {
 		return {
 			Query: {
-				async me(parent, args, context, info) {
+				async me() {
 					// console.log(getSelectionsFromInfo(info));
 					return {
 						id: 'bleh',
@@ -84,12 +66,12 @@ export default {
 				}
 			},
 			Mutation: {
-				async login(parent, { username, password }, { database, cache }) {
+				async login(_, { username, password }, { }) {
 					return {
 						token: `${username}:${password}`
 					};
 				},
-				async logout(parent, { }, { database, cache }) {
+				async logout(_, { }, { }) {
 					return {
 						acknowledge: true
 					};

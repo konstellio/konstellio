@@ -1,6 +1,5 @@
 import { Disposable, CompositeDisposable } from '@konstellio/disposable';
 import { EventEmitter } from '@konstellio/eventemitter';
-import * as uuid from 'uuid/v4';
 import { Driver, SubscribListener, ConsumeListener, Message, Payload } from '../Driver';
 import { clearTimeout, setInterval, clearInterval } from 'timers';
 

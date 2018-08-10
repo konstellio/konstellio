@@ -1,11 +1,10 @@
 import { FileSystem, Stats } from '../FileSystem';
 import { Pool } from '@konstellio/promised';
-import { Client, ConnectConfig, ClientChannel } from 'ssh2';
-import { Duplex, Readable, Writable, Transform } from 'stream';
-import { join, dirname, basename, sep } from 'path';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
-import { constants } from 'fs';
-import { parseEntries, parseEntry } from 'parse-listing';
+import { Client } from 'ssh2';
+import { Readable, Writable } from 'stream';
+import { sep } from 'path';
+import { FileNotFound, FileAlreadyExists, CouldNotConnect } from '../Errors';
+import { parseEntries } from 'parse-listing';
 
 function normalizePath(path: string) {
 	path = path.split(sep).join('/').trim();
@@ -104,7 +103,7 @@ export class SSH2FileSystem extends FileSystem {
 				this.connection!.removeListener('error', onError);
 				resolve(this.connection!);
 			};
-			const onError = (err) => {
+			const onError = (err: Error) => {
 				this.connection!.removeListener('ready', onReady);
 				reject(new CouldNotConnect(err));
 			}
@@ -161,7 +160,7 @@ export class SSH2FileSystem extends FileSystem {
 					return resolve([code, signal, Buffer.concat(chunks)]);
 				});
 
-				stream.on('data', chunk => {
+				stream.on('data', (chunk: Buffer) => {
 					chunks.push(chunk);
 				});
 			});
@@ -171,7 +170,7 @@ export class SSH2FileSystem extends FileSystem {
 	async stat(path: string): Promise<Stats> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const [code, signal, stat] = await this.exec(conn, `stat "${normalizePath(path)}"`);
+		const [code, , stat] = await this.exec(conn, `stat "${normalizePath(path)}"`);
 		this.pool.release(token);
 		if (code === 1) {
 			throw new FileNotFound(path);
@@ -189,12 +188,12 @@ export class SSH2FileSystem extends FileSystem {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
 		if (stats.isFile) {
-			const [code, signal, stat] = await this.exec(conn, `rm -f "${normalizePath(path)}"`);
+			await this.exec(conn, `rm -f "${normalizePath(path)}"`);
 			// TODO: check error ?
 			this.pool.release(token);
 		}
-		else if (stats.isDirectory) {
-			const [code, signal, stat] = await this.exec(conn, `rm -fr "${normalizePath(path)}"`);
+		else if (stats.isDirectory && recursive) {
+			await this.exec(conn, `rm -fr "${normalizePath(path)}"`);
 			// TODO: check error ?
 			this.pool.release(token);
 		}
@@ -203,7 +202,7 @@ export class SSH2FileSystem extends FileSystem {
 	async copy(source: string, destination: string): Promise<void> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const [code, signal, stat] = await this.exec(conn, `cp -r "${normalizePath(source)}" "${normalizePath(destination)}"`);
+		await this.exec(conn, `cp -r "${normalizePath(source)}" "${normalizePath(destination)}"`);
 		// TODO: check error ?
 		this.pool.release(token);
 	}
@@ -211,7 +210,7 @@ export class SSH2FileSystem extends FileSystem {
 	async rename(oldPath: string, newPath: string): Promise<void> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const [code, signal, stat] = await this.exec(conn, `mv "${normalizePath(oldPath)}" "${normalizePath(newPath)}"`);
+		await this.exec(conn, `mv "${normalizePath(oldPath)}" "${normalizePath(newPath)}"`);
 		// TODO: check error ?
 		this.pool.release(token);
 	}
@@ -234,7 +233,7 @@ export class SSH2FileSystem extends FileSystem {
 		});
 	}
 
-	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		const exists = await this.exists(path);
 		if (exists) {
 			if (overwrite !== true) {
@@ -245,12 +244,12 @@ export class SSH2FileSystem extends FileSystem {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
 
-		const stream = new Transform({
-			transform(chunk, encoding, done) {
-				this.push(chunk);
-				done();
-			}
-		});
+		// const stream = new Transform({
+		// 	transform(chunk, encoding, done) {
+		// 		this.push(chunk);
+		// 		done();
+		// 	}
+		// });
 
 		const sudo = this.getSudo();
 
@@ -274,7 +273,7 @@ export class SSH2FileSystem extends FileSystem {
 	async createDirectory(path: string, recursive?: boolean): Promise<void> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
-		const [code, signal, stat] = await this.exec(conn, `mkdir ${recursive === true ? '-p' : ''} "${normalizePath(path)}"`);
+		await this.exec(conn, `mkdir ${recursive === true ? '-p' : ''} "${normalizePath(path)}"`);
 		// TODO: check error ?
 		this.pool.release(token);
 	}
@@ -291,9 +290,9 @@ export class SSH2FileSystem extends FileSystem {
 					reject(err);
 				} else {
 					if (stat !== true) {
-						resolve(entries.map(entry => entry.name));
+						resolve(entries.map((entry) => entry.name));
 					} else {
-						resolve(entries.map(entry => [
+						resolve(entries.map((entry) => [
 							entry.name,
 							new Stats(
 								entry.type === 0,
@@ -304,7 +303,7 @@ export class SSH2FileSystem extends FileSystem {
 								new Date(entry.time),
 								new Date(entry.time)
 							)
-						]));
+						]) as [string, Stats][]);
 					}
 				}
 				this.pool.release(token);

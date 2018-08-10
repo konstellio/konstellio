@@ -2,12 +2,10 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { spawn, ChildProcess } from 'child_process';
 import { SQLiteDriver } from './SQLiteDriver';
 import { q } from '../Query';
 import * as QueryResult from '../QueryResult';
 import { ColumnType, IndexType } from '../index';
-import { unlinkSync } from 'fs';
 
 describe('SQLite', () => {
 

@@ -1,6 +1,4 @@
-import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, InputObjectTypeDefinitionNode, UnionTypeDefinitionNode, ObjectTypeDefinitionNode, InputValueDefinitionNode, FieldDefinitionNode, NamedTypeNode, ListTypeNode, NonNullTypeNode, TypeNode, ArgumentNode, ValueNode } from "graphql";
-import { Locales } from "./config";
-import { join } from "path";
+import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, FieldDefinitionNode, TypeNode, ArgumentNode, ValueNode } from "graphql";
 
 /**
  * Merge multiple DocumentNode into one, collapsing type extension into their type definition
@@ -127,6 +125,14 @@ export function isCollection(node: DefinitionNode): boolean {
 		node.directives!.find(d => d.name.value === 'collection') !== undefined;
 }
 
+export function isComputedField(node: FieldDefinitionNode): boolean {
+	return node.directives !== undefined && ((node.arguments || []).length > 0 || node.directives!.find(d => d.name.value === 'computed') !== undefined);
+}
+
+export function isLocalizedField(node: FieldDefinitionNode): boolean {
+	return node.directives !== undefined && node.directives!.find(d => d.name.value === 'localized') !== undefined;
+}
+
 export function getNamedTypeNode(type: TypeNode): string {
 	if (type.kind === Kind.NAMED_TYPE) {
 		return type.name.value;
@@ -165,7 +171,7 @@ export function getValue(node: ValueNode): any {
 		return node.fields.reduce((obj, field) => {
 			obj[field.name.value] = getValue(field.value);
 			return obj;
-		}, {});
+		}, {} as { [name: string]: any });
 	}
 	else if (node.kind === Kind.NULL) {
 		return null;
@@ -180,5 +186,5 @@ export function getArgumentsValues(nodes: ArgumentNode[] | undefined): { [key: s
 	return nodes.reduce((args, arg) => {
 		args[arg.name.value] = getValue(arg.value);
 		return args;
-	}, {});
+	}, {} as { [name: string]: any });
 }

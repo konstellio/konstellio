@@ -42,16 +42,12 @@ import {
 	Comparison,
 	Binary,
 	ChangeAddColumn,
-	ChangeAlterColumn,
-	ChangeDropColumn,
 	ChangeAddIndex,
-	ChangeDropIndex,	
 	ComparisonIn,
 	Change
 } from '../Query';
 import { List } from 'immutable';
-import { join } from 'path';
-let SQLite; try { SQLite = require('sqlite3'); } catch (e) { }
+import { Database } from 'sqlite3';
 
 export type SQLiteDriverConstructor = {
 	filename?: string,
@@ -70,7 +66,7 @@ function runQuery(driver: SQLiteDriver, sql: string, params = [] as any[]): Prom
 			if (err) return reject(err);
 			resolve({
 				changes: this.changes,
-				lastId: this.lastID
+				lastId: this.lastID.toString()
 			});
 		});
 	});
@@ -89,7 +85,7 @@ export class SQLiteDriver extends Driver {
 	readonly features: Features;
 
 	options: SQLiteDriverConstructor
-	driver: any
+	driver!: Database
 
 	constructor (options: SQLiteDriverConstructor) {
 		super();
@@ -101,16 +97,21 @@ export class SQLiteDriver extends Driver {
 
 	connect(): Promise<SQLiteDriver> {
 		return new Promise<SQLiteDriver>((resolve, reject) => {
-			this.driver = new SQLite.Database(
-				this.options.filename,
-				this.options.mode || (SQLite.OPEN_READWRITE | SQLite.OPEN_CREATE),
-				(err) => {
-					if (err) {
-						return reject(err);
+			try {
+				const { Database, OPEN_READWRITE, OPEN_CREATE } = require('sqlite3');
+				this.driver = new Database(
+					this.options.filename,
+					this.options.mode || (OPEN_READWRITE | OPEN_CREATE),
+					(err: Error) => {
+						if (err) {
+							return reject(err);
+						}
+						resolve(this);
 					}
-					resolve(this);
-				}
-			);
+				);
+			} catch (e) {
+				throw new Error(`Could not load sqlite3 client. Maybe try "npm install sqlite3" ?`);
+			}
 		});
 	}
 
@@ -141,7 +142,7 @@ export class SQLiteDriver extends Driver {
 			return this.executeUnion<T>(query, variables);
 		}
 		else if (query instanceof QueryInsert) {
-			return this.executeInsert<T>(query, variables);
+			return this.executeInsert(query, variables);
 		}
 		else if (query instanceof QueryUpdate) {
 			return this.executeUpdate<T>(query, variables);
@@ -165,12 +166,13 @@ export class SQLiteDriver extends Driver {
 			return this.executeDropCollection(query);
 		}
 		else if (query instanceof QueryShowCollection) {
-			return this.executeShowCollection(query);
+			return this.executeShowCollection();
 		}
 		
 		return Promise.reject(new TypeError(`Unsupported query, got ${typeof query}.`));
 	}
 
+	// @ts-ignore
 	compareTypes(aType: ColumnType, aSize: number, bType: ColumnType, bSize: number): Compare {
 		if (columnType(aType) === columnType(bType)) {
 			return Compare.Castable;
@@ -204,15 +206,15 @@ export class SQLiteDriver extends Driver {
 		return new QuerySelectResult<T>(rows);
 	}
 
-	private async executeInsert<T>(query: QueryInsert, variables?: Variables): Promise<QueryInsertResult> {
+	private async executeInsert(query: QueryInsert, variables?: Variables): Promise<QueryInsertResult> {
 		const stmts = convertQueryToSQL(query, variables);
-		const { changes, lastId } = await runQuery(this, stmts[0].sql, stmts[0].params);
+		const { lastId } = await runQuery(this, stmts[0].sql, stmts[0].params);
 		return new QueryInsertResult(lastId.toString());
 	}
 
 	private async executeUpdate<T>(query: QueryUpdate, variables?: Variables): Promise<QueryUpdateResult<T>> {
 		const stmts = convertQueryToSQL(query, variables);
-		const changes = await runQuery(this, stmts[0].sql, stmts[0].params);
+		await runQuery(this, stmts[0].sql, stmts[0].params);
 		const fields = query.object;
 		const data: T = fields ? fields.toJS() : {}
 		return new QueryUpdateResult<T>(data);
@@ -224,7 +226,7 @@ export class SQLiteDriver extends Driver {
 		return new QueryDeleteResult(changes > 0);
 	}
 
-	private async executeShowCollection(query: QueryShowCollection): Promise<QueryShowCollectionResult> {
+	private async executeShowCollection(): Promise<QueryShowCollectionResult> {
 		return allQuery<{ name: string }>(this, `SELECT name FROM sqlite_master WHERE type="table"`).then((tables) => {
 			return new QueryShowCollectionResult(tables.filter(({ name }) => name !== 'sqlite_sequence').map<Collection>(({ name }) => {
 				const match = name.match(/^([^_]+)_(.*)$/);
@@ -246,7 +248,7 @@ export class SQLiteDriver extends Driver {
 
 		const [colDefs, idxDefs, auto] = await Promise.all([
 			allQuery(this, `PRAGMA table_info(${table_name})`, [])
-				.catch(err => [] as any[]),
+				.catch(() => [] as any[]),
 			allQuery(this, `PRAGMA index_list(${table_name})`, [])
 				.then(indexes => Promise.all(indexes.map(index => allQuery(this, `PRAGMA index_xinfo(${index.name})`, []).then(columns => ({
 					name: index.name as string,
@@ -254,10 +256,10 @@ export class SQLiteDriver extends Driver {
 					columns: columns || []
 				})))))
 				.then(indexes => indexes.filter(idx => idx.name.substr(0, 17) !== 'sqlite_autoindex_'))
-				.catch(err => [] as {name: string, type: string, columns: any[]}[]),
+				.catch(() => [] as {name: string, type: string, columns: any[]}[]),
 			allQuery(this, `SELECT "auto" FROM sqlite_master WHERE tbl_name=? AND sql LIKE "%AUTOINCREMENT%"`, [table_name])
 				.then(rows => rows.length > 0)
-				.catch(err => false)
+				.catch(() => false)
 		]);
 		
 		const columns = colDefs.map<Column>(col => {
@@ -337,19 +339,19 @@ export class SQLiteDriver extends Driver {
 			return changes.findIndex(c => c !== undefined && c.type === 'dropColumn' && c.column === column.name) === -1;
 		});
 
-		const newColumns = changes.filter(change => {
+		const newColumns = changes.filter((change): change is ChangeAddColumn => {
 			return change !== undefined && change.type === 'addColumn';
-		}).map((change: ChangeAddColumn) => change.column).toArray();
+		}).map((change: any) => change.column).toArray();
 
 		const copyColumns = changes.filter(change => {
 			return change !== undefined && change.type === 'addColumn' && change.copyColumn !== undefined;
 		}).toArray() as ChangeAddColumn[];
 
-		const renameColumns = changes.reduce<{ [key: string]: Column}>((columns: { [key: string]: Column}, change) => {
+		const renameColumns = changes.reduce<{ [key: string]: Column}>((columns, change) => {
 			if (change && change.type === 'alterColumn') {
-				columns[change.oldColumn] = change.newColumn;
+				columns![change.oldColumn] = change.newColumn;
 			}
-			return columns;
+			return columns!;
 		}, {} as { [key: string]: Column});
 
 		const tmpTable = `konstellio_db_rename_${++SQLiteDriver.tmpId}`;
@@ -393,9 +395,9 @@ export class SQLiteDriver extends Driver {
 			))
 			: existingIndexes;
 
-		const newIndexes = changes.filter(change => {
+		const newIndexes = changes.filter((change): change is ChangeAddIndex => {
 			return change !== undefined && change.type === 'addIndex';
-		}).map((change: ChangeAddIndex) => change.index).toArray();
+		}).map((change: any) => change.index).toArray();
 
 		await Promise.all(renamedIndexes.concat(newIndexes).map(index => runQuery(this, indexToSQL(finalCollection, index))));
 
@@ -658,7 +660,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 
 		const objects = query.objects;
 		if (objects !== undefined && objects.count() > 0) {
-			sql += `(${objects.get(0).map<string>((value, key) => `"${key}"`).join(', ')}) `;
+			sql += `(${objects.get(0).map<string>((_, key) => `"${key}"`).join(', ')}) `;
 			sql += `VALUES ${objects.map<string>(obj => {
 				return `(${obj!.map<string>(value => {
 					params.push(value);

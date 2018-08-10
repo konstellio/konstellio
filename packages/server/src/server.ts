@@ -13,9 +13,10 @@ import { parse, InlineFragmentNode, OperationDefinitionNode, Kind } from 'graphq
 import { mergeAST } from './utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
-import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions } from './collection';
+import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
 import { renderPlaygroundPage } from 'graphql-playground-html';
+import { AddressInfo } from 'net';
 
 export enum ServerListenMode {
 	All = ~(~0 << 2),
@@ -35,8 +36,6 @@ export interface ServerListenStatus {
 	address?: string
 	port?: number
 }
-
-type PluginMap = { [key: string]: Plugin }
 
 export async function createServer(config: Config): Promise<Server> {
 	const [db, fs, cache, mq] = await Promise.all([
@@ -115,7 +114,9 @@ export class Server implements IDisposableAsync {
 		const ASTs = typeDefs.map(typeDef => parse(typeDef));
 
 		// Let plugin extend AST by providing an other layer of type definition
-		const typeDefExtensions: string[] = [];
+		const typeDefExtensions: string[] = [
+			createTypeExtensionsFromDatabaseDriver(this.database, this.config.locales)
+		];
 		for (const ast of ASTs) {
 			const extended = await Promise.all(pluginOrder.reduce((typeDefs, plugin) => {
 				if (plugin.getTypeExtension) {
@@ -133,10 +134,29 @@ export class Server implements IDisposableAsync {
 		}
 		ASTs.push(...typeDefExtensions.map(typeDef => parse(typeDef)));
 
-		// TODO: Create relation table depending on database
-
 		// Merge every AST
 		const mergedAST = mergeAST(ASTs);
+
+		const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales);
+		
+		// Do migration
+		if (skipMigration === false) {
+			const dbSchema = await createSchemaFromDatabase(this.database, this.config.locales);
+			const schemaDiffs = await promptSchemaDiffs(
+				process.stdin as ReadStream,
+				process.stdout as WriteStream,
+				computeSchemaDiff(dbSchema, astSchema, this.database.compareTypes),
+				this.database.compareTypes
+			);
+
+			if (schemaDiffs.length > 0) {
+				await executeSchemaDiff(schemaDiffs, this.database);
+			}
+		}
+
+		// TODO: Create collections with mergedAST
+		const collections = createCollections(this.database, astSchema, mergedAST, this.config.locales);
+		debugger;
 
 		// Create input type from definitions
 		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);
@@ -156,7 +176,7 @@ export class Server implements IDisposableAsync {
 
 		// Create fragment from resolvers
 		const fragments = Object.keys(mergedResolvers).reduce((fragments, typeName) => {
-			const type = mergedResolvers[typeName];
+			const type: any = mergedResolvers[typeName];
 			return Object.keys(type).reduce((fragments, fieldName) => {
 				const field = type[fieldName];
 				if (typeof field === 'object' && typeof field.resolve === 'function' && typeof field.fragment === 'string') {
@@ -166,38 +186,20 @@ export class Server implements IDisposableAsync {
 			}, fragments);
 		}, [] as { field: string, fragment: string }[]);
 
-		// Do migration
-		if (skipMigration === false) {
-			const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales);
-			const dbSchema = await createSchemaFromDatabase(this.database, this.config.locales);
-			const schemaDiffs = await promptSchemaDiffs(
-				process.stdin as ReadStream,
-				process.stdout as WriteStream,
-				computeSchemaDiff(dbSchema, astSchema, this.database.compareTypes),
-				this.database.compareTypes
-			);
-
-			if (schemaDiffs.length > 0) {
-				await executeSchemaDiff(schemaDiffs, this.database);
-			}
-		}
-
-		// TODO: Create collections with mergedAST
-
+		// Create schema
 		const baseSchema = makeExecutableSchema({
 			typeDefs: [mergedAST, inputTypeDefinitions] as any,
 			resolvers: mergedResolvers
 		});
 
+		// Emulate mergeSchemas resolver's fragment
 		const extendedSchema = transformSchema(baseSchema, [
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
-
-		debugger;
 		
 		if (mode & ServerListenMode.Graphql) {
 			const app = fastify();
-			app.get('/', async (req, res) => {
+			app.get('/', async (_, res) => {
 				res.send({
 					mode,
 					plugins: this.plugins
@@ -207,7 +209,7 @@ export class Server implements IDisposableAsync {
 			// TODO: Auth => https://github.com/fastify/fastify-cookie/blob/master/plugin.js
 			// TODO: Create a websocker server => https://github.com/fastify/fastify-websocket/blob/master/index.js
 
-			app.get('/playground', async (req, res) => {
+			app.get('/playground', async (_, res) => {
 				const html = renderPlaygroundPage({
 					endpoint: '/graphql',
 					version: '1.6.6'
@@ -249,7 +251,7 @@ export class Server implements IDisposableAsync {
 					this.config.http && this.config.http.host || '127.0.0.1',
 					(err) => {
 						if (err) return reject(err);
-						const addr = app.server.address();
+						const addr = app.server.address() as AddressInfo;
 						status.family = addr.family;
 						status.address = addr.address;
 						status.port = addr.port;
@@ -263,33 +265,6 @@ export class Server implements IDisposableAsync {
 
 		return status;
 	}
-}
-
-function parseFragmentToInlineFragment(
-	definitions: string,
-): InlineFragmentNode {
-	if (definitions.trim().startsWith('fragment')) {
-		const document = parse(definitions);
-		for (const definition of document.definitions) {
-			if (definition.kind === Kind.FRAGMENT_DEFINITION) {
-				return {
-					kind: Kind.INLINE_FRAGMENT,
-					typeCondition: definition.typeCondition,
-					selectionSet: definition.selectionSet,
-				};
-			}
-		}
-	}
-
-	const query = parse(`{${definitions}}`)
-		.definitions[0] as OperationDefinitionNode;
-	for (const selection of query.selectionSet.selections) {
-		if (selection.kind === Kind.INLINE_FRAGMENT) {
-			return selection;
-		}
-	}
-
-	throw new Error('Could not parse fragment');
 }
 
 function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {

@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { Map, List, Record, Iterable } from 'immutable';
+import { Map, List } from 'immutable';
 import { isArray } from 'util';
 
 export class q {
@@ -416,7 +416,7 @@ export abstract class Function {
 		return this.fn === fn.fn && this.args === fn.args;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `${this.fn.toUpperCase()}(${this.args.map(arg => arg && arg.toString()).join(', ')})`;
 	}
 }
@@ -516,7 +516,7 @@ export abstract class Comparison {
 				return new constructor(new Field(name), this.args);
 			}
 			else {
-				const renameArg = (arg) => {
+				const renameArg = (arg: Value): Value => {
 					if (arg instanceof Field) {
 						return arg.rename(name);
 					}
@@ -694,7 +694,7 @@ export class Binary {
 		return this.operator === binary.operator && this.operands === binary.operands;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `(${this.operands.map(op => op!.toString()).join(` ${this.operator.toUpperCase()} `)})`;
 	}
 }
@@ -708,6 +708,7 @@ export type Join = {
 }
 
 export class QuerySelect extends Query {
+	// @ts-ignore
 	private type: 'select';
 
 	constructor(
@@ -806,6 +807,7 @@ export class QuerySelect extends Query {
 }
 
 export class QueryAggregate extends Query {
+	// @ts-ignore
 	private type: 'aggregate';
 
 	constructor(
@@ -913,6 +915,7 @@ export class QueryAggregate extends Query {
 }
 
 export class QueryUnion extends Query {
+	// @ts-ignore
 	private type: 'union';
 
 	constructor(
@@ -968,6 +971,7 @@ export class QueryUnion extends Query {
 export type Object = Map<string, Value>;
 
 export class QueryInsert extends Query {
+	// @ts-ignore
 	private type: 'insert';
 
 	constructor(
@@ -1025,6 +1029,7 @@ export class QueryInsert extends Query {
 }
 
 export class QueryUpdate extends Query {
+	// @ts-ignore
 	private type: 'update';
 
 	constructor(
@@ -1072,7 +1077,7 @@ export class QueryUpdate extends Query {
 			const keys = Object.keys(this.object);
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
 			query += `${newline}${indent}VALUES (${keys.map<string>(key => {
-				const value = this.object![key];
+				const value = this.object!.get(key);
 				if (typeof value === 'string') {
 					return `"${value}"`;
 				}
@@ -1089,6 +1094,7 @@ export class QueryUpdate extends Query {
 }
 
 export class QueryDelete extends Query {
+	// @ts-ignore
 	private type: 'delete';
 
 	constructor(
@@ -1135,13 +1141,13 @@ export class QueryDelete extends Query {
 }
 
 export class QueryShowCollection extends Query {
+	// @ts-ignore
 	private type: 'showcollection';
 
 	toString(multiline: boolean = false, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}SHOW COLLECTIONS`;
 
 		return query;
@@ -1149,6 +1155,7 @@ export class QueryShowCollection extends Query {
 }
 
 export class QueryCollectionExists extends Query {
+	// @ts-ignore
 	private type: 'collectionexists';
 
 	constructor(
@@ -1174,7 +1181,6 @@ export class QueryCollectionExists extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}COLLECTION EXISTS `;
 
 		if (this.collection) {
@@ -1186,6 +1192,7 @@ export class QueryCollectionExists extends Query {
 }
 
 export class QueryDescribeCollection extends Query {
+	// @ts-ignore
 	private type: 'describecollection';
 
 	constructor(
@@ -1211,7 +1218,6 @@ export class QueryDescribeCollection extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}DESCRIBE COLLECTION `;
 
 		if (this.collection) {
@@ -1223,6 +1229,7 @@ export class QueryDescribeCollection extends Query {
 }
 
 export class QueryCreateCollection extends Query {
+	// @ts-ignore
 	private type: 'createcollection';
 
 	constructor(
@@ -1306,6 +1313,7 @@ export type ChangeDropIndex = {
 export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
 
 export class QueryAlterCollection extends Query {
+	// @ts-ignore
 	private type: 'altercollection';
 
 	constructor(
@@ -1401,6 +1409,7 @@ export class QueryAlterCollection extends Query {
 }
 
 export class QueryDropCollection extends Query {
+	// @ts-ignore
 	private type: 'dropcollection';
 
 	constructor(
@@ -1426,7 +1435,6 @@ export class QueryDropCollection extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
 		let query = `${indent}DROP COLLECTION `;
 
 		if (this.collection) {

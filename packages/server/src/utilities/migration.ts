@@ -1,10 +1,10 @@
-import { DocumentNode, ObjectTypeDefinitionNode, UnionTypeDefinitionNode, DefinitionNode, Kind, DirectiveNode, FieldNode, FieldDefinitionNode, TypeNode } from "graphql";
-import { Driver, q, Query, Column as DBColumn, Index as DBIndex, ColumnType, IndexType, QueryCreateCollection, Compare, QueryAlterCollection, QueryDropCollection, FieldDirection } from "@konstellio/db";
+import { DocumentNode, ObjectTypeDefinitionNode, DefinitionNode, Kind, DirectiveNode, FieldDefinitionNode, TypeNode } from "graphql";
+import { Driver, q, Column as DBColumn, Index as DBIndex, ColumnType, IndexType, QueryCreateCollection, Compare, QueryAlterCollection, QueryDropCollection, FieldDirection } from "@konstellio/db";
 import * as assert from 'assert';
 import { isArray } from "util";
 import { WriteStream, ReadStream } from 'tty';
 import { Locales } from "./config";
-import { isCollection, getArgumentsValues, getNamedTypeNode, isListType } from "./ast";
+import { isCollection, getArgumentsValues, isListType } from "./ast";
 import { promptSelection } from "./cli";
 
 

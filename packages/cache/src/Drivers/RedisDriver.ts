@@ -1,8 +1,6 @@
 import { Driver, Serializable } from '../Driver';
 import { ClientOpts, RedisClient } from 'redis';
 
-let createClient: (options: ClientOpts) => RedisClient;
-try { createClient = require('redis').createClient; } catch (e) {}
 
 export class RedisDriver extends Driver {
 
@@ -47,7 +45,7 @@ export class RedisDriver extends Driver {
 
 	set(key: string, value: Serializable, ttl: number): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this.client.set(key, value.toString(), (err, reply) => {
+			this.client.set(key, value.toString(), 'EX', ttl, (err) => {
 				if (err) {
 					return reject(err);
 				}
@@ -58,7 +56,7 @@ export class RedisDriver extends Driver {
 
 	expire(key: string, ttl: number): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this.client.expire(key, ttl, (err, reply) => {
+			this.client.expire(key, ttl, (err) => {
 				if (err) {
 					return reject(err);
 				}
@@ -91,7 +89,7 @@ export class RedisDriver extends Driver {
 
 	unset(key: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this.client.del(key, (err, reply) => {
+			this.client.del(key, (err) => {
 				if (err) {
 					return reject(err);
 				}

@@ -1,16 +1,11 @@
 {
+	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"alwaysStrict": true,
-		"declaration": true,
-		"module": "commonjs",
-		"moduleResolution": "node",
-		"outDir": "./dist",
 		"rootDir": "./src",
-		"sourceMap": true,
-		"strictNullChecks": true,
-		"target": "es6",
-		"lib": [
-			"esnext"
-		]
-	}
+		"outDir": "./dist"
+	},
+	"exclude": [
+		"node_modules",
+		"./dist"
+	]
 }

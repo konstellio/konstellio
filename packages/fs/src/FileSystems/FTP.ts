@@ -1,8 +1,8 @@
 import { FileSystem, Stats } from '../FileSystem';
 import { Pool } from '@konstellio/promised';
 import * as FTPClient from 'ftp';
-import { Duplex, Readable, Writable, Transform } from 'stream';
-import { join, dirname, basename, sep } from 'path';
+import { Readable, Writable, Transform } from 'stream';
+import { dirname, basename, sep } from 'path';
 import { ConnectionOptions } from 'tls';
 import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 
@@ -82,7 +82,7 @@ export class FTPFileSystem extends FileSystem {
 				this.connection!.removeListener('error', onError);
 				resolve(this.connection!);
 			};
-			const onError = (err) => {
+			const onError = (err: Error) => {
 				this.connection!.removeListener('ready', onReady);
 				reject(new CouldNotConnect(err));
 			}
@@ -164,7 +164,7 @@ export class FTPFileSystem extends FileSystem {
 		}
 	}
 
-	async copy(source: string, destination: string): Promise<void> {
+	async copy(): Promise<void> {
 		throw new OperationNotSupported('copy');
 	}
 
@@ -200,7 +200,7 @@ export class FTPFileSystem extends FileSystem {
 		});
 	}
 
-	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
+	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		const exists = await this.exists(path);
 		if (exists) {
 			if (overwrite !== true) {
@@ -212,13 +212,13 @@ export class FTPFileSystem extends FileSystem {
 		const conn = await this.getConnection();
 
 		const stream = new Transform({
-			transform(chunk, encoding, done) {
+			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
 			}
 		});
 
-		return new Promise<Writable>((resolve, reject) => {
+		return new Promise<Writable>((resolve) => {
 			conn.put(stream, normalizePath(path), () => this.pool.release(token));
 			resolve(stream);
 		});

@@ -1,4 +1,4 @@
-import { Binary, Comparison, Field, FieldDirection, Function, Join, Query, BinaryExpression, QuerySelect, FieldAs } from './Query';
+import { Binary, Comparison, Field, FieldDirection, Function, BinaryExpression, QuerySelect, FieldAs } from './Query';
 import { List } from 'immutable';
 import { isArray } from 'util';
 
@@ -180,8 +180,8 @@ export function replaceField(
 		return source.map(source => replaceField(source as Field, replace, matches));
 	}
 	else if (source && 'withMutations' in source) {
-		return source.withMutations((source) => {
-			source.forEach((field, idx = 0) => {
+		return source.withMutations((source: any) => {
+			source.forEach((field: any, idx = 0) => {
 				if (field instanceof Field || field instanceof FieldDirection || field instanceof Function) {
 					const replaced = replaceField(field as Field, replace, matches);
 					if (replaced !== field) {

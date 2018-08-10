@@ -1,10 +1,6 @@
 import { ClientOpts, RedisClient } from 'redis';
 import { RedisDriver } from './RedisDriver';
 
-let createClient: () => RedisClient;
-try { createClient = require('redis-mock').createClient; } catch (e) {}
-
-
 export class RedisMockDriver extends RedisDriver {
 
 	constructor() {
@@ -21,7 +17,7 @@ export class RedisMockDriver extends RedisDriver {
 	disposeAsync(): Promise<void> {
 		return this.disposed
 			? Promise.resolve() 
-			: new Promise((resolve, reject) => {
+			: new Promise((resolve) => {
 				this.client.quit(); // No callback in redis-mock
 				resolve();
 			});

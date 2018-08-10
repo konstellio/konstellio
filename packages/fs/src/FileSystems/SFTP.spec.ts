@@ -1,5 +1,5 @@
 import 'mocha';
-import { use, expect, should } from 'chai';
+import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import * as fs from 'fs';
@@ -7,12 +7,13 @@ import { SFTPFileSystem } from './SFTP';
 import * as SFTPServer from 'node-sftp-server';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
-import { join, isAbsolute } from 'path';
+import { join } from 'path';
 import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+import { Writable, Readable } from 'stream';
 
 describe('SFTP', () => {
 
-	let sftpd: SFTPServer
+	let sftpd: any
 
 	before(() => {
 		const tmp = mkdtempSync(join(tmpdir(), 'konstellio-sftp-'));
@@ -41,12 +42,12 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 			debug: false
 		});
 		sftpd.listen(2222);
-		sftpd.on('connect', (auth, info) => {
-			auth.accept((session) => {
-				session.on('realpath', async (path, done) => {
+		sftpd.on('connect', (auth: any) => {
+			auth.accept((session: any) => {
+				session.on('realpath', async (path: string, done: (path: string) => void) => {
 					return done(path === '.' ? '/' : path);
 				});
-				session.on('stat', async (path, kind, resp) => {
+				session.on('stat', async (path: string, _: any, resp: any) => {
 					try {
 						const stat = fs.statSync(join(tmp, path));
 						if (stat.isDirectory()) {
@@ -66,7 +67,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 						resp.nofile();
 					}
 				})
-				session.on('readdir', (path, resp) => {
+				session.on('readdir', (path: string, resp: any) => {
 					try {
 						const entries = fs.readdirSync(join(tmp, path));
 						let i = 0;
@@ -100,14 +101,14 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 						resp.nofile();
 					}
 				});
-				session.on('readfile', (path, writestream) => {
+				session.on('readfile', (path: string, writestream: Writable) => {
 					return fs.createReadStream(join(tmp, path)).pipe(writestream);
 				});
-				session.on('writefile', (path, readstream) => {
+				session.on('writefile', (path: string, readstream: Readable) => {
 					const writestream = fs.createWriteStream(join(tmp, path));
 					readstream.pipe(writestream);
 				});
-				session.on('delete', (path, cb) => {
+				session.on('delete', (path: string, cb: any) => {
 					fs.unlink(join(tmp, path), (err) => {
 						if (err) {
 							return cb.fail();
@@ -115,7 +116,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 						cb.ok();
 					});
 				});
-				session.on('rename', (oldPath, newPath, cb) => {
+				session.on('rename', (oldPath: string, newPath: string, cb: any) => {
 					fs.rename(join(tmp, oldPath), join(tmp, newPath), (err) => {
 						if (err) {
 							return cb.fail();
@@ -123,7 +124,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 						cb.ok();
 					});
 				});
-				session.on('mkdir', (path, cb) => {
+				session.on('mkdir', (path: string, cb: any) => {
 					fs.mkdir(join(tmp, path), (err) => {
 						if (err) {
 							return cb.fail();
@@ -131,7 +132,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 						cb.ok();
 					});
 				});
-				session.on('rmdir', (path, cb) => {
+				session.on('rmdir', (path: string, cb: any) => {
 					fs.rmdir(join(tmp, path), (err) => {
 						if (err) {
 							return cb.fail();
@@ -154,7 +155,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 
 	after(async () => {
 		await fssftp.disposeAsync();
-		await new Promise(resolve => sftpd.server.close((err) => resolve()));
+		await new Promise(resolve => sftpd.server.close(() => resolve()));
 	});
 
 });

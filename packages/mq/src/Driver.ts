@@ -1,5 +1,4 @@
-import * as uuid from 'uuid/v4';
-import { IDisposableAsync, IDisposable, Disposable } from '@konstellio/disposable';
+import { Disposable } from '@konstellio/disposable';
 
 export type Serializable = string | number | boolean | Date
 

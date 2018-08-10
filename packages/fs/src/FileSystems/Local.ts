@@ -1,7 +1,7 @@
-import { exists, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, readdir, writeFile } from 'fs';
+import { mkdir, unlink, lstat, rename, copyFile, createReadStream, createWriteStream, readdir } from 'fs';
 import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
-import { join, normalize, basename, dirname, sep, relative } from 'path';
+import { join } from 'path';
 import { FileSystem, Stats } from '../FileSystem';
 import { FileAlreadyExists, FileNotFound } from '../Errors';
 
@@ -67,9 +67,9 @@ export class LocalFileSystem extends FileSystem {
 				})
 			})
 		}
-		else if (stats.isDirectory) {
+		else if (stats.isDirectory && recursive) {
 			const children = await this.readDirectory(path, true);
-			for (const [child, stats] of children) {
+			for (const [child] of children) {
 				await this.unlink(join(path, child), true);
 				await new Promise<void>((resolve, reject) => {
 					unlink(join(path, child), (err) => {
@@ -149,12 +149,21 @@ export class LocalFileSystem extends FileSystem {
 
 	createDirectory(path: string, recursive?: boolean): Promise<void> {
 		return new Promise((resolve, reject) => {
-			mkdirp(join(this.rootDirectory, path), this.directoryMode, (err) => {
-				if (err) {
-					return reject(err);
-				}
-				return resolve();
-			});
+			if (recursive) {
+				mkdirp(join(this.rootDirectory, path), this.directoryMode, (err) => {
+					if (err) {
+						return reject(err);
+					}
+					return resolve();
+				});
+			} else {
+				mkdir(join(this.rootDirectory, path), this.directoryMode, (err) => {
+					if (err) {
+						return reject(err);
+					}
+					return resolve();
+				})
+			}
 		});
 	}
 

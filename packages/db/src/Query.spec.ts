@@ -1,7 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
 import * as Query from './Query';
-import { Map, List } from 'immutable';
 
 const { q, ColumnType, IndexType } = Query;
 
@@ -71,7 +70,7 @@ describe('Query', () => {
 		expect(q.count('foo').args.get(0)).to.be.an.instanceof(Query.Field);
 
 		['avg', 'sum', 'sub', 'max', 'min', 'concat'].forEach(fnName => {
-			const fn = q[fnName];
+			const fn = (q as any)[fnName];
 			expect(fn).to.be.a('function');
 			expect(fn('foo')).to.be.an.instanceof(Query.Function);
 			expect(fn('foo').fn).to.equal(fnName);
@@ -84,7 +83,7 @@ describe('Query', () => {
 
 	it('comparison', async () => {
 		[['eq', '='], ['ne', '!='], ['gt', '>'], ['gte', '>='], ['lt', '<'], ['lte', '<='], ['beginsWith', 'beginsWith']].forEach(([fnName, operator]) => {
-			const fn = q[fnName];
+			const fn = (q as any)[fnName];
 			expect(fn).to.be.a('function');
 			expect(fn(q.field('foo'), 'bar')).to.be.an.instanceof(Query.Comparison);
 			expect(fn(q.field('foo'), 'bar').field).to.be.an.instanceof(Query.Field);
@@ -102,7 +101,7 @@ describe('Query', () => {
 		expect(q.in(q.field('foo'), ['bar']).args.get(0)).to.equal('bar');
 
 		const a = q.eq('foo', 'bar');
-		const b = a.replaceArgument(arg => 'moo');
+		const b = a.replaceArgument(() => 'moo');
 		expect(a).to.not.equal(b);
 		expect(b).to.be.an.instanceof(Query.ComparisonEqual);
 		expect(b.args.get(0)).to.equal('moo');
@@ -110,7 +109,7 @@ describe('Query', () => {
 
 	it('binary', async () => {
 		['and', 'or', 'xor'].forEach(op => {
-			const fn = q[op];
+			const fn = (q as any)[op];
 			expect(fn).to.be.a('function');
 			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo'))).to.be.an.instanceof(Query.Binary);
 			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operator).to.equal(op);
