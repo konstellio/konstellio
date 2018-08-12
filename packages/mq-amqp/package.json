@@ -1,11 +1,12 @@
 {
-  "name": "@konstellio/mq",
+  "name": "@konstellio/mq-amqp",
   "version": "0.0.10",
   "description": "",
-  "main": "dist/MessageQueue.js",
-  "types": "dist/MessageQueue.d.ts",
+  "main": "dist/MessageQueueAMQP.js",
+  "types": "dist/MessageQueueAMQP.d.ts",
   "scripts": {
     "compile": "rimraf ./dist && tsc --pretty",
+    "docker:rabbitmq": "docker run --rm -it --hostname konstellio-mq -p 5672:5672 rabbitmq:3",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
@@ -15,14 +16,20 @@
   "license": "MIT",
   "peerDependencies": {
     "@konstellio/disposable": "^0.x",
-    "@konstellio/eventemitter": "^0.x"
+    "@konstellio/eventemitter": "^0.x",
+    "@konstellio/mq": "^0.x",
+    "amqplib": "^0.5.2"
   },
   "devDependencies": {
     "@konstellio/disposable": "^0.x",
     "@konstellio/eventemitter": "^0.x",
+    "@konstellio/mq": "^0.x",
+    "@types/amqplib": "^0.5.8",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
+    "@types/uuid": "^3.4.3",
+    "amqplib": "^0.5.2",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "istanbul": "^1.1.0-alpha.1",
@@ -30,5 +37,8 @@
     "rimraf": "^2.6.2",
     "ts-node": "^7.0.0",
     "typescript": "^3.0.1"
+  },
+  "dependencies": {
+    "uuid": "^3.3.2"
   }
 }

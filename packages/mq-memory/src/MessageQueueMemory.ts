@@ -1,6 +1,6 @@
 import { Disposable, CompositeDisposable } from '@konstellio/disposable';
 import { EventEmitter } from '@konstellio/eventemitter';
-import { Driver, SubscribListener, ConsumeListener, Message, Payload } from '../Driver';
+import { MessageQueue, SubscribListener, ConsumeListener, Message, Payload } from '@konstellio/mq';
 import { clearTimeout, setInterval, clearInterval } from 'timers';
 
 type ConsumerList = {
@@ -14,7 +14,7 @@ type PendingTask = {
 	done?: (response: Error | any) => void
 }
 
-export class MemoryDriver extends Driver {
+export class MessageQueueMemory extends MessageQueue {
 
 	private emitter: EventEmitter
 	private disposable: CompositeDisposable

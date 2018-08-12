@@ -2,7 +2,7 @@ import { Disposable } from '@konstellio/disposable';
 
 export type Serializable = string | number | boolean | Date
 
-export abstract class Driver {
+export abstract class MessageQueue {
 	abstract connect(): Promise<this>
 	abstract disconnect(): Promise<void>
 	

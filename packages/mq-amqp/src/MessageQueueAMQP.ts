@@ -1,14 +1,14 @@
-import { Disposable, CompositeDisposable } from '@konstellio/disposable';
-import { EventEmitter } from '@konstellio/eventemitter';
+import { Disposable, CompositeDisposable } from '../../disposable/dist/Disposable';
+import { EventEmitter } from '../../eventemitter/dist/EventEmitter';
 import * as uuid from 'uuid/v4';
-import { Driver, SubscribListener, ConsumeListener, Message, Payload } from '../Driver';
+import { MessageQueue, SubscribListener, ConsumeListener, Message, Payload } from '@konstellio/mq';
 import { Connection, Channel as LibChannel, Message as LibMessage } from 'amqplib/callback_api';
 import { clearTimeout } from 'timers';
 
 let connect: (url: string, socketOptions: any, callback: (err: any, connection: Connection) => void) => void;
 try { connect = require('amqplib/callback_api').connect; } catch(e) { }
 
-export class AMQPDriver extends Driver {
+export class MessageQueueAMQP extends MessageQueue {
 
 	private client!: Connection;
 	private emitter: EventEmitter
