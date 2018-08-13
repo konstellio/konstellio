@@ -1,11 +1,12 @@
 {
-  "name": "@konstellio/cache",
+  "name": "@konstellio/cache-redis",
   "version": "0.0.4",
   "description": "",
-  "main": "dist/Cache.js",
-  "types": "dist/Cache.d.ts",
+  "main": "dist/CacheRedis.js",
+  "types": "dist/CacheRedis.d.ts",
   "scripts": {
     "compile": "rimraf ./dist && tsc --pretty",
+    "docker:redis": "docker run --rm -it -p 6379:6379 redis:3",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
     "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
@@ -14,17 +15,22 @@
   "author": "",
   "license": "ISC",
   "peerDependencies": {
-    "@konstellio/disposable": "^0.x"
+    "@konstellio/cache": "^0.x",
+    "@konstellio/disposable": "^0.x",
+    "redis": "^2.8.0"
   },
   "devDependencies": {
+    "@konstellio/cache": "^0.x",
     "@konstellio/disposable": "^0.x",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
+    "@types/redis": "^2.8.6",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
+    "redis": "^2.8.0",
     "rimraf": "^2.6.2",
     "ts-node": "^7.0.0",
     "typescript": "^3.0.1"

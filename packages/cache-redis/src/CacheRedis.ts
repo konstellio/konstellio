@@ -1,22 +1,15 @@
-import { Driver, Serializable } from '../Driver';
-import { ClientOpts, RedisClient } from 'redis';
+import { Cache, Serializable } from '@konstellio/cache';
+import { ClientOpts, RedisClient, createClient } from 'redis';
 
-
-export class RedisDriver extends Driver {
+export class CacheRedis extends Cache {
 
 	protected client: RedisClient
 	protected disposed: boolean
 
-	constructor(redis_url: string, options?: ClientOpts, createClient?: (redis_url: string, options?: ClientOpts) => RedisClient) {
+	constructor(redis_url: string, options?: ClientOpts, clientFactory?: (redis_url: string, options?: ClientOpts) => RedisClient) {
 		super();
 
-		try {
-			createClient = createClient || require('redis').createClient;
-		} catch (e) {
-			throw new Error(`Could not load redis client. Maybe try "npm install redis" ?`);
-		}
-
-		this.client = createClient!(redis_url, options);
+		this.client = (clientFactory || createClient)(redis_url, options);
 		this.disposed = false;
 	}
 

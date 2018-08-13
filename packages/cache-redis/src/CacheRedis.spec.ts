@@ -2,11 +2,11 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { RedisDriver } from './RedisDriver';
+import { CacheRedis } from './CacheRedis';
 
 describe('Redis', () => {
 
-	const cache: RedisDriver = new RedisDriver('redis://10.0.75.1');
+	const cache = new CacheRedis('redis://10.0.75.1');
 
 	before(done => {
 		cache.connect().then(() => done());

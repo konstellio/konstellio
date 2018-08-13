@@ -2,11 +2,11 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { RedisMockDriver } from './RedisMockDriver';
+import { CacheMemory } from './CacheMemory';
 
 describe('RedisMock', () => {
 
-	const cache: RedisMockDriver = new RedisMockDriver();
+	const cache = new CacheMemory();
 
 	before(done => {
 		cache.connect().then(() => done());

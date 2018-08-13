@@ -2,7 +2,7 @@ import { IDisposableAsync } from '@konstellio/disposable';
 
 export type Serializable = string | number | boolean | Date
 
-export abstract class Driver implements IDisposableAsync {
+export abstract class Cache implements IDisposableAsync {
 
 	abstract connect(): Promise<this>
 	abstract disconnect(): Promise<void>
