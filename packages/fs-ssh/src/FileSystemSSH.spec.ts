@@ -8,9 +8,9 @@ should();
 // import { tmpdir } from 'os';
 // import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'fs';
 // import { join } from 'path';
-// import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+// import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
 
-describe('SSH2', () => {
+describe('SSH', () => {
 
 	// let ftpd: FtpSrv
 

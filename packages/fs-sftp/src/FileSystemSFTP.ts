@@ -1,9 +1,8 @@
-import { FileSystem, Stats } from '../FileSystem';
+import { FileSystem, Stats, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
 import { Pool } from '@konstellio/promised';
 import { Client, SFTPWrapper } from 'ssh2';
 import { Readable, Writable, Transform } from 'stream';
 import { sep } from 'path';
-import { OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 import { constants } from 'fs';
 
 function normalizePath(path: string) {
@@ -27,7 +26,7 @@ export enum SFTPConnectionState {
 	Ready
 }
 
-export interface SFTPFileSystemAlgorithms {
+export interface FileSystemSFTPAlgorithms {
     kex?: string[];
     cipher?: string[];
     serverHostKey?: string[];
@@ -35,7 +34,7 @@ export interface SFTPFileSystemAlgorithms {
     compress?: string[];
 }
 
-export interface SFTPFileSystemOptions {
+export interface FileSystemSFTPOptions {
     host?: string;
     port?: number;
     forceIPv4?: boolean;
@@ -56,11 +55,11 @@ export interface SFTPFileSystemOptions {
     strictVendor?: boolean;
     sock?: NodeJS.ReadableStream;
     agentForward?: boolean;
-    algorithms?: SFTPFileSystemAlgorithms;
+    algorithms?: FileSystemSFTPAlgorithms;
     debug?: (information: string) => any;
 }
 
-export class SFTPFileSystem extends FileSystem {
+export class FileSystemSFTP extends FileSystem {
 
 	private disposed: boolean;
 	protected connection?: Client;
@@ -69,7 +68,7 @@ export class SFTPFileSystem extends FileSystem {
 	private pool: Pool;
 
 	constructor(
-		protected readonly options: SFTPFileSystemOptions
+		protected readonly options: FileSystemSFTPOptions
 	) {
 		super();
 		this.disposed = false;
@@ -78,7 +77,7 @@ export class SFTPFileSystem extends FileSystem {
 	}
 
 	clone() {
-		return new SFTPFileSystem(this.options);
+		return new FileSystemSFTP(this.options);
 	}
 
 	protected getConnection(): Promise<[Client, SFTPWrapper]> {

@@ -2,11 +2,11 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { LocalFileSystem } from './Local';
+import { LocalFileSystem } from './FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from './FileSystem.spec';
 
 describe('Local', () => {
 

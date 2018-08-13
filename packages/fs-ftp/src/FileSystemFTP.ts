@@ -1,10 +1,9 @@
-import { FileSystem, Stats } from '../FileSystem';
+import { FileSystem, Stats, FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
 import { Pool } from '@konstellio/promised';
 import * as FTPClient from 'ftp';
 import { Readable, Writable, Transform } from 'stream';
 import { dirname, basename, sep } from 'path';
 import { ConnectionOptions } from 'tls';
-import { FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '../Errors';
 
 function normalizePath(path: string) {
 	path = path.split(sep).join('/').trim();
@@ -27,7 +26,7 @@ export enum FTPConnectionState {
 	Ready
 }
 
-export interface FTPFileSystemOptions {
+export interface FileSystemFTPOptions {
 	host?: string;
 	port?: number;
 	secure?: string | boolean;
@@ -40,7 +39,7 @@ export interface FTPFileSystemOptions {
 	debug?: (msg: string) => void
 }
 
-export class FTPFileSystem extends FileSystem {
+export class FileSystemFTP extends FileSystem {
 
 	private disposed: boolean;
 	private connection?: FTPClient;
@@ -48,7 +47,7 @@ export class FTPFileSystem extends FileSystem {
 	private pool: Pool;
 
 	constructor(
-		private readonly options: FTPFileSystemOptions
+		private readonly options: FileSystemFTPOptions
 	) {
 		super();
 		this.disposed = false;
@@ -57,7 +56,7 @@ export class FTPFileSystem extends FileSystem {
 	}
 
 	clone() {
-		return new FTPFileSystem(this.options);
+		return new FileSystemFTP(this.options);
 	}
 
 	protected getConnection(): Promise<FTPClient> {

@@ -1,9 +1,8 @@
-import { FileSystem, Stats } from '../FileSystem';
+import { FileSystem, Stats, FileNotFound, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
 import { Pool } from '@konstellio/promised';
 import { Client } from 'ssh2';
 import { Readable, Writable } from 'stream';
 import { sep } from 'path';
-import { FileNotFound, FileAlreadyExists, CouldNotConnect } from '../Errors';
 import { parseEntries } from 'parse-listing';
 
 function normalizePath(path: string) {
@@ -27,7 +26,7 @@ export enum SSH2ConnectionState {
 	Ready
 }
 
-export interface SSH2FileSystemAlgorithms {
+export interface FileSystemSSHAlgorithms {
     kex?: string[];
     cipher?: string[];
     serverHostKey?: string[];
@@ -35,7 +34,7 @@ export interface SSH2FileSystemAlgorithms {
     compress?: string[];
 }
 
-export interface SSH2FileSystemOptions {
+export interface FileSystemSSHOptions {
     host?: string;
     port?: number;
     forceIPv4?: boolean;
@@ -56,12 +55,12 @@ export interface SSH2FileSystemOptions {
     strictVendor?: boolean;
     sock?: NodeJS.ReadableStream;
     agentForward?: boolean;
-    algorithms?: SSH2FileSystemAlgorithms;
+    algorithms?: FileSystemSSHAlgorithms;
 	debug?: (information: string) => any;
 	sudo?: boolean | string
 }
 
-export class SSH2FileSystem extends FileSystem {
+export class FileSystemSSH extends FileSystem {
 
 	private disposed: boolean;
 	protected connection?: Client;
@@ -69,7 +68,7 @@ export class SSH2FileSystem extends FileSystem {
 	private pool: Pool;
 
 	constructor(
-		protected readonly options: SSH2FileSystemOptions
+		protected readonly options: FileSystemSSHOptions
 	) {
 		super();
 		this.disposed = false;
@@ -78,7 +77,7 @@ export class SSH2FileSystem extends FileSystem {
 	}
 
 	clone() {
-		return new SSH2FileSystem(this.options);
+		return new FileSystemSSH(this.options);
 	}
 
 	protected getConnection(): Promise<Client> {

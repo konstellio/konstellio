@@ -2,12 +2,12 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { FTPFileSystem } from './FTP';
+import { FileSystemFTP } from './FileSystemFTP';
 import { FtpSrv } from 'ftp-srv';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
 
 describe('FTP', () => {
 
@@ -31,7 +31,7 @@ describe('FTP', () => {
 
 
 
-	const fsftp = new FTPFileSystem({
+	const fsftp = new FileSystemFTP({
 		host: '127.0.0.1',
 		port: 2121
 	});

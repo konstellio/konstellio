@@ -2,8 +2,8 @@ import { mkdir, unlink, lstat, rename, copyFile, createReadStream, createWriteSt
 import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
 import { join } from 'path';
-import { FileSystem, Stats } from '../FileSystem';
-import { FileAlreadyExists, FileNotFound } from '../Errors';
+import { FileSystem, Stats } from './FileSystem';
+import { FileAlreadyExists, FileNotFound } from './Errors';
 
 export class LocalFileSystem extends FileSystem {
 

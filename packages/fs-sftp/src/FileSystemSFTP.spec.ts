@@ -3,12 +3,12 @@ import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import * as fs from 'fs';
-import { SFTPFileSystem } from './SFTP';
+import { FileSystemSFTP } from './FileSystemSFTP';
 import * as SFTPServer from 'node-sftp-server';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '../FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
 import { Writable, Readable } from 'stream';
 
 describe('SFTP', () => {
@@ -144,7 +144,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 		});
 	});
 
-	const fssftp = new SFTPFileSystem({
+	const fssftp = new FileSystemSFTP({
 		host: '127.0.0.1',
 		port: 2222,
 		username: '',
