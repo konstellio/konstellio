@@ -1,5 +1,7 @@
-import { Driver, Compare, Features } from '../Driver';
 import {
+	Database,
+	Compare,
+	Features,
 	QuerySelectResult,
 	QueryAggregateResult,
 	QueryDeleteResult,
@@ -10,9 +12,7 @@ import {
 	QueryCreateCollectionResult,
 	QueryAlterCollectionResult,
 	QueryCollectionExistsResult,
-	QueryDropCollectionResult
-} from '../QueryResult';
-import {
+	QueryDropCollectionResult,
 	q,
 	Query,
 	QuerySelect,
@@ -45,12 +45,12 @@ import {
 	ChangeAddIndex,
 	ComparisonIn,
 	Change
-} from '../Query';
+} from '@konstellio/db';
 import { List } from 'immutable';
-import { Database } from 'sqlite3';
+import { Database as SQLite, OPEN_READWRITE, OPEN_CREATE } from 'sqlite3';
 
-export type SQLiteDriverConstructor = {
-	filename?: string,
+export type DatabaseSQLiteConstructor = {
+	filename: string,
 	mode?: number,
 	verbose?: boolean
 }
@@ -60,7 +60,7 @@ export type SQLiteQueryResult = {
 	changes: number
 }
 
-function runQuery(driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<SQLiteQueryResult> {
+function runQuery(driver: DatabaseSQLite, sql: string, params = [] as any[]): Promise<SQLiteQueryResult> {
 	return new Promise((resolve, reject) => {
 		driver.driver.run(sql, params, function (err) {
 			if (err) return reject(err);
@@ -72,7 +72,7 @@ function runQuery(driver: SQLiteDriver, sql: string, params = [] as any[]): Prom
 	});
 }
 
-function allQuery<T = any> (driver: SQLiteDriver, sql: string, params = [] as any[]): Promise<T[]> {
+function allQuery<T = any> (driver: DatabaseSQLite, sql: string, params = [] as any[]): Promise<T[]> {
 	return new Promise((resolve, reject) => {
 		driver.driver.all(sql, params, function (err, results) {
 			if (err) return reject(err);
@@ -81,13 +81,13 @@ function allQuery<T = any> (driver: SQLiteDriver, sql: string, params = [] as an
 	});
 }
 
-export class SQLiteDriver extends Driver {
+export class DatabaseSQLite extends Database {
 	readonly features: Features;
 
-	options: SQLiteDriverConstructor
-	driver!: Database
+	options: DatabaseSQLiteConstructor
+	driver!: SQLite
 
-	constructor (options: SQLiteDriverConstructor) {
+	constructor (options: DatabaseSQLiteConstructor) {
 		super();
 		this.options = options;
 		this.features = {
@@ -95,14 +95,13 @@ export class SQLiteDriver extends Driver {
 		}
 	}
 
-	connect(): Promise<SQLiteDriver> {
-		return new Promise<SQLiteDriver>((resolve, reject) => {
+	connect(): Promise<DatabaseSQLite> {
+		return new Promise<DatabaseSQLite>((resolve, reject) => {
 			try {
-				const { Database, OPEN_READWRITE, OPEN_CREATE } = require('sqlite3');
-				this.driver = new Database(
+				this.driver = new SQLite(
 					this.options.filename,
 					this.options.mode || (OPEN_READWRITE | OPEN_CREATE),
-					(err: Error) => {
+					(err) => {
 						if (err) {
 							return reject(err);
 						}
@@ -354,7 +353,7 @@ export class SQLiteDriver extends Driver {
 			return columns!;
 		}, {} as { [key: string]: Column});
 
-		const tmpTable = `konstellio_db_rename_${++SQLiteDriver.tmpId}`;
+		const tmpTable = `konstellio_db_rename_${++DatabaseSQLite.tmpId}`;
 		const create = q.createCollection(tmpTable).define(
 			existingColumns.map(col => renameColumns[col.name!] ? renameColumns[col.name!] : col).concat(newColumns),
 			[]

@@ -1,7 +1,0 @@
-import 'mocha';
-
-describe('Driver', () => {
-
-	
-
-});

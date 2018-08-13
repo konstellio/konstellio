@@ -10,10 +10,10 @@ export interface Features {
 	join: boolean
 }
 
-export abstract class Driver {
+export abstract class Database {
 	abstract readonly features: Features;
 
-	abstract connect(): Promise<Driver>;
+	abstract connect(): Promise<Database>;
 
 	abstract execute(query: string, variables?: (string | number | boolean | Date | null)[]): Promise<any>;
 	abstract execute<T>(query: Query.QuerySelect, variables?: Query.Variables): Promise<Result.QuerySelectResult<T>>;

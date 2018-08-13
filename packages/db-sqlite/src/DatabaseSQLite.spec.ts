@@ -2,10 +2,22 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { SQLiteDriver } from './SQLiteDriver';
-import { q } from '../Query';
-import * as QueryResult from '../QueryResult';
-import { ColumnType, IndexType } from '../index';
+import { DatabaseSQLite } from './DatabaseSQLite';
+import {
+	q,
+	ColumnType,
+	IndexType,
+	QueryInsertResult,
+	QuerySelectResult,
+	QueryUpdateResult,
+	QueryDeleteResult,
+	QueryShowCollectionResult,
+	QueryDropCollectionResult,
+	QueryAlterCollectionResult,
+	QueryCreateCollectionResult,
+	QueryCollectionExistsResult,
+	QueryDescribeCollectionResult
+} from '@konstellio/db';
 
 describe('SQLite', () => {
 
@@ -15,14 +27,14 @@ describe('SQLite', () => {
 		likes: number
 	}
 
-	let driver: SQLiteDriver;
+	let driver: DatabaseSQLite;
 
 	before(function (done) {
 		this.timeout(10000);
 
 		// unlinkSync('./kdb.sqlite');
 
-		driver = new SQLiteDriver({
+		driver = new DatabaseSQLite({
 			filename: ':memory:'
 			// filename: './kdb.sqlite'
 		});
@@ -36,12 +48,12 @@ describe('SQLite', () => {
 
 	it('insert', async () => {
 
-		const result: QueryResult.QueryInsertResult = await driver.execute(q.insert(q.collection('Foo', 'Bar')).add({
+		const result: QueryInsertResult = await driver.execute(q.insert(q.collection('Foo', 'Bar')).add({
 			title: 'Hello world',
 			postDate: new Date(),
 			likes: 10
 		})).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryInsertResult);
+		expect(result).to.be.an.instanceOf(QueryInsertResult);
 
 		await driver.execute(q.insert(q.collection('Foo', 'Bar')).add({
 			title: 'Bye world',
@@ -54,38 +66,38 @@ describe('SQLite', () => {
 
 		const update = q.update(q.collection('Foo', 'Bar')).set({ likes: 11 }).where(q.eq('title', 'Hello world'));//.limit(1);
 
-		const result: QueryResult.QueryUpdateResult<any> = await driver.execute<Foo>(update).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryUpdateResult);
+		const result: QueryUpdateResult<any> = await driver.execute<Foo>(update).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryUpdateResult);
 	});
 
 	it('select', async () => {
 
 		const select = q.select().from(q.collection('Foo', 'Bar')).range({ limit: 1 });
 
-		const result: QueryResult.QuerySelectResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QuerySelectResult);
+		const result: QuerySelectResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QuerySelectResult);
 	});
 
 	it('variable', async () => {
 		const select = q.select().from(q.collection('Foo', 'Bar')).where(q.eq('title', q.var('title')));
 		await driver.execute<Foo>(select).should.be.rejected;
 
-		const result: QueryResult.QuerySelectResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QuerySelectResult);
+		const result: QuerySelectResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QuerySelectResult);
 	});
 
 	it('delete', async () => {
 
 		const remove = q.delete(q.collection('Foo', 'Bar')).where(q.eq('title', 'Hello world'));
 
-		const result: QueryResult.QueryDeleteResult = await driver.execute(remove).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryDeleteResult);
+		const result: QueryDeleteResult = await driver.execute(remove).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryDeleteResult);
 	});
 
 	it('describe collection', async () => {
 
-		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Foo', 'Bar'))).should.be.fulfilled;
-		expect(desc).to.be.an.instanceOf(QueryResult.QueryDescribeCollectionResult);
+		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Foo', 'Bar'))).should.be.fulfilled;
+		expect(desc).to.be.an.instanceOf(QueryDescribeCollectionResult);
 		expect(desc.columns.length).to.be.equal(4);
 		expect(desc.columns[0].name).to.be.equal('id');
 		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
@@ -134,10 +146,10 @@ describe('SQLite', () => {
 				]
 			);
 
-		const result: QueryResult.QueryCreateCollectionResult = await driver.execute(create).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryCreateCollectionResult);
+		const result: QueryCreateCollectionResult = await driver.execute(create).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryCreateCollectionResult);
 
-		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Joo'))).should.be.fulfilled;
+		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Joo'))).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
 		expect(desc.columns[0].name).to.be.equal('id');
 		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
@@ -173,10 +185,10 @@ describe('SQLite', () => {
 			.dropIndex('Joo_Moo_date')
 			.rename(q.collection('Moo', 'Boo'));
 
-		const result: QueryResult.QueryAlterCollectionResult = await driver.execute(alter).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryAlterCollectionResult);
+		const result: QueryAlterCollectionResult = await driver.execute(alter).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryAlterCollectionResult);
 
-		const desc: QueryResult.QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
 		expect(desc.columns[0].name).to.be.equal('id');
 		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
@@ -202,19 +214,19 @@ describe('SQLite', () => {
 	});
 
 	it('exists collection', async () => {
-		let result: QueryResult.QueryCollectionExistsResult = await driver.execute(q.collectionExists(q.collection('Moo', 'Boo'))).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryCollectionExistsResult);
+		let result: QueryCollectionExistsResult = await driver.execute(q.collectionExists(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryCollectionExistsResult);
 		expect(result.exists).to.equal(true);
 
 		result = await driver.execute(q.collectionExists(q.collection('Foo', 'Joo'))).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryCollectionExistsResult);
+		expect(result).to.be.an.instanceOf(QueryCollectionExistsResult);
 		expect(result.exists).to.equal(false);
 	});
 
 	it('describe collection', async () => {
 
-		let result: QueryResult.QueryShowCollectionResult = await driver.execute(q.showCollection()).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryShowCollectionResult);
+		let result: QueryShowCollectionResult = await driver.execute(q.showCollection()).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryShowCollectionResult);
 		expect(result.collections.length).to.equal(2);
 		expect(result.collections[0].toString()).to.equal('Bar__Foo');
 		expect(result.collections[1].toString()).to.equal('Boo__Moo');
@@ -222,8 +234,8 @@ describe('SQLite', () => {
 	});
 
 	it('drop collection', async () => {
-		let result: QueryResult.QueryDropCollectionResult = await driver.execute(q.dropCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
-		expect(result).to.be.an.instanceOf(QueryResult.QueryDropCollectionResult);
+		let result: QueryDropCollectionResult = await driver.execute(q.dropCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		expect(result).to.be.an.instanceOf(QueryDropCollectionResult);
 		expect(result.acknowledge).to.equal(true);
 	});
 
