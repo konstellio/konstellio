@@ -24,7 +24,6 @@
   "devDependencies": {
     "@konstellio/disposable": "^0.x",
     "@konstellio/eventemitter": "^0.x",
-    "@konstellio/fs-local": "^0.x",
     "@konstellio/promised": "^0.x",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
