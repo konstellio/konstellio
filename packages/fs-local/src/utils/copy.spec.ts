@@ -2,18 +2,18 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { LocalFileSystem } from '../FileSystemLocal';
+import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { copy } from './copy';
+import { copy } from '@konstellio/fs';
 
 describe('copy', () => {
 
 	const tmpA = mkdtempSync(join(tmpdir(), 'konstellio-copyA-'));
 	const tmpB = mkdtempSync(join(tmpdir(), 'konstellio-copyB-'));
-	const fsA = new LocalFileSystem(tmpA);
-	const fsB = new LocalFileSystem(tmpB);
+	const fsA = new FileSystemLocal(tmpA);
+	const fsB = new FileSystemLocal(tmpB);
 
 	before(() => {
 		mkdirSync(join(tmpA, 'Griffin'));

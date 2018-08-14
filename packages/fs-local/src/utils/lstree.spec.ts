@@ -2,16 +2,16 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { LocalFileSystem } from '../FileSystemLocal';
+import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { lstree } from './lstree';
+import { lstree } from '@konstellio/fs';
 
 describe('lstree', () => {
 
 	const tmpA = mkdtempSync(join(tmpdir(), 'konstellio-'));
-	const fsA = new LocalFileSystem(tmpA);
+	const fsA = new FileSystemLocal(tmpA);
 
 	before(() => {
 		mkdirSync(join(tmpA, 'Griffin'));

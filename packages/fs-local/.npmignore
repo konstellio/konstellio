@@ -1,0 +1,8 @@
+/coverage
+/src
+/docs
+/node_modules
+/npm-debug*
+/**/*.spec.d.ts
+/**/*.spec.js
+/**/*.spec.js.map

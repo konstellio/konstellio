@@ -2,10 +2,9 @@ import { mkdir, unlink, lstat, rename, copyFile, createReadStream, createWriteSt
 import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
 import { join } from 'path';
-import { FileSystem, Stats } from './FileSystem';
-import { FileAlreadyExists, FileNotFound } from './Errors';
+import { FileSystem, Stats, FileAlreadyExists, FileNotFound } from '@konstellio/fs';
 
-export class LocalFileSystem extends FileSystem {
+export class FileSystemLocal extends FileSystem {
 
 	private disposed: boolean;
 
@@ -29,7 +28,7 @@ export class LocalFileSystem extends FileSystem {
 	}
 
 	clone() {
-		return new LocalFileSystem(this.rootDirectory, this.directoryMode, this.fileMode);
+		return new FileSystemLocal(this.rootDirectory, this.directoryMode, this.fileMode);
 	}
 
 	stat(path: string): Promise<Stats> {
