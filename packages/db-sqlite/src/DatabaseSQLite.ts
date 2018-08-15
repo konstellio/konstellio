@@ -74,7 +74,7 @@ function runQuery(driver: DatabaseSQLite, sql: string, params = [] as any[]): Pr
 
 function allQuery<T = any> (driver: DatabaseSQLite, sql: string, params = [] as any[]): Promise<T[]> {
 	return new Promise((resolve, reject) => {
-		driver.driver.all(sql, params, function (err, results) {
+		driver.driver.all(sql, params, (err, results) => {
 			if (err) return reject(err);
 			resolve(results as T[]);
 		});
@@ -301,7 +301,7 @@ export class DatabaseSQLite extends Database {
 
 			// Return a list of lambda that return a promise
 			const stmts = convertQueryToSQL(query).map<() => Promise<void>>(stmt => () => new Promise((resolve, reject) => {
-				this.driver.run(stmt.sql, stmt.params, function (err) {
+				this.driver.run(stmt.sql, stmt.params, (err) => {
 					if (err) return reject(err);
 					// if (this.changes === 0) return reject(new Error(`No changes were made.`));
 					resolve();
@@ -365,8 +365,8 @@ export class DatabaseSQLite extends Database {
 			const source = col.name!;
 			const renamed = renameColumns[source] ? renameColumns[source] : col;
 			return {
-				target: renamed.name!,
-				source: source
+				source,
+				target: renamed.name!
 			}
 		}).concat(
 			copyColumns.map(change => {
@@ -715,7 +715,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 		const columns = query.columns;
 		const indexes = query.indexes;
 
-		let params: any[] = [];
+		const params: any[] = [];
 		let sql = '';
 
 		if (collection) {
@@ -728,7 +728,7 @@ export function convertQueryToSQL(query: Query, variables?: Variables): Statemen
 			throw new Error(`Expected QueryCreateCollection to have at least one column, got none.`);
 		}
 
-		const autoCol = columns.filter(col => col !== undefined && col.autoIncrement === true);
+		const autoCol = columns.filter(col => col !== undefined && col.autoIncrement);
 		const primaryKeys = indexes ? indexes.filter(idx => idx !== undefined && idx.type === IndexType.Primary) as List<Index> : List<Index>();
 		const otherIndexes = indexes ? indexes.filter(idx => idx !== undefined && idx.type !== IndexType.Primary) as List<Index> : List<Index>();
 

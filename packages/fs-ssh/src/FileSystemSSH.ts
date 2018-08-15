@@ -13,7 +13,7 @@ function normalizePath(path: string) {
 	while (path.endsWith('/')) {
 		path = path.substr(0, path.length - 1);
 	}
-	if (path.startsWith('/') === false) {
+	if (!path.startsWith('/')) {
 		path = '/' + path;
 	}
 	return path;
@@ -122,7 +122,7 @@ export class FileSystemSSH extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = SSH2ConnectionState.Disconnecting;
 			if (this.connection) {
@@ -297,7 +297,7 @@ export class FileSystemSSH extends FileSystem {
 								entry.type === 0,
 								entry.type === 1,
 								entry.type === 2,
-								parseInt(entry.size),
+								parseInt(entry.size, 10),
 								new Date(entry.time),
 								new Date(entry.time),
 								new Date(entry.time)
@@ -321,7 +321,7 @@ function parseStat(stat: string): Stats {
 	let match;
 
 	if ((match = stat.match(/Size: (\d+)/))) {
-		size = parseInt(match[1]);
+		size = parseInt(match[1], 10);
 	}
 	if ((match = stat.match(/Access: \(\d+\/(.)/))) {
 		type = match[1];

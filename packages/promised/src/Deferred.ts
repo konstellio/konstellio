@@ -20,7 +20,7 @@ export class Deferred<T = any> implements IDisposable {
 	}
 
 	dispose() {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			(this as any).promise = undefined;
 		}

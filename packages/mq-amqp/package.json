@@ -9,7 +9,8 @@
     "docker:rabbitmq": "docker run --rm -it --hostname konstellio-mq -p 5672:5672 rabbitmq:3",
     "test": "mocha --full-trace dist/**/*.spec.js",
     "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
-    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts"
+    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts",
+    "lint": "tslint --project ./tsconfig.json"
   },
   "keywords": [],
   "author": "",
@@ -36,6 +37,9 @@
     "mocha": "^5.2.0",
     "rimraf": "^2.6.2",
     "ts-node": "^7.0.0",
+    "tslint": "^5.11.0",
+    "tslint-config-airbnb": "^5.9.2",
+    "tslint-config-prettier": "^1.14.0",
     "typescript": "^3.0.1"
   },
   "dependencies": {

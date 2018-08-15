@@ -51,11 +51,11 @@ export class MessageQueueAMQP extends MessageQueue {
 						this.replyToChannel.consume(this.replyToQueue, (msg) => {
 							if (msg && msg.properties.correlationId) {
 								const correlationId: string = msg.properties.correlationId.substr(0, -4);
-								const status: number = parseInt(msg.properties.correlationId.substr(-3));
+								const status: number = parseInt(msg.properties.correlationId.substr(-3), 10);
 								this.emitter.emit(correlationId, status, msg);
 							}
 						}, {
-							consumerTag: consumerTag,
+							consumerTag,
 							noAck: true
 						});
 
@@ -107,7 +107,7 @@ export class MessageQueueAMQP extends MessageQueue {
 							this.emitter.emit(`channel:${name}:${topic}`, payload);
 						}
 					}, {
-						consumerTag: consumerTag,
+						consumerTag,
 						noAck: true
 					});
 
@@ -233,7 +233,7 @@ export class MessageQueueAMQP extends MessageQueue {
 				}
 			}
 		}, {
-			consumerTag: consumerTag,
+			consumerTag,
 			noAck: false
 		});
 

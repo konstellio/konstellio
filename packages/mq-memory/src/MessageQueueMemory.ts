@@ -96,11 +96,11 @@ export class MessageQueueMemory extends MessageQueue {
 					ts: Date.now(),
 				}));
 			} catch (err) {
-				this.pendingTasks.push({ queue: name, task });
+				this.pendingTasks.push({ task, queue: name });
 			}
 		}
 		else {
-			this.pendingTasks.push({ queue: name, task });
+			this.pendingTasks.push({ task, queue: name });
 		}
 	}
 
@@ -125,7 +125,7 @@ export class MessageQueueMemory extends MessageQueue {
 					reject(err);
 				}
 			} else {
-				this.pendingTasks.push({ queue: name, task, done: (resp) => {
+				this.pendingTasks.push({ task, queue: name, done: (resp) => {
 					if (resp instanceof Error) return reject(resp);
 					resolve(resp);
 				}});
@@ -146,7 +146,7 @@ export class MessageQueueMemory extends MessageQueue {
 				}
 			}
 		});
-		if (this.consumers.has(name) === false) {
+		if (!this.consumers.has(name)) {
 			this.consumers.set(name, { consumers: [listener], next: -1 });
 		} else {
 			this.consumers.get(name)!.consumers.push(listener);

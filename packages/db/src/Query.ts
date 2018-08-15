@@ -165,19 +165,19 @@ export class q {
 	}
 
 	public static and(...operands: BinaryExpression[]) {
-		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
 		return new Binary("and", List(operands));
 	}
 
 	public static or(...operands: BinaryExpression[]) {
-		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
 		return new Binary("or", List(operands));
 	}
 
 	public static xor(...operands: BinaryExpression[]) {
-		assert(operands.length > 0 && operands.filter(op => (op instanceof Binary || op instanceof Comparison) === false).length === 0);
+		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
 		return new Binary("xor", List(operands));
 	}
@@ -257,7 +257,7 @@ export class Column {
 	}
 
 	public toString() {
-		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement === true ? ' AUTOINCREMENT' : ''}`;
+		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement ? ' AUTOINCREMENT' : ''}`;
 	}
 }
 
@@ -280,7 +280,7 @@ export class Index {
 
 	public add(...columns: FieldDirection[]) {
 		assert(columns.length > 0);
-		assert(columns.filter(column => (column instanceof FieldDirection) === false).length === 0);
+		assert(columns.filter(column => !(column instanceof FieldDirection)).length === 0);
 
 		return new Index(this.name, this.type, this.columns.push(...columns));
 	}
@@ -671,7 +671,7 @@ export class Binary {
 				changed = changed || arg !== replaced;
 				operands = operands.push(replaced);
 			}
-			else if (deep === true && arg instanceof Binary) {
+			else if (deep && arg instanceof Binary) {
 				const replaced = arg.visit(visiter, true);
 				if (replaced) {
 					changed = changed || arg !== replaced;
@@ -764,7 +764,7 @@ export class QuerySelect extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}SELECT `;
 
 		if (this.fields) {
@@ -868,7 +868,7 @@ export class QueryAggregate extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}SELECT `;
 
 		if (this.fields) {
@@ -945,7 +945,7 @@ export class QueryUnion extends Query {
 	public toString(multiline: boolean = false, indent?: string): string {
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 
 		if (this.selects) {
 			let query = `(${newline}${this.selects.map<string>(s => s ? s.toString(!!multiline, `${indent}\t`) : '').join(`${newline}) UNION (${newline}`)}${newline})`;
@@ -1003,7 +1003,7 @@ export class QueryInsert extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}INSERT `;
 
 		if (this.collection) {
@@ -1066,7 +1066,7 @@ export class QueryUpdate extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}UPDATE `;
 
 		if (this.collection) {
@@ -1125,7 +1125,7 @@ export class QueryDelete extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}DELETE `;
 
 		if (this.collection) {
@@ -1148,7 +1148,7 @@ export class QueryShowCollection extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let query = `${indent}SHOW COLLECTIONS`;
+		const query = `${indent}SHOW COLLECTIONS`;
 
 		return query;
 	}
@@ -1261,7 +1261,7 @@ export class QueryCreateCollection extends Query {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}CREATE COLLECTION `;
 
 		if (this.collection) {
@@ -1339,34 +1339,34 @@ export class QueryAlterCollection extends Query {
 
 	public addColumn(column: Column, copyColumn?: string) {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'addColumn', column, copyColumn }));
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ column, copyColumn, type: 'addColumn' }));
 	}
 
 	public alterColumn(oldColumn: string, newColumn: Column) {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'alterColumn', oldColumn, newColumn }));
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ oldColumn, newColumn, type: 'alterColumn' }));
 	}
 
 	public dropColumn(column: string) {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'dropColumn', column }));
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ column, type: 'dropColumn' }));
 	}
 
 	public addIndex(index: Index) {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'addIndex', index }));
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ index, type: 'addIndex' }));
 	}
 
 	public dropIndex(index: string) {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ type: 'dropIndex', index }));
+		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ index, type: 'dropIndex' }));
 	}
 
 	public toString(multiline?: boolean, indent?: string): string {
 		multiline = !!multiline;
 		indent = multiline && indent ? indent : '';
 
-		let newline = multiline ? `\n` : ' ';
+		const newline = multiline ? `\n` : ' ';
 		let query = `${indent}ALTER COLLECTION `;
 
 		if (this.collection) {

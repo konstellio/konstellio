@@ -37,7 +37,7 @@ describe('Pool', () => {
 
 		setTimeout(() => g.release(a), 1000);
 
-		let t = await g.acquires();
+		const t = await g.acquires();
 		expect(t).to.eq(a);
 	});
 	

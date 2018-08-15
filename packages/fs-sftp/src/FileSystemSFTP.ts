@@ -13,7 +13,7 @@ function normalizePath(path: string) {
 	while (path.endsWith('/')) {
 		path = path.substr(0, path.length - 1);
 	}
-	if (path.startsWith('/') === false) {
+	if (!path.startsWith('/')) {
 		path = '/' + path;
 	}
 	return path;
@@ -132,7 +132,7 @@ export class FileSystemSFTP extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = SFTPConnectionState.Disconnecting;
 			if (this.connection) {

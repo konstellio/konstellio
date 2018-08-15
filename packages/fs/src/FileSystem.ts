@@ -64,7 +64,7 @@ export class FileSystemMirror extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.isDisposed() === false) {
+		if (!this.isDisposed()) {
 			this.disposed = true;
 			this.pool.dispose();
 			(this as any).fss = [];
@@ -157,7 +157,7 @@ export class FileSystemPool extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.isDisposed() === false) {
+		if (!this.isDisposed()) {
 			this.disposed = true;
 			this.pool.dispose();
 			(this as any).fss = [];

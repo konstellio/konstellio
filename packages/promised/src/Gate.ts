@@ -15,14 +15,14 @@ export class Gate implements IDisposable {
 	}
 
 	dispose() {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			this.waiters = [];
 		}
 	}
 
 	isOpened() {
-		return this.closed === false;
+		return !this.closed;
 	}
 
 	close(): void {

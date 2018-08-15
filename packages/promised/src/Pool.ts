@@ -17,7 +17,7 @@ export class Pool<T = any> implements IDisposable {
 	}
 
 	dispose() {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			for (const waiter of this.waiters) {
 				waiter.reject();

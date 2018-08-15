@@ -22,7 +22,7 @@ export class FileSystemLocal extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 		}
 	}
@@ -120,7 +120,7 @@ export class FileSystemLocal extends FileSystem {
 
 	async createReadStream(path: string): Promise<Readable> {
 		const exists = await this.exists(path);
-		if (exists === false) {
+		if (!exists) {
 			throw new FileNotFound();
 		}
 		
@@ -139,8 +139,8 @@ export class FileSystemLocal extends FileSystem {
 		return createWriteStream(
 			join(this.rootDirectory, path),
 			{
+				encoding,
 				mode: this.fileMode,
-				encoding: encoding,
 				autoClose: true
 			}
 		);

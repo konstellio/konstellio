@@ -41,7 +41,7 @@ export class Disposable implements IDisposable, IDisposableAsync {
 	}
 
 	disposeAsync (): Promise<void> {
-		if (this.disposed === true) {
+		if (this.disposed) {
 			return Promise.resolve();
 		}
 		return new Promise<void>((resolve) => {
@@ -62,11 +62,11 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 	constructor (disposables?: Set<Disposable> | Disposable[]) {
 		this.disposed = false;
 		if (disposables) {
-			if ((disposables instanceof Set) === false && isArray(disposables) === false) {
+			if (!(disposables instanceof Set) && !isArray(disposables)) {
 				throw new TypeError(`Expected "disposables" argument to be an array or Set, got ${typeof disposables}.`);
 			}
 			Array.from(disposables).forEach(disposable => {
-				if (isDisposableInterface(disposable) === false) {
+				if (!isDisposableInterface(disposable)) {
 					throw new TypeError(`Expected a Disposable object, got ${typeof disposable}.`);
 				}
 			});
@@ -87,7 +87,7 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 	}
 
 	disposeAsync (): Promise<void> {
-		if (this.disposed === true) {
+		if (this.disposed) {
 			return Promise.resolve();
 		}
 		return new Promise<void>((resolve) => {
@@ -103,9 +103,9 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 	}
 
 	add (...disposables: Disposable[]): void {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			disposables.forEach(disposable => {
-				if (isDisposableInterface(disposable) === false) {
+				if (!isDisposableInterface(disposable)) {
 					throw new TypeError(`Expected a Disposable object, got ${typeof disposable}.`);
 				}
 				(<Set<Disposable>>this.disposables).add(disposable);
@@ -114,13 +114,13 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 	}
 
 	remove (disposable: Disposable): void {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			(<Set<Disposable>>this.disposables).delete(disposable);
 		}
 	}
 
 	clear (): void {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			(<Set<Disposable>>this.disposables).clear();
 		}
 	}

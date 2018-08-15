@@ -13,7 +13,7 @@ function normalizePath(path: string) {
 	while (path.endsWith('/')) {
 		path = path.substr(0, path.length - 1);
 	}
-	if (path.startsWith('/') === false) {
+	if (!path.startsWith('/')) {
 		path = '/' + path;
 	}
 	return path;
@@ -101,7 +101,7 @@ export class FileSystemFTP extends FileSystem {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.disposed === false) {
+		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = FTPConnectionState.Disconnecting;
 			if (this.connection) {
@@ -265,7 +265,7 @@ export class FileSystemFTP extends FileSystem {
 						entry.type === '-',
 						entry.type === 'd',
 						entry.type === 'l',
-						parseInt(entry.size),
+						parseInt(entry.size, 10),
 						entry.date,
 						entry.date,
 						entry.date

@@ -36,7 +36,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 	}
 
 	dispose (): void {
-		if (this.isDisposed() === false) {
+		if (!this.isDisposed()) {
 			(<CompositeDisposable>this.disposable).dispose();
 			this.disposable = null;
 			this.events = null;
@@ -44,7 +44,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 	}
 
 	disposeAsync (): Promise<void> {
-		if (this.isDisposed() === true) {
+		if (!this.isDisposed()) {
 			return Promise.resolve();
 		}
 		return (<CompositeDisposable>this.disposable).disposeAsync().then(() => {
@@ -66,7 +66,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 		const disposable = new Disposable(() => this.off(event, handler));
 		(<CompositeDisposable>this.disposable).add(disposable);
 
-		if ((<Map<string, Set<Handler>>>this.events).has(event) === false) {
+		if (!(<Map<string, Set<Handler>>>this.events).has(event)) {
 			(<Map<string, Set<Handler>>>this.events).set(event, new Set<Handler>());
 		}
 		const handlers = (<Map<string, Set<Handler>>>this.events).get(event);
@@ -130,7 +130,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 		}
 		const regex = new RegExp(event, '');
 		const handlers: Handler[] = [];
-		for (let e of (<Map<string, Set<Handler>>>this.events).keys()) {
+		for (const e of (<Map<string, Set<Handler>>>this.events).keys()) {
 			if (regex.test(e)) {
 				const eventHandlers = (<Map<string, Set<Handler>>>this.events).get(e);
 				(<Set<Handler>>eventHandlers).forEach(handler => handlers.push(handler));
@@ -148,7 +148,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 		}
 		const regex = new RegExp(event, 'i');
 		const handlers: Handler[] = [];
-		for (let e of (<Map<string, Set<Handler>>>this.events).keys()) {
+		for (const e of (<Map<string, Set<Handler>>>this.events).keys()) {
 			if (regex.test(e)) {
 				const eventHandlers = (<Map<string, Set<Handler>>>this.events).get(e);
 				(<Set<Handler>>eventHandlers).forEach(handler => handlers.push(handler));

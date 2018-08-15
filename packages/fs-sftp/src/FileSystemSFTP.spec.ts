@@ -6,7 +6,6 @@ import * as fs from 'fs';
 import { FileSystemSFTP } from './FileSystemSFTP';
 import * as SFTPServer from 'node-sftp-server';
 import { tmpdir } from 'os';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
 import { Writable, Readable } from 'stream';
@@ -16,12 +15,12 @@ describe('SFTP', () => {
 	let sftpd: any
 
 	before(() => {
-		const tmp = mkdtempSync(join(tmpdir(), 'konstellio-sftp-'));
-		mkdirSync(join(tmp, 'Griffin'));
-		writeFileSync(join(tmp, 'Griffin/Peter.txt'), 'Peter Griffin');
-		writeFileSync(join(tmp, 'Griffin/Lois.txt'), 'Lois Pewterachmidt');
-		writeFileSync(join(tmp, 'Griffin/Stewie.txt'), 'Stewie Griffin');
-		writeFileSync(join(tmp, 'ssh_host_rsa_key'), `-----BEGIN RSA PRIVATE KEY-----
+		const tmp = fs.mkdtempSync(join(tmpdir(), 'konstellio-sftp-'));
+		fs.mkdirSync(join(tmp, 'Griffin'));
+		fs.writeFileSync(join(tmp, 'Griffin/Peter.txt'), 'Peter Griffin');
+		fs.writeFileSync(join(tmp, 'Griffin/Lois.txt'), 'Lois Pewterachmidt');
+		fs.writeFileSync(join(tmp, 'Griffin/Stewie.txt'), 'Stewie Griffin');
+		fs.writeFileSync(join(tmp, 'ssh_host_rsa_key'), `-----BEGIN RSA PRIVATE KEY-----
 MIICXAIBAAKBgQC57UB/5H0M+t+mopksrltCCIXghryzofJjau+8tuMT9CG6ta3S
 O9aKApJUUG/xtc88giVhB7HFABX/oob+jrkSthR8s/whULC8E+GhvOBjHydRUZIs
 aPYOMBb42HcbOsgq3li/hwOcDk0vY00hZDKCum9BgvRAb7dPEkw2dmiCQQIDAQAB
