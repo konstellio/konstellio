@@ -1,4 +1,8 @@
 const { createServer } = require('@konstellio/server');
+const { FileSystemLocal } = require('@konstellio/fs-local');
+const { DatabaseSQLite } = require('@konstellio/db-sqlite');
+const { CacheMemory } = require('@konstellio/cache-memory');
+const { MessageQueueMemory } = require('@konstellio/mq-memory');
 const { join } = require('path');
 
 (async () => {
@@ -8,10 +12,12 @@ const { join } = require('path');
 			en: 'English',
 			fr: 'French'
 		},
-		database: {
-			driver: 'sqlite',
+		fs: new FileSystemLocal(join(__dirname, 'public')),
+		db: new DatabaseSQLite({
 			filename: join(__dirname, 'blog.sqlite')
-		}
+		}),
+		cache: new CacheMemory(),
+		mq: new MessageQueueMemory()
 	});
 
 	server.register(require('./blog.js'));

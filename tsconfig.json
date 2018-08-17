@@ -7,12 +7,13 @@
 		"sourceMap": true,
 		"strict": true,
 		"strictNullChecks": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"noImplicitReturns": true,
-		"noImplicitAny": true,
+		// "noUnusedLocals": true,
+		// "noUnusedParameters": true,
+		// "noImplicitReturns": true,
+		// "noImplicitAny": true,
 		"noFallthroughCasesInSwitch": true,
 		"lib": [
+			"dom",
 			"es2017",
 			"es2018",
 			"esnext"

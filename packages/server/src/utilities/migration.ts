@@ -1,9 +1,9 @@
 import { DocumentNode, ObjectTypeDefinitionNode, DefinitionNode, Kind, DirectiveNode, FieldDefinitionNode, TypeNode } from "graphql";
-import { Driver, q, Column as DBColumn, Index as DBIndex, ColumnType, IndexType, QueryCreateCollection, Compare, QueryAlterCollection, QueryDropCollection, FieldDirection } from "@konstellio/db";
+import { Database, q, Column as DBColumn, Index as DBIndex, ColumnType, IndexType, QueryCreateCollection, Compare, QueryAlterCollection, QueryDropCollection, FieldDirection } from "@konstellio/db";
 import * as assert from 'assert';
 import { isArray } from "util";
 import { WriteStream, ReadStream } from 'tty';
-import { Locales } from "./config";
+import { Locales } from "../server";
 import { isCollection, getArgumentsValues, isListType } from "./ast";
 import { promptSelection } from "./cli";
 
@@ -123,9 +123,11 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 			}
 		}
 		else if (node.kind === Kind.UNION_TYPE_DEFINITION) {
-			const fields = node.types.reduce((fields, type) => {
+			const fields = (node.types || []).reduce((fields, type) => {
 				const typeNode = getDefNodeByNamedType(type.name.value) as ObjectTypeDefinitionNode;
-				fields.push(...typeNode.fields);
+				if (typeNode.fields) {
+					fields.push(...typeNode.fields);
+				}
 				return fields;
 			}, [] as FieldDefinitionNode[]);
 			return {
@@ -136,7 +138,7 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 		}
 	}
 
-	function transformDirectivesToIndexes(directives: DirectiveNode[] | undefined, fields: FieldDefinitionNode[]): Index[] {
+	function transformDirectivesToIndexes(directives: ReadonlyArray<DirectiveNode> | undefined, fields: ReadonlyArray<FieldDefinitionNode> | undefined): Index[] {
 		return (directives || []).reduce((indexes, directive) => {
 			if (directive.name.value === 'index') {
 				const args = getArgumentsValues(directive.arguments);
@@ -144,12 +146,12 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 				assert(typeof args.type === 'string', 'Expected field @index.type of type string.');
 				assert(['primary', 'unique', 'index'].indexOf(args.type) > -1, 'Expected field @index.type to be either "primary", "unique" or "index".');
 				assert(args.fields && isArray(args.fields), 'Expected field @index.fields of type array.');
-				args.fields.forEach(field => {
+				(args.fields as IndexField[] || []).forEach(field => {
 					assert(typeof field.field === 'string', 'Expected field @index.fields[].field of type string');
-					assert(['asc', 'desc'].indexOf(field.direction) > -1, 'Expected field @index.fields[].direction to be either "asc" or "desc".');
+					assert(['asc', 'desc'].indexOf(field.direction || '') > -1, 'Expected field @index.fields[].direction to be either "asc" or "desc".');
 				});
 				const localized = (args.fields as IndexField[]).reduce((localize, field) => {
-					const fieldNode = fields.find(f => f.name.value === field.field);
+					const fieldNode = (fields || []).find(f => f.name.value === field.field);
 					if (fieldNode) {
 						const directives = fieldNode.directives || [];
 						const localized = directives.find(directive => directive.name.value === 'localized') !== undefined;
@@ -183,8 +185,8 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 		}, [] as Index[]);
 	}
 
-	function transformFieldsToFields(fields: FieldDefinitionNode[]): Field[] {
-		return fields.reduce((fields, field) => {
+	function transformFieldsToFields(fields: ReadonlyArray<FieldDefinitionNode> | undefined): Field[] {
+		return (fields || []).reduce((fields, field) => {
 			const directives = field.directives || [];
 			const computed = directives.find(directive => directive.name.value === 'computed') !== undefined;
 			const inlined = directives.find(directive => directive.name.value === 'inlined') !== undefined;
@@ -266,11 +268,11 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 /**
  * Create Schema from Database
  */
-export async function createSchemaFromDatabase(database: Driver, locales: Locales): Promise<Schema> {
+export async function createSchemaFromDatabase(database: Database, locales: Locales): Promise<Schema> {
 	const result = await database.execute(q.showCollection());
 	const collections: Collection[] = [];
 
-	for (let collection of result.collections) {
+	for (const collection of result.collections) {
 		const desc = await database.execute(q.describeCollection(collection));
 
 		collections.push({
@@ -304,13 +306,13 @@ export type compareTypes = (aType: ColumnType, aSize: number, bType: ColumnType,
 export function computeSchemaDiff(source: Schema, target: Schema, compareTypes: compareTypes): SchemaDiff[] {
 	const diffs: SchemaDiff[] = [];
 
-	for (let targetCollection of target.collections) {
+	for (const targetCollection of target.collections) {
 		const sourceCollection = source.collections.find(collection => collection.handle === targetCollection.handle);
 		if (sourceCollection === undefined) {
 			diffs.push({ action: 'add_collection', collection: targetCollection, sourceSchema: source });
 		}
 		else {
-			for (let targetIndex of targetCollection.indexes) {
+			for (const targetIndex of targetCollection.indexes) {
 				const sourceIndex = sourceCollection.indexes.find(index => index.handle === targetIndex.handle);
 				if (sourceIndex === undefined) {
 					diffs.push({ action: 'add_index', collection: targetCollection, index: targetIndex });
@@ -319,7 +321,7 @@ export function computeSchemaDiff(source: Schema, target: Schema, compareTypes: 
 					let alterIndex = targetIndex.type !== sourceIndex.type;
 
 					if (alterIndex === false) {
-						for (let targetField of targetIndex.fields) {
+						for (const targetField of targetIndex.fields) {
 							const sourceField = sourceIndex.fields.find(field => field.field === targetField.field);
 							if (sourceField === undefined || sourceField.direction !== targetField.direction) {
 								alterIndex = true;
@@ -334,24 +336,24 @@ export function computeSchemaDiff(source: Schema, target: Schema, compareTypes: 
 				}
 			}
 
-			for (let sourceIndex of sourceCollection.indexes) {
+			for (const sourceIndex of sourceCollection.indexes) {
 				const targetIndex = targetCollection.indexes.find(index => index.handle === sourceIndex.handle);
 				if (targetIndex === undefined) {
 					diffs.push({ action: 'drop_index', collection: targetCollection, index: sourceIndex });
 				}
 			}
 
-			for (let targetField of targetCollection.fields) {
+			for (const targetField of targetCollection.fields) {
 				const sourceField = sourceCollection.fields.find(field => field.handle === targetField.handle);
 				if (sourceField === undefined) {
-					diffs.push({ action: 'add_field', collection: targetCollection, field: targetField, sourceCollection });
+					diffs.push({ sourceCollection, action: 'add_field', collection: targetCollection, field: targetField });
 				}
 				else if ((compareTypes(sourceField.type, sourceField.size || -1, targetField.type, targetField.size || -1) & Compare.Castable) === 0) {
-					diffs.push({ action: 'alter_field', collection: targetCollection, field: targetField, sourceCollection });
+					diffs.push({ sourceCollection, action: 'alter_field', collection: targetCollection, field: targetField });
 				}
 			}
 
-			for (let sourceField of sourceCollection.fields) {
+			for (const sourceField of sourceCollection.fields) {
 				const targetField = targetCollection.fields.find(index => index.handle === sourceField.handle);
 				if (targetField === undefined) {
 					diffs.push({ action: 'drop_field', collection: targetCollection, field: sourceField });
@@ -360,7 +362,7 @@ export function computeSchemaDiff(source: Schema, target: Schema, compareTypes: 
 		}
 	}
 
-	for (let sourceCollection of source.collections) {
+	for (const sourceCollection of source.collections) {
 		const targetCollection = target.collections.find(collection => collection.handle === sourceCollection.handle);
 		if (targetCollection === undefined) {
 			diffs.push({ action: 'drop_collection', collection: sourceCollection });
@@ -377,7 +379,7 @@ export async function promptSchemaDiffs(stdin: ReadStream, stdout: WriteStream, 
 	const actions: SchemaDiff[] = [];
 	const renamedCollection: string[] = [];
 	
-	for (let diff of diffs) {
+	for (const diff of diffs) {
 		if (diff.action === 'add_collection') {
 			const tmpSchema = { collections: [{ handle: diff.collection.handle, fields: diff.collection.fields, indexes: [] }] };
 			const similarCollections = diff.sourceSchema.collections.filter(collection => computeSchemaDiff(
@@ -497,7 +499,7 @@ export async function promptSchemaDiffs(stdin: ReadStream, stdout: WriteStream, 
 /**
  * Execute schema diff
  */
-export async function executeSchemaDiff(diffs: SchemaDiff[], database: Driver): Promise<void> {
+export async function executeSchemaDiff(diffs: SchemaDiff[], database: Database): Promise<void> {
 
 	diffs = diffs.sort((a, b) => {
 		if (a.action === 'drop_collection' || a.action === 'drop_field' || a.action === 'drop_index') {
@@ -510,7 +512,7 @@ export async function executeSchemaDiff(diffs: SchemaDiff[], database: Driver): 
 	const createCollections: QueryCreateCollection[] = [];
 	const alterCollections: Map<string, QueryAlterCollection> = new Map();
 
-	for (let diff of diffs) {
+	for (const diff of diffs) {
 		if (diff.action === 'add_collection') {
 			const columns = diff.collection.fields
 				.map<DBColumn>(field => {

@@ -1,8 +1,7 @@
 import { ObjectTypeDefinitionNode, UnionTypeDefinitionNode, Kind, DocumentNode, TypeNode, DefinitionNode, FieldDefinitionNode, InputObjectTypeDefinitionNode, InputValueDefinitionNode, NamedTypeNode } from "graphql";
-import { Locales } from "./utilities/config";
-import { Driver, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection } from "@konstellio/db";
+import { Locales } from "./server";
+import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection } from "@konstellio/db";
 import { isCollection, getValue, getDefNodeByNamedType, getNamedTypeNode, isComputedField, isLocalizedField, isListType } from "./utilities/ast";
-import { Schema as JoiSchema, ObjectSchema, ArraySchema } from "joi";
 import * as Joi from 'joi';
 import { IResolvers } from "graphql-tools";
 import { Schema as DataSchema } from "./utilities/migration";
@@ -26,13 +25,13 @@ export class Collection<I, O extends CollectionType> {
 	
 	private readonly collection: DBCollection;
 	private readonly defaultLocale: string;
-	private readonly validation: JoiSchema;
+	private readonly validation: Joi.Schema;
 	private readonly loader: Dataloader<{ id: string, locale?: string, fields?: (string | Field)[] }, O | undefined>;
 	private readonly fields: FieldMeta[];
 	private readonly fieldMap: Map<string, Map<Field, Field>>;
 
 	constructor(
-		public readonly driver: Driver,
+		public readonly driver: Database,
 		public readonly locales: Locales,
 		ast: DocumentNode,
 		node: ObjectTypeDefinitionNode | UnionTypeDefinitionNode
@@ -79,7 +78,7 @@ export class Collection<I, O extends CollectionType> {
 				batchedFields = [];
 
 				const results = await this.find({
-					fields: fields,
+					fields,
 					condition: q.in('id', uids)
 				});
 
@@ -241,8 +240,8 @@ function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): 
 			const type = getNamedTypeNode(field.type);
 			const refType = getDefNodeByNamedType(ast, type);
 			fields.push({
+				type,
 				handle: field.name.value,
-				type: type,
 				isRelation: refType !== undefined && isCollection(refType),
 				isLocalized: isLocalizedField(field),
 				isList: isListType(field.type)
@@ -285,7 +284,7 @@ export class Single<I, O extends CollectionType> extends Collection<I, O> {
 	
 }
 
-export function createCollections(driver: Driver, schema: DataSchema, ast: DocumentNode, locales: Locales): Collection<any, any>[] {
+export function createCollections(driver: Database, schema: DataSchema, ast: DocumentNode, locales: Locales): Collection<any, any>[] {
 	const collections: Collection<any, any>[] = [];
 
 	for (const collection of schema.collections) {
@@ -348,13 +347,13 @@ export function createTypeExtensionsFromDefinitions(ast: DocumentNode, locales: 
 /**
  * Create Joi Schema from Definitions
  */
-export function createValidationSchemaFromDefinition(ast: DocumentNode, node: DefinitionNode, locales: Locales): JoiSchema {
+export function createValidationSchemaFromDefinition(ast: DocumentNode, node: DefinitionNode, locales: Locales): Joi.Schema {
 	return transformDocumentNodeToSchema(node);
 
-	function transformDocumentNodeToSchema(node: ObjectTypeDefinitionNode): ObjectSchema
-	function transformDocumentNodeToSchema(node: UnionTypeDefinitionNode): ArraySchema
-	function transformDocumentNodeToSchema(node: DefinitionNode): JoiSchema
-	function transformDocumentNodeToSchema(node: DefinitionNode): JoiSchema {
+	function transformDocumentNodeToSchema(node: ObjectTypeDefinitionNode): Joi.ObjectSchema
+	function transformDocumentNodeToSchema(node: UnionTypeDefinitionNode): Joi.ArraySchema
+	function transformDocumentNodeToSchema(node: DefinitionNode): Joi.Schema
+	function transformDocumentNodeToSchema(node: DefinitionNode): Joi.Schema {
 		if (node.kind === Kind.OBJECT_TYPE_DEFINITION) {
 			return Joi.object().keys((node.fields || []).reduce((keys: any, field) => {
 				if (field.name.value !== 'id') {
@@ -383,7 +382,7 @@ export function createValidationSchemaFromDefinition(ast: DocumentNode, node: De
 		return Joi.any();
 	}
 
-	function transformFieldTypeNodeToSchema(node: FieldDefinitionNode): JoiSchema | undefined {
+	function transformFieldTypeNodeToSchema(node: FieldDefinitionNode): Joi.Schema | undefined {
 		const directives = node.directives || [];
 		const computed = directives.find(directive => directive.name.value === 'computed') !== undefined;
 		if (computed === true) {
@@ -397,13 +396,13 @@ export function createValidationSchemaFromDefinition(ast: DocumentNode, node: De
 			return Joi.object().keys(Object.keys(locales).reduce((locales, code) => {
 				locales[code] = typeSchema;
 				return locales;
-			}, {} as { [code: string]: JoiSchema }));
+			}, {} as { [code: string]: Joi.Schema }));
 		}
 
 		return typeSchema;
 	}
 
-	function transformTypeNodeToSchema(node: TypeNode): JoiSchema {
+	function transformTypeNodeToSchema(node: TypeNode): Joi.Schema {
 		if (node.kind === Kind.NON_NULL_TYPE) {
 			return transformTypeNodeToSchema(node.type).required();
 		}
@@ -587,7 +586,7 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 	}
 }
 
-export function createTypeExtensionsFromDatabaseDriver(driver: Driver, locales: Locales): string {
+export function createTypeExtensionsFromDatabaseDriver(driver: Database, locales: Locales): string {
 	if (driver.features.join === true) {
 		return `
 			type Relation

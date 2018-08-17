@@ -181,7 +181,7 @@ export function getValue(node: ValueNode): any {
 	}
 }
 
-export function getArgumentsValues(nodes: ArgumentNode[] | undefined): { [key: string]: any } {
+export function getArgumentsValues(nodes: ReadonlyArray<ArgumentNode> | undefined): { [key: string]: any } {
 	if (nodes === undefined) return {};
 	return nodes.reduce((args, arg) => {
 		args[arg.name.value] = getValue(arg.value);

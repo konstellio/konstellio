@@ -1,15 +1,14 @@
-import { Driver as CacheDriver } from '@konstellio/cache';
-import { Driver as DBDriver } from '@konstellio/db';
+import { Cache } from '@konstellio/cache';
+import { Database } from '@konstellio/db';
 import { FileSystem } from '@konstellio/fs';
-import { Driver as MQDriver } from '@konstellio/mq';
+import { MessageQueue } from '@konstellio/mq';
 import { IDisposableAsync } from '@konstellio/disposable';
 import * as assert from 'assert';
-import { Config, CacheConfig, DBConfig, FSConfig, MQConfig } from './utilities/config';
 import * as fastify from 'fastify';
 import { runHttpQuery } from 'apollo-server-core';
 import { Plugin } from './plugin';
 import CorePlugin from './plugins/core';
-import { parse, InlineFragmentNode, OperationDefinitionNode, Kind } from 'graphql';
+import { parse } from 'graphql';
 import { mergeAST } from './utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
@@ -37,21 +36,35 @@ export interface ServerListenStatus {
 	port?: number
 }
 
-export async function createServer(config: Config): Promise<Server> {
-	const [db, fs, cache, mq] = await Promise.all([
-		createDatabase(config.database),
-		createFilesystem(config.fs || { driver: 'local', root: __dirname}),
-		createCache(config.cache || { driver: 'memory' }),
-		createMessageQueue(config.mq || { driver: 'memory' })
-	]);
+export interface ServerConfig {
+	locales: Locales
+	fs: FileSystem
+	db: Database
+	cache: Cache
+	mq: MessageQueue
+	http?: {
+		host?: string
+		port?: number
+	}
+	plugins?: string[]
+}
 
-	return new Server(
-		config,
-		db,
-		fs,
-		cache,
-		mq
-	);
+export type Locales = {
+	[code: string]: string
+};
+
+export interface HTTPConfig {
+	host?: string
+	port?: number
+	http2?: boolean
+	https?: {
+		key: string
+		cert: string
+	}
+}
+
+export async function createServer(config: ServerConfig): Promise<Server> {
+	return new Server(config);
 }
 
 export class Server implements IDisposableAsync {
@@ -60,15 +73,21 @@ export class Server implements IDisposableAsync {
 	private plugins: Plugin[]
 	private server: fastify.FastifyInstance | undefined
 
+	protected fs: FileSystem;
+	protected db: Database;
+	protected cache: Cache;
+	protected mq: MessageQueue;
+
 	constructor(
-		public readonly config: Config,
-		public readonly database: DBDriver,
-		public readonly fs: FileSystem,
-		public readonly cache: CacheDriver,
-		public readonly mq: MQDriver
+		public readonly config: ServerConfig
 	) {
 		this.disposed = false;
 		this.plugins = [];
+
+		this.fs = config.fs;
+		this.db = config.db;
+		this.cache = config.cache;
+		this.mq = config.mq;
 	}
 
 	async disposeAsync(): Promise<void> {
@@ -78,7 +97,7 @@ export class Server implements IDisposableAsync {
 
 		// FIXME: Expose missing disposeAsync;
 
-		// await this.database.disposeAsync();
+		// await this.db.disposeAsync();
 		await this.fs.disposeAsync();
 		await this.cache.disposeAsync();
 		// await this.mq.disposeAsync();
@@ -115,7 +134,7 @@ export class Server implements IDisposableAsync {
 
 		// Let plugin extend AST by providing an other layer of type definition
 		const typeDefExtensions: string[] = [
-			createTypeExtensionsFromDatabaseDriver(this.database, this.config.locales)
+			createTypeExtensionsFromDatabaseDriver(this.db, this.config.locales)
 		];
 		for (const ast of ASTs) {
 			const extended = await Promise.all(pluginOrder.reduce((typeDefs, plugin) => {
@@ -141,21 +160,21 @@ export class Server implements IDisposableAsync {
 		
 		// Do migration
 		if (skipMigration === false) {
-			const dbSchema = await createSchemaFromDatabase(this.database, this.config.locales);
+			const dbSchema = await createSchemaFromDatabase(this.db, this.config.locales);
 			const schemaDiffs = await promptSchemaDiffs(
 				process.stdin as ReadStream,
 				process.stdout as WriteStream,
-				computeSchemaDiff(dbSchema, astSchema, this.database.compareTypes),
-				this.database.compareTypes
+				computeSchemaDiff(dbSchema, astSchema, this.db.compareTypes),
+				this.db.compareTypes
 			);
 
 			if (schemaDiffs.length > 0) {
-				await executeSchemaDiff(schemaDiffs, this.database);
+				await executeSchemaDiff(schemaDiffs, this.db);
 			}
 		}
 
 		// TODO: Create collections with mergedAST
-		const collections = createCollections(this.database, astSchema, mergedAST, this.config.locales);
+		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales);
 		debugger;
 
 		// Create input type from definitions
@@ -235,7 +254,7 @@ export class Server implements IDisposableAsync {
 						res.send(JSON.parse(result));
 					} catch (error) {
 						if (error.name === 'HttpQueryError') {
-							for (let key in error.headers) {
+							for (const key in error.headers) {
 								res.header(key, error.headers[key]);
 							}
 							// res.code(error.statusCode); // FIXME: Required ?
@@ -279,52 +298,4 @@ function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {
 		}
 		return bONa ? -1 : 0;
 	});
-}
-
-async function createDatabase(config: DBConfig): Promise<DBDriver> {
-	if (config.driver === 'sqlite') {
-		const { SQLiteDriver } = require('@konstellio/db');
-		return new SQLiteDriver(
-			config.filename === 'mock://memory'
-				? Object.assign({}, config, { filename: ':memory:' })
-				: config
-		).connect();
-	}
-
-	throw new ReferenceError(`Unsupported database driver ${config.driver}.`);
-}
-
-async function createFilesystem(config: FSConfig): Promise<FileSystem> {
-	if (config.driver === 'local') {
-		const { LocalFileSystem } = require('@konstellio/fs');
-		return new LocalFileSystem(config.root);
-	}
-
-	throw new ReferenceError(`Unsupported file system driver ${config.driver}.`);
-}
-
-async function createCache(config: CacheConfig): Promise<CacheDriver> {
-	if (config.driver === 'memory') {
-		const { RedisMockDriver } = require('@konstellio/cache');
-		return new RedisMockDriver().connect();
-	}
-	else if (config.driver === 'redis') {
-		const { RedisDriver } = require('@konstellio/cache');
-		return new RedisDriver(config.uri).connect();
-	}
-
-	throw new ReferenceError(`Unsupported cache driver ${config!.driver}.`);
-}
-
-async function createMessageQueue(config: MQConfig): Promise<MQDriver> {
-	if (config.driver === 'memory') {
-		const { MemoryDriver } = require('@konstellio/mq');
-		return new MemoryDriver().connect();
-	}
-	else if (config.driver === 'amqp') {
-		const { AMQPDriver } = require('@konstellio/mq');
-		return new AMQPDriver(config.uri).connect();
-	}
-
-	throw new ReferenceError(`Unsupported message queue driver ${config!.driver}.`);
 }
