@@ -8,7 +8,12 @@
 			"type": "npm",
 			"script": "compile",
 			"path": "packages/server/",
-			"problemMatcher": []
+			"problemMatcher": [
+				{
+					"base": "$tsc",
+					"fileLocation": ["relative", "${workspaceFolder}/packages/server/"]
+				}
+			]
 		}
 	]
 }
