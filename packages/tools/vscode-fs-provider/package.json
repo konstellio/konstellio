@@ -17,7 +17,7 @@
         "konstelliofs:downloadSelected",
         "konstelliofs:uploadHere"
     ],
-    "main": "./out/extension",
+    "main": "./dist/extension",
     "contributes": {
         "commands": [
             {

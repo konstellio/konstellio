@@ -36,7 +36,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 					this._drivers.delete(hash);
 					return _reject(reason);
 				};
-
+				debugger; // uri.toString() lowercase le password !!!
 				const url = parseUrl(uri.toString(false));
 				const query = parseQuery(url.query || '');
 				const auth = (url.auth || '').split(':');
@@ -72,9 +72,9 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 							port: parseInt(url.port || '21'),
 							user: user,
 							password: pass,
-							connTimeout: parseInt(query.timeout as string || '10000'),
-							pasvTimeout: parseInt(query.timeout as string || '10000'),
-							keepalive: parseInt(query.keepalive as string || '10000'),
+							// connTimeout: parseInt(query.timeout as string || '10000'),
+							// pasvTimeout: parseInt(query.timeout as string || '10000'),
+							// keepalive: parseInt(query.keepalive as string || '10000'),
 							secure: uri.scheme === 'ftps' ? true : undefined,
 							secureOptions: {
 								rejectUnauthorized: false
@@ -82,6 +82,17 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 							debug(msg) {
 								console.info(msg);
 							}
+							// host: 'lespromenades.com',
+							// port: 21,
+							// user: 'lebleu@lespromenades.com',
+							// password: '61kdtQeb4t7ojloRaGQ1',
+							// secure: true,
+							// secureOptions: {
+							// 	rejectUnauthorized: false
+							// },
+							// debug(msg) {
+							// 	console.info(msg);
+							// }
 						}));
 					case 'sftp':
 						if (query.sudo) {
