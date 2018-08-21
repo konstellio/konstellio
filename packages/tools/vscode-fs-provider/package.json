@@ -1,11 +1,11 @@
 {
-    "name": "konstellio-fs-provider",
+    "name": "@konstellio/vscode-fs-provider",
     "displayName": "Konstellio FS Provider",
     "description": "",
     "version": "0.0.3",
     "publisher": "konstellio",
     "engines": {
-        "vscode": "^1.23.0"
+        "vscode": "^1.26.0"
     },
     "categories": [
         "Other"
@@ -54,23 +54,22 @@
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install",
+        "postinstall2": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "@types/ftp": "^0.3.29",
-        "@types/mocha": "^2.2.42",
-        "@types/node": "^7.0.43",
-        "@types/ssh2": "^0.5.35",
-        "tslint": "^5.8.0",
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.6"
+        "@types/mocha": "^5.2.5",
+        "@types/node": "^10.5.7",
+        "tslint": "^5.11.0",
+        "typescript": "^3.0.1",
+        "vscode": "^1.1.21"
     },
     "dependencies": {
-        "@konstellio/disposable": "0.0.12",
-        "@konstellio/fs": "0.0.7",
-        "@konstellio/promised": "0.0.3",
-        "ftp": "^0.3.10",
-        "ssh2": "^0.6.1"
+        "@konstellio/disposable": "^0.x",
+        "@konstellio/fs": "^0.x",
+        "@konstellio/fs-ftp": "^0.x",
+        "@konstellio/fs-sftp": "^0.x",
+        "@konstellio/fs-ssh": "^0.x",
+        "@konstellio/promised": "^0.x"
     }
 }

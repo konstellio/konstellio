@@ -1,17 +1,19 @@
 'use strict';
 
 import * as vscode from 'vscode';
-import * as kfs from '@konstellio/fs';
+import { FileSystem, Stats, FileNotFound, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
+import { FileSystemFTP } from '@konstellio/fs-ftp';
+import { FileSystemSFTP } from '@konstellio/fs-sftp';
+import { FileSystemSSH } from '@konstellio/fs-ssh';
 import { readFileSync } from 'fs';
 import { dirname } from 'path';
-import { FileNotFound, FileAlreadyExists, SFTPFileSystem, SSH2FileSystem, FTPFileSystem, CouldNotConnect } from '@konstellio/fs';
 import { parse as parseUrl } from 'url';
 import { parse as parseQuery } from 'querystring';
 
 export class FileSystemProvider implements vscode.FileSystemProvider {
 
 	private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
-	private _drivers: Map<string, Promise<kfs.FileSystem>>;
+	private _drivers: Map<string, Promise<FileSystem>>;
 	private _showInputBoxTail: Promise<string | undefined>;
 
 	constructor() {
@@ -26,7 +28,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 		return this._showInputBoxTail;
 	}
 
-	getDriver(uri: vscode.Uri): Promise<kfs.FileSystem> {
+	getDriver(uri: vscode.Uri): Promise<FileSystem> {
 		const hash = `${uri.scheme}://${uri.authority}?${uri.query}#${uri.fragment}`;
 		if (this._drivers.has(hash) === false) {
 			this._drivers.set(hash, new Promise(async (resolve, _reject) => {
@@ -36,7 +38,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 				};
 
 				const url = parseUrl(uri.toString(false));
-				const query = parseQuery(url.query);
+				const query = parseQuery(url.query || '');
 				const auth = (url.auth || '').split(':');
 				const user = auth.shift();
 				let pass: string | undefined = auth.join(':');
@@ -65,37 +67,42 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 				switch (uri.scheme) {
 					case 'ftp':
 					case 'ftps':
-						return resolve(new FTPFileSystem({
+						return resolve(new FileSystemFTP({
 							host: url.hostname,
 							port: parseInt(url.port || '21'),
 							user: user,
 							password: pass,
-							connTimeout: parseInt(query.timeout || '10000'),
-							pasvTimeout: parseInt(query.timeout || '10000'),
-							keepalive: parseInt(query.keepalive || '10000'),
+							connTimeout: parseInt(query.timeout as string || '10000'),
+							pasvTimeout: parseInt(query.timeout as string || '10000'),
+							keepalive: parseInt(query.keepalive as string || '10000'),
 							secure: uri.scheme === 'ftps' ? true : undefined,
-							// secureOptions: {},
+							secureOptions: {
+								rejectUnauthorized: false
+							},
+							debug(msg) {
+								console.info(msg);
+							}
 						}));
 					case 'sftp':
 						if (query.sudo) {
-							return resolve(new SSH2FileSystem({
-								host: url.hostname,
+							return resolve(new FileSystemSSH({
+								host: url.hostname!,
 								port: parseInt(url.port || '22'),
 								username: user,
 								password: pass ? pass : undefined,
-								privateKey: query.privateKey ? readFileSync(query.privateKey) : undefined,
-								readyTimeout: parseInt(query.timeout || '10000'),
-								sudo: ['1', 'true'].indexOf(query.sudo) > -1 ? true : query.sudo,
+								privateKey: query.privateKey ? readFileSync(query.privateKey as string) : undefined,
+								readyTimeout: parseInt(query.timeout as string || '10000'),
+								sudo: ['1', 'true'].indexOf(query.sudo as string) > -1 ? true : query.sudo as string,
 								passphrase: passphrase,
 							}));
 						} else {
-							return resolve(new SFTPFileSystem({
+							return resolve(new FileSystemSFTP({
 								host: url.hostname,
 								port: parseInt(url.port || '22'),
 								username: user,
 								password: pass ? pass : undefined,
-								privateKey: query.privateKey ? readFileSync(query.privateKey) : undefined,
-								readyTimeout: parseInt(query.timeout || '10000'),
+								privateKey: query.privateKey ? readFileSync(query.privateKey as string) : undefined,
+								readyTimeout: parseInt(query.timeout as string || '10000'),
 								passphrase: passphrase,
 							}));
 						}
@@ -222,10 +229,10 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 			const writeStream = await driver.createWriteStream(uri.path, options.overwrite);
 
 			await new Promise<void>((resolve, reject) => {
-				writeStream.end(content, (err: Error) => {
-					if (err) {
-						return reject(err);
-					}
+				writeStream.end(content, () => {
+					// if (err) {
+					// 	return reject(err);
+					// }
 					return resolve();
 				});
 			});
@@ -323,7 +330,7 @@ function handleError(error: Error, uri?: vscode.Uri): void {
 export class FileStat implements vscode.FileStat {
 
 	constructor(
-		private _stats: kfs.Stats
+		private _stats: Stats
 	) {  }
 
 	get type(): vscode.FileType {
