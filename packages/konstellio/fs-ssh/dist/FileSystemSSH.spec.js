@@ -1,0 +1,39 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("mocha");
+const chai_1 = require("chai");
+chai_1.use(require("chai-as-promised"));
+chai_1.should();
+// import * as fs from 'fs';
+// import { SSH2FileSystem } from './SSH2';
+// import { FtpSrv, FileSystem } from 'ftp-srv';
+// import { tmpdir } from 'os';
+// import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'fs';
+// import { join } from 'path';
+// import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
+describe('SSH', () => {
+    // let ftpd: FtpSrv
+    // before(() => {
+    // 	const tmp = mkdtempSync(join(tmpdir(), 'konstellio-ftp-'));
+    // 	mkdirSync(join(tmp, 'Griffin'));
+    // 	writeFileSync(join(tmp, 'Griffin/Peter.txt'), 'Peter Griffin');
+    // 	writeFileSync(join(tmp, 'Griffin/Lois.txt'), 'Lois Pewterachmidt');
+    // 	writeFileSync(join(tmp, 'Griffin/Stewie.txt'), 'Stewie Griffin');
+    // 	ftpd = new FtpSrv('ftp://127.0.0.1:2121');
+    // 	(ftpd as any).log.level('fatal');
+    // 	ftpd.on('login', ({ connection }, resolve) => {
+    // 		resolve({ root: tmp, cwd: '/' })
+    // 	});
+    // 	return ftpd.listen();
+    // });
+    // const fsftp = new FTPFileSystem({
+    // 	host: '127.0.0.1',
+    // 	port: 2121
+    // });
+    // shouldBehaveLikeAFileSystem(fsftp);
+    // after(async () => {
+    // 	await fsftp.disposeAsync();
+    // 	await ftpd.close();
+    // });
+});
+//# sourceMappingURL=FileSystemSSH.spec.js.map

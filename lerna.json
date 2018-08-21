@@ -8,8 +8,8 @@
     }
   },
   "packages": [
-    "packages/*",
-    "examples/*"
+    "packages/konstellio/*",
+    "packages/examples/*"
   ],
   "version": "0.1.0"
 }
