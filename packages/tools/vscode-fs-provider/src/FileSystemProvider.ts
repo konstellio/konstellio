@@ -82,17 +82,6 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 							debug(msg) {
 								console.info(msg);
 							}
-							// host: 'lespromenades.com',
-							// port: 21,
-							// user: 'lebleu@lespromenades.com',
-							// password: '61kdtQeb4t7ojloRaGQ1',
-							// secure: true,
-							// secureOptions: {
-							// 	rejectUnauthorized: false
-							// },
-							// debug(msg) {
-							// 	console.info(msg);
-							// }
 						}));
 					case 'sftp':
 						if (query.sudo) {
