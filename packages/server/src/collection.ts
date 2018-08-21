@@ -189,7 +189,7 @@ export class Collection<I, O extends CollectionType> {
 		const result = await this.driver.execute<T>(query);
 
 		// TODO: remap localized field to their original
-		// TODO: fetch relation
+		// TODO: fetch relation if needed
 
 		debugger;
 

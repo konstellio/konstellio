@@ -10,6 +10,24 @@
 			"name": "Launch examples/blog",
 			"preLaunchTask": "compile-konstellio-server",
 			"program": "${workspaceFolder}/examples/blog/index.js"
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Test @konstellio/server",
+			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"-u",
+				"tdd",
+				"--timeout",
+				"999999",
+				"--colors",
+				"--require",
+				"ts-node/register",
+				"--full-trace",
+				"${workspaceFolder}/packages/server/src/**/*.spec.ts"
+			],
+			"internalConsoleOptions": "openOnSessionStart"
 		}
 	]
 }

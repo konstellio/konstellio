@@ -14,7 +14,6 @@ import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
-import { renderPlaygroundPage } from 'graphql-playground-html';
 import { AddressInfo } from 'net';
 
 export enum ServerListenMode {
@@ -121,6 +120,10 @@ export class Server implements IDisposableAsync {
 		mode = mode || ServerListenMode.All;
 		const status: ServerListenStatus = { mode };
 
+		await this.db.connect();
+		await this.cache.connect();
+		await this.mq.connect();		
+
 		// Reorder plugin to respect their dependencies
 		const pluginOrder = [CorePlugin as Plugin].concat(reorderPluginOnDependencies(this.plugins));
 
@@ -208,7 +211,11 @@ export class Server implements IDisposableAsync {
 		// Create schema
 		const baseSchema = makeExecutableSchema({
 			typeDefs: [mergedAST, inputTypeDefinitions] as any,
-			resolvers: mergedResolvers
+			resolvers: mergedResolvers,
+			resolverValidationOptions: {
+				allowResolversNotInSchema: true,
+				requireResolversForResolveType: false
+			}
 		});
 
 		// Emulate mergeSchemas resolver's fragment
@@ -227,15 +234,6 @@ export class Server implements IDisposableAsync {
 
 			// TODO: Auth => https://github.com/fastify/fastify-cookie/blob/master/plugin.js
 			// TODO: Create a websocker server => https://github.com/fastify/fastify-websocket/blob/master/index.js
-
-			app.get('/playground', async (_, res) => {
-				const html = renderPlaygroundPage({
-					endpoint: '/graphql',
-					version: '1.6.6'
-				});
-				res.header('Content-Type', 'text/html');
-				res.send(html);
-			});
 
 			app.route({
 				method: ['GET', 'POST'],
