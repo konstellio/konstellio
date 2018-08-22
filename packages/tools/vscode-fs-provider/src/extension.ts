@@ -12,41 +12,41 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('ftps', provider, { isCaseSensitive: true }));
 	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('sftp', provider, { isCaseSensitive: true }));
 
-	context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.downloadSelected', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
-		const destinations = await vscode.window.showOpenDialog({
-			canSelectFiles: false,
-			canSelectFolders: true,
-			canSelectMany: false,
-			openLabel: 'Download here'
-		});
-		if (destinations) {
-			console.log('Download', selections.map(s => s.toString(true)), destinations[0].fsPath);
-		}
-	}));
+	// context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.downloadSelected', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
+	// 	const destinations = await vscode.window.showOpenDialog({
+	// 		canSelectFiles: false,
+	// 		canSelectFolders: true,
+	// 		canSelectMany: false,
+	// 		openLabel: 'Download here'
+	// 	});
+	// 	if (destinations) {
+	// 		console.log('Download', selections.map(s => s.toString(true)), destinations[0].fsPath);
+	// 	}
+	// }));
 
-	context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.uploadFilesHere', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
-		const sources = await vscode.window.showOpenDialog({
-			canSelectFiles: true,
-			canSelectFolders: false,
-			canSelectMany: true,
-			openLabel: 'Upload'
-		});
-		if (sources) {
-			console.log('Upload', sources.map(s => s.fsPath), uri.toString(true));
-		}
-	}));
+	// context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.uploadFilesHere', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
+	// 	const sources = await vscode.window.showOpenDialog({
+	// 		canSelectFiles: true,
+	// 		canSelectFolders: false,
+	// 		canSelectMany: true,
+	// 		openLabel: 'Upload'
+	// 	});
+	// 	if (sources) {
+	// 		console.log('Upload', sources.map(s => s.fsPath), uri.toString(true));
+	// 	}
+	// }));
 
-	context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.uploadFoldersHere', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
-		const sources = await vscode.window.showOpenDialog({
-			canSelectFiles: false,
-			canSelectFolders: true,
-			canSelectMany: true,
-			openLabel: 'Upload'
-		});
-		if (sources) {
-			console.log('Upload', sources.map(s => s.fsPath), uri.toString(true));
-		}
-	}));
+	// context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.uploadFoldersHere', async (uri: vscode.Uri, selections: vscode.Uri[]) => {
+	// 	const sources = await vscode.window.showOpenDialog({
+	// 		canSelectFiles: false,
+	// 		canSelectFolders: true,
+	// 		canSelectMany: true,
+	// 		openLabel: 'Upload'
+	// 	});
+	// 	if (sources) {
+	// 		console.log('Upload', sources.map(s => s.fsPath), uri.toString(true));
+	// 	}
+	// }));
 
 	// let NEXT_TERM_ID = 1;
 	// context.subscriptions.push(vscode.commands.registerCommand('konstelliofs.createTerminal', () => {

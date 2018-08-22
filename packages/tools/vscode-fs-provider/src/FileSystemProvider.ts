@@ -36,8 +36,8 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 					this._drivers.delete(hash);
 					return _reject(reason);
 				};
-				debugger; // uri.toString() lowercase le password !!!
-				const url = parseUrl(uri.toString(false));
+				const uriString = `${uri.scheme}://${uri.authority}${uri.path}${uri.query ? '?' + uri.query : ''}${uri.fragment ? '#' + uri.fragment : ''}`;
+				const url = parseUrl(uriString);
 				const query = parseQuery(url.query || '');
 				const auth = (url.auth || '').split(':');
 				const user = auth.shift();
@@ -72,12 +72,12 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 							port: parseInt(url.port || '21'),
 							user: user,
 							password: pass,
-							// connTimeout: parseInt(query.timeout as string || '10000'),
-							// pasvTimeout: parseInt(query.timeout as string || '10000'),
-							// keepalive: parseInt(query.keepalive as string || '10000'),
+							connTimeout: parseInt(query.timeout as string || '10000'),
+							pasvTimeout: parseInt(query.timeout as string || '10000'),
+							keepalive: parseInt(query.keepalive as string || '10000'),
 							secure: uri.scheme === 'ftps' ? true : undefined,
 							secureOptions: {
-								rejectUnauthorized: false
+								rejectUnauthorized: query.rejectUnauthorized as string === 'true'
 							},
 							debug(msg) {
 								console.info(msg);
@@ -124,7 +124,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 		return this._onDidChangeFile.event;
 	}
 
-	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[] }): vscode.Disposable {
+	watch(): vscode.Disposable {
 		return { dispose: () => {} };
 	}
 
@@ -228,7 +228,7 @@ export class FileSystemProvider implements vscode.FileSystemProvider {
 
 			const writeStream = await driver.createWriteStream(uri.path, options.overwrite);
 
-			await new Promise<void>((resolve, reject) => {
+			await new Promise<void>((resolve) => {
 				writeStream.end(content, () => {
 					// if (err) {
 					// 	return reject(err);
