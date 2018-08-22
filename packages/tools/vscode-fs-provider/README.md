@@ -1,2 +1,0 @@
-# konstellio-fs-provider README
-
