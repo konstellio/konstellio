@@ -1,0 +1,17 @@
+{
+	"private": true,
+	"name": "fuse-fs-provider",
+	"version": "1.0.0",
+	"main": "index.js",
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@konstellio/fs-ftp": "^0.x",
+		"fuse-bindings": "^2.11.2"
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"description": ""
+}
