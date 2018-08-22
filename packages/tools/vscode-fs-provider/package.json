@@ -1,0 +1,76 @@
+{
+    "private": true,
+    "name": "vscode-fs-provider",
+    "displayName": "Konstellio FS Provider",
+    "description": "",
+    "version": "0.0.4",
+    "publisher": "konstellio",
+    "engines": {
+        "vscode": "^1.26.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onFileSystem:ftp",
+        "onFileSystem:ftps",
+        "onFileSystem:sftp",
+        "konstelliofs:downloadSelected",
+        "konstelliofs:uploadHere"
+    ],
+    "main": "./dist/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "konstelliofs.downloadSelected",
+                "title": "Download"
+            },
+            {
+                "command": "konstelliofs.uploadFilesHere",
+                "title": "Upload files here"
+            },
+            {
+                "command": "konstelliofs.uploadFoldersHere",
+                "title": "Upload folders here"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "konstelliofs.downloadSelected",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                },
+                {
+                    "command": "konstelliofs.uploadFilesHere",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                },
+                {
+                    "command": "konstelliofs.uploadFoldersHere",
+                    "when": "resourceScheme =~ /^ftp$|^ftps$|^sftp$/"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ../../../node_modules/vscode/bin/install",
+        "test": "npm run compile && node ../../../node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "@types/mocha": "^5.2.5",
+        "@types/node": "^10.5.7",
+        "tslint": "^5.11.0",
+        "typescript": "^3.0.1",
+        "vscode": "^1.1.21"
+    },
+    "dependencies": {
+        "@konstellio/disposable": "^0.x",
+        "@konstellio/fs": "^0.x",
+        "@konstellio/fs-ftp": "^0.x",
+        "@konstellio/fs-sftp": "^0.x",
+        "@konstellio/fs-ssh": "^0.x",
+        "@konstellio/promised": "^0.x"
+    }
+}

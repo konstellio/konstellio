@@ -9,7 +9,7 @@
 			"request": "launch",
 			"name": "Launch examples/blog",
 			"preLaunchTask": "compile-konstellio-server",
-			"program": "${workspaceFolder}/examples/blog/index.js"
+			"program": "${workspaceFolder}/packages/examples/blog/index.js"
 		},
 		{
 			"type": "node",
@@ -25,9 +25,36 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/server/src/**/*.spec.ts"
+				"${workspaceFolder}/packages/konstellio/server/src/**/*.spec.ts"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
+		},
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Launch vscode-fs-provider",
+			"preLaunchTask": "watch-konstellio-vscode-fs-provider",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/tools/vscode-fs-provider"
+			],
+			"outFiles": [
+				"${workspaceFolder}/packages/tools/vscode-fs-provider/dist/**/*.js"
+			]
+		},
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Launch vscode-fs-provider Test",
+			"preLaunchTask": "watch-konstellio-vscode-fs-provider",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/tools/vscode-fs-provider",
+				"--extensionTestsPath=${workspaceFolder}/packages/tools/vscode-fs-provider/dist/test"
+			],
+			"outFiles": [
+				"${workspaceFolder}/packages/tools/vscode-fs-provider/dist/test/**/*.js"
+			]
 		}
 	]
 }

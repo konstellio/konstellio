@@ -7,13 +7,39 @@
 			"identifier": "compile-konstellio-server",
 			"type": "npm",
 			"script": "compile",
-			"path": "packages/server/",
+			"path": "packages/konstellio/server/",
 			"problemMatcher": [
 				{
 					"base": "$tsc",
-					"fileLocation": ["relative", "${workspaceFolder}/packages/server/"]
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}/packages/konstellio/server/"
+					]
 				}
 			]
+		},
+		{
+			"identifier": "watch-konstellio-vscode-fs-provider",
+			"type": "npm",
+			"script": "watch",
+			"path": "packages/tools/vscode-fs-provider/",
+			"problemMatcher": [
+				{
+					"base": "$tsc-watch",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}/packages/tools/vscode-fs-provider/"
+					]
+				}
+			],
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
 		}
 	]
 }
