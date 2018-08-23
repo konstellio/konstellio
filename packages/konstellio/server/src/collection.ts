@@ -7,6 +7,8 @@ import { IResolvers } from "graphql-tools";
 import { Schema as DataSchema } from "./utilities/migration";
 import * as Dataloader from "dataloader";
 
+const relationCollection = q.collection('Relation');
+
 export type CollectionType = { id: string, [field: string]: any };
 
 export class Collection<I, O extends CollectionType> {
@@ -26,7 +28,7 @@ export class Collection<I, O extends CollectionType> {
 	private readonly collection: DBCollection;
 	private readonly defaultLocale: string;
 	private readonly validation: Joi.Schema;
-	private readonly loader: Dataloader<{ id: string, locale?: string, fields?: (string | Field)[] }, O | undefined>;
+	private readonly loader: Dataloader<{ id: string, locale?: string, fields?: (string | Field | FieldAs)[] }, O | undefined>;
 	private readonly fields: FieldMeta[];
 	private readonly fieldMap: Map<string, Map<Field, Field>>;
 
@@ -74,7 +76,8 @@ export class Collection<I, O extends CollectionType> {
 			async (keys) => {
 				const ids = keys.map(key => key.id);
 				const uids = ids.filter((id, pos, ids) => ids.indexOf(id) === pos);
-				const fields = batchedFields.length > 0 ? batchedFields : undefined;
+				const fields = batchedFields.concat([q.field('id')]);
+				// const fields = batchedFields.length > 0 ? batchedFields : undefined;
 				batchedFields = [];
 
 				const results = await this.find({
@@ -102,7 +105,7 @@ export class Collection<I, O extends CollectionType> {
 
 	async findById(
 		id: string,
-		{ locale, fields }: { locale?: string, fields?: (string | Field)[] }
+		{ locale, fields }: { locale?: string, fields?: (string | Field | FieldAs)[] }
 	): Promise<O> {
 		try {
 			const result = await this.loader.load({ id, locale, fields });
@@ -154,7 +157,9 @@ export class Collection<I, O extends CollectionType> {
 		const fieldMap = this.fieldMap.get(locale)!;
 		const fields = options.fields || Array.from(fieldMap.keys());
 
-		const select = replaceField(fields, fieldMap, fieldsUsed);
+		const selectUsed: Field[] = [];
+		const selectAlias: FieldAs[] = fields.map(field => field instanceof Field ? q.as(field, field.name) : field);
+		const select = replaceField(selectAlias, fieldMap, selectUsed) as FieldAs[];
 
 		let query = q.aggregate(...select).from(this.collection).range({ limit: options.limit, offset: options.offset });
 		if (options.condition) {
@@ -176,7 +181,7 @@ export class Collection<I, O extends CollectionType> {
 				// const localizedField = replaceField(fieldUsed, fieldMap) as Field;
 				const field = fieldUsed.name;
 				const alias = `ref__${field}`;
-				const relationCollection = q.collection(meta.type);
+				// const relationCollection = q.collection(meta.type);
 
 				query = query.join(
 					alias,
@@ -188,12 +193,18 @@ export class Collection<I, O extends CollectionType> {
 			
 		const result = await this.driver.execute<T>(query);
 
-		// TODO: remap localized field to their original
-		// TODO: fetch relation if needed
+		if (this.driver.features.join) {
+			const relations = selectUsed
+				.map(field => [field, this.fields.find(f => f.handle === field.name)] as [Field, FieldMeta])
+				.filter(([, meta]) => meta !== undefined && meta.isRelation);
+			
+			if (relations.length) {
+				// TODO: fetch relation if needed
+				debugger;
+			}
+		}
 
-		debugger;
-
-		return [] as T[];
+		return result.results;
 	}
 
 	async create(

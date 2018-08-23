@@ -103,12 +103,12 @@ describe("Collection", () => {
 	it('create collections', async () => {
 		const [Users, Categories, Posts] = createCollections(db, schema, ast, locales);
 		
-		const t = await Posts.findById('post1', { locale: 'fr', fields: [q.field('title')] });
-		// const t = await Posts.find({
-		// 	fields: [q.field('title')],
-		// 	condition: q.and(q.gt('slug', 'aaaa'), q.eq('author', '1111')),
-		// 	sort: [q.sort('title', 'desc')]
-		// });
+		// const t = await Posts.findById('post1', { locale: 'fr', fields: [q.field('title'), q.as('title', 'bleh')] });
+		const t = await Posts.find({
+			fields: [q.field('title'), q.field('slug')],
+			condition: q.and(q.gte('slug', 'my-first-blog-post'), q.eq('author', 'mgrenier')),
+			sort: [q.sort('title', 'desc')]
+		});
 
 		debugger;
 	});
