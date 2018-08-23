@@ -442,7 +442,7 @@ function collectionToSQL(collection: Collection): string {
 
 function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
-		return `"${field.alias ? `${field.alias}.` : ''}${field.name}"`;
+		return `"${field.alias ? `${field.alias}"."` : ''}${field.name}"`;
 	}
 	else if (field instanceof FieldAs) {
 		if (field.field instanceof Function) {
