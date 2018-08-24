@@ -82,6 +82,16 @@ export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
 	return decomposed;
 }
 
+export function getField(field: Field | FieldAs | Function): Field | undefined {
+	if (field instanceof Field) {
+		return field;
+	}
+	else if (field instanceof FieldAs) {
+		return getField(field.field);
+	}
+	return undefined;
+}
+
 export function replaceField(
 	source: any,
 	replace: Map<Field, Field>,

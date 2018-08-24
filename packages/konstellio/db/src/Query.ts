@@ -150,11 +150,11 @@ export class q {
 		return new ComparisonLesserThanOrEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
 	}
 
-	public static in(field: string | Field | Function, values: Value[]) {
+	public static in(field: string | Field | Function, values: Value | Value[]) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
-		assert(isArray(values) && values.length > 0);
+		// assert(isArray(values) && values.length > 0);
 
-		return new ComparisonIn(typeof field === 'string' ? new Field(field) : field, List(values));
+		return new ComparisonIn(typeof field === 'string' ? new Field(field) : field, List(isArray(values) ? values : [values]));
 	}
 
 	public static beginsWith(field: string | Field | Function, value: string) {
@@ -296,7 +296,7 @@ export class Index {
 
 export type Primitive = string | number | boolean | Date | null;
 export type Value = Variable | Field | Function | Primitive;
-export type Variables = { [key: string]: Primitive };
+export type Variables = { [key: string]: Primitive | Primitive[] };
 
 export class Variable {
 	constructor(public readonly name: string) {

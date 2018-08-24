@@ -48,6 +48,7 @@ import {
 } from '@konstellio/db';
 import { List } from 'immutable';
 import { Database as SQLite, OPEN_READWRITE, OPEN_CREATE } from 'sqlite3';
+import { isArray } from 'util';
 
 export type DatabaseSQLiteConstructor = {
 	filename: string,
@@ -473,8 +474,14 @@ function valueToSQL(field: Value, params: any[], variables?: Variables): string 
 		if (variables === undefined || typeof variables[field.name] === 'undefined') {
 			throw new Error(`Could not find query variable ${field.name}.`);
 		}
-		params.push(variables[field.name]);
-		return '?';
+		const value = variables[field.name];
+		if (isArray(value)) {
+			params.push(...value);
+			return value.map(v => '?').join(', ');
+		} else {
+			params.push(value);
+			return '?';
+		}
 	}
 	else if (field) {
 		params.push(field);

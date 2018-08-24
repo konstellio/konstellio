@@ -1,6 +1,6 @@
 import { ObjectTypeDefinitionNode, UnionTypeDefinitionNode, Kind, DocumentNode, TypeNode, DefinitionNode, FieldDefinitionNode, InputObjectTypeDefinitionNode, InputValueDefinitionNode, NamedTypeNode } from "graphql";
 import { Locales } from "./server";
-import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection } from "@konstellio/db";
+import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection, getField, QueryUpdate, QueryDelete, QueryInsert, Variable } from "@konstellio/db";
 import { isCollection, getValue, getDefNodeByNamedType, getNamedTypeNode, isComputedField, isLocalizedField, isListType } from "./utilities/ast";
 import * as Joi from 'joi';
 import { IResolvers } from "graphql-tools";
@@ -8,6 +8,10 @@ import { Schema as DataSchema } from "./utilities/migration";
 import * as Dataloader from "dataloader";
 
 const relationCollection = q.collection('Relation');
+const fetchRelation = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
+	q.in(q.field('source'), q.var('sources')),
+	q.in(q.field('field'), q.var('fields'))
+));
 
 export type CollectionType = { id: string, [field: string]: any };
 
@@ -26,6 +30,9 @@ export class Collection<I, O extends CollectionType> {
 	public readonly name: string;
 	
 	private readonly collection: DBCollection;
+	private readonly createQuery: QueryInsert;
+	private readonly replaceQuery: QueryUpdate;
+	private readonly deleteQuery: QueryDelete;
 	private readonly defaultLocale: string;
 	private readonly validation: Joi.Schema;
 	private readonly loader: Dataloader<{ id: string, locale?: string, fields?: (string | Field | FieldAs)[] }, O | undefined>;
@@ -52,6 +59,21 @@ export class Collection<I, O extends CollectionType> {
 				}
 				return fields;
 			}, [] as FieldMeta[]);
+
+		const variables = this.fields.reduce((fields, field) => {
+			if (field.isLocalized) {
+				Object.keys(locales).forEach(locale => {
+					fields[`${field.handle}__${locale}`] = q.var(`${field.handle}__${locale}`);
+				})
+			}
+			else if (driver.features.join || !field.isRelation) {
+				fields[field.handle] = q.var(field.handle);
+			}
+			return fields;
+		}, {} as { [handle: string]: Variable });
+		this.createQuery = q.insert(this.collection).add(variables);
+		this.replaceQuery = q.update(this.collection).set(variables).where(q.eq('id', q.var('id')));
+		this.deleteQuery = q.delete(this.collection).where(q.in('id', q.var('ids')));
 
 		this.fieldMap = new Map<string, Map<Field, Field>>(Object.keys(locales).map(code => [
 			code,
@@ -159,9 +181,27 @@ export class Collection<I, O extends CollectionType> {
 
 		const selectUsed: Field[] = [];
 		const selectAlias: FieldAs[] = fields.map(field => field instanceof Field ? q.as(field, field.name) : field);
-		const select = replaceField(selectAlias, fieldMap, selectUsed) as FieldAs[];
 
-		let query = q.aggregate(...select).from(this.collection).range({ limit: options.limit, offset: options.offset });
+		const selectRelations: [Field, FieldMeta][] = [];
+		const select: FieldAs[] = [];
+
+		selectAlias.forEach(alias => {
+			const field = getField(alias);
+			if (field) {
+				const meta = this.fields.find(meta => meta.handle === field.name);
+				if (meta) {
+					if (meta.isRelation) {
+						selectRelations.push([field, meta]);
+					} else {
+						select.push(alias);
+					}
+				}
+			}
+		});
+
+		let query = q.aggregate(...(selectRelations.length ? ([q.field('id')] as (Field | FieldAs)[]).concat(select) : select));
+		query = query.from(this.collection);
+		query = query.range({ limit: options.limit, offset: options.offset });
 		if (options.condition) {
 			query = query.where(replaceField((options.condition instanceof Comparison ? q.and(options.condition) : options.condition), fieldMap, fieldsUsed))
 		}
@@ -178,10 +218,8 @@ export class Collection<I, O extends CollectionType> {
 				.filter(([, meta]) => meta !== undefined && meta.isRelation);
 			
 			relations.forEach(([fieldUsed, meta]) => {
-				// const localizedField = replaceField(fieldUsed, fieldMap) as Field;
 				const field = fieldUsed.name;
 				const alias = `ref__${field}`;
-				// const relationCollection = q.collection(meta.type);
 
 				query = query.join(
 					alias,
@@ -193,36 +231,51 @@ export class Collection<I, O extends CollectionType> {
 			
 		const result = await this.driver.execute<T>(query);
 
-		if (this.driver.features.join) {
-			const relations = selectUsed
-				.map(field => [field, this.fields.find(f => f.handle === field.name)] as [Field, FieldMeta])
-				.filter(([, meta]) => meta !== undefined && meta.isRelation);
-			
-			if (relations.length) {
-				// TODO: fetch relation if needed
-				debugger;
-			}
+		if (this.driver.features.join && selectRelations.length) {
+			const sources: string[] = result.results.map(({ id }: any) => id);
+			const fields: string[] = selectRelations.map(([field, meta]) => meta.handle);
+			const relation = await this.driver.execute(fetchRelation, { sources, fields });
+			result.results.forEach((result: any) => {
+				relation.results.forEach((rel: any) => {
+					if (rel.source === result.id) {
+						const relation = selectRelations.find(([field]) => field.name === rel.field);
+						if (relation && relation[1].isList) {
+							result[rel.field] = result[rel.field] || [];
+							result[rel.field].push(rel.target);
+						} else {
+							result[rel.field] = rel.target;
+						}
+					}
+				});
+			});
 		}
 
 		return result.results;
 	}
 
 	async create(
-		data: I
+		data: any
 	): Promise<string> {
+		if (this.validate(data)) {
+			debugger;
+		}
 		return '';
 	}
 
 	async replace(
 		data: I
 	): Promise<boolean> {
+		if (this.validate(data)) {
+			debugger;
+		}
 		return false;
 	}
 
 	async delete(
 		ids: string[]
 	): Promise<boolean> {
-		return false;
+		const result = await this.driver.execute(this.deleteQuery, { ids });
+		return result.acknowledge;
 	}
 
 	public validate(data: any, errors: Error[] = []): data is I {
@@ -387,7 +440,6 @@ export function createValidationSchemaFromDefinition(ast: DocumentNode, node: De
 			}));
 		}
 		else if (node.kind === Kind.ENUM_TYPE_DEFINITION) {
-			// return [Joi.string(), Joi.number()];
 			return Joi.string();
 		}
 		return Joi.any();
@@ -418,7 +470,7 @@ export function createValidationSchemaFromDefinition(ast: DocumentNode, node: De
 			return transformTypeNodeToSchema(node.type).required();
 		}
 		else if (node.kind === Kind.LIST_TYPE) {
-			return Joi.array().items(transformTypeNodeToSchema(node.type));
+			return Joi.array().items(transformTypeNodeToSchema(node.type).optional());
 		}
 
 		switch (node.name.value) {

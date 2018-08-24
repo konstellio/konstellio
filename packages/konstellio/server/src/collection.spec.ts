@@ -96,6 +96,17 @@ describe("Collection", () => {
 				contributors: [User!]!
 				content: [Content!]! @localized
 			}
+
+			union Content = ContentTitle | ContentText
+
+			type ContentTitle {
+				title: String!
+				subtitle: String
+				text: String
+			}
+			type ContentText {
+				text: String!
+			}
 		`);
 		schema = await createSchemaFromDefinitions(ast, locales);
 	});
@@ -105,9 +116,28 @@ describe("Collection", () => {
 		
 		// const t = await Posts.findById('post1', { locale: 'fr', fields: [q.field('title'), q.as('title', 'bleh')] });
 		const t = await Posts.find({
-			fields: [q.field('title'), q.field('slug')],
+			fields: [q.field('title'), q.field('slug'), q.field('author')],
 			condition: q.and(q.gte('slug', 'my-first-blog-post'), q.eq('author', 'mgrenier')),
 			sort: [q.sort('title', 'desc')]
+		});
+
+		const u = await Posts.create({
+			title: {
+				fr: 'Mon deuxième blogue post',
+				en: 'My second blog post'
+			},
+			slug: {
+				fr: 'mon-deuxieme-blogue-post',
+				en: 'my-second-blog-post'
+			},
+			categories: [],
+			postDate: '2018-08-23 20:45:00',
+			author: 'mgrenier',
+			contributors: ['mgrenier'],
+			content: {
+				en: [],
+				fr: []
+			}
 		});
 
 		debugger;
