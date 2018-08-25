@@ -594,9 +594,11 @@ export async function executeSchemaDiff(diffs: SchemaDiff[], database: Database)
 		}
 	}
 
-	await Promise.all(([] as Promise<any>[]).concat(
-		dropCollections.map(query => database.execute(query)),
-		createCollections.map(query => database.execute(query)),
-		Array.from(alterCollections.values()).map(query => database.execute(query))
-	));
+	const transaction = await database.transaction();
+
+	dropCollections.forEach(query => transaction.execute(query));
+	createCollections.forEach(query => transaction.execute(query));
+	alterCollections.forEach(query => transaction.execute(query));
+
+	await transaction.commit();
 }
