@@ -24,6 +24,7 @@
   "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
     "@konstellio/db": "^0.x",
+    "@konstellio/promised": "^0.x",
     "sqlite3": "^4.0.2"
   },
   "devDependencies": {
@@ -45,6 +46,7 @@
     "typescript": "^3.0.1"
   },
   "dependencies": {
+    "@konstellio/promised": "^0.x",
     "immutable": "^3.8.2"
   }
 }

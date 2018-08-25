@@ -14,20 +14,30 @@ export abstract class Database {
 	abstract readonly features: Features;
 
 	abstract connect(): Promise<Database>;
+	abstract disconnect(): Promise<void>;
 
 	abstract execute(query: string, variables?: (string | number | boolean | Date | null)[]): Promise<any>;
 	abstract execute<T>(query: Query.QuerySelect, variables?: Query.Variables): Promise<Result.QuerySelectResult<T>>;
 	abstract execute<T>(query: Query.QueryAggregate, variables?: Query.Variables): Promise<Result.QueryAggregateResult<T>>;
 	abstract execute<T>(query: Query.QueryUnion, variables?: Query.Variables): Promise<Result.QuerySelectResult<T>>;
-	abstract execute<T>(query: Query.QueryUpdate, variables?: Query.Variables): Promise<Result.QueryUpdateResult<T>>;
-	abstract execute(query: Query.QueryInsert, variables?: Query.Variables): Promise<Result.QueryInsertResult>;
-	abstract execute(query: Query.QueryDelete, variables?: Query.Variables): Promise<Result.QueryDeleteResult>;
 	abstract execute(query: Query.QueryShowCollection): Promise<Result.QueryShowCollectionResult>;
-	abstract execute(query: Query.QueryCreateCollection): Promise<Result.QueryCreateCollectionResult>;
 	abstract execute(query: Query.QueryDescribeCollection): Promise<Result.QueryDescribeCollectionResult>;
-	abstract execute(query: Query.QueryAlterCollection): Promise<Result.QueryAlterCollectionResult>;
 	abstract execute(query: Query.QueryCollectionExists): Promise<Result.QueryCollectionExistsResult>;
-	abstract execute(query: Query.QueryDropCollection): Promise<Result.QueryDropCollectionResult>;
+
+	abstract transaction(): Promise<Transaction>;
 
 	abstract compareTypes(aType: Query.ColumnType, aSize: number, bType: Query.ColumnType, bSize: number): Compare;
+}
+
+export abstract class Transaction {
+	abstract execute(query: string, variables?: (string | number | boolean | Date | null)[]): void;
+	abstract execute(query: Query.QueryInsert, variables?: Query.Variables): void;
+	abstract execute(query: Query.QueryUpdate, variables?: Query.Variables): void;
+	abstract execute(query: Query.QueryDelete, variables?: Query.Variables): void;
+	abstract execute(query: Query.QueryCreateCollection): void;
+	abstract execute(query: Query.QueryAlterCollection): void;
+	abstract execute(query: Query.QueryDropCollection): void;
+
+	abstract commit(): Promise<void>;
+	abstract rollback(): Promise<void>;
 }
