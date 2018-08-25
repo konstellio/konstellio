@@ -275,12 +275,17 @@ export class Collection<I, O extends CollectionType> {
 	async delete(
 		ids: string[]
 	): Promise<boolean> {
-		const resultA = await this.driver.execute(this.deleteQuery, { ids });
-		if (resultA.acknowledge && this.driver.features.join) {
-			const resultB = await this.driver.execute(deleteRelationQuery, { sources: ids });
-			return resultB.acknowledge;
+		try {
+			const transaction = await this.driver.transaction();
+			transaction.execute(this.deleteQuery, { ids });
+			if (this.driver.features.join) {
+				transaction.execute(deleteRelationQuery, { sources: ids });
+			}
+			await transaction.commit();
+			return true;
+		} catch (err) {
+			return false;
 		}
-		return resultA.acknowledge;
 	}
 
 	public validate(data: any, errors: Error[] = []): data is I {

@@ -17,27 +17,27 @@ describe("Collection", () => {
 
 
 	before(async () => {
-		db = await new DatabaseSQLite({
-			filename: ':memory:'
-		}).connect();
-		await db.execute('CREATE TABLE User (id TEXT PRIMARY KEY, username TEXT, password TEXT, "group" TEXT)');
-		await db.execute('CREATE TABLE PostCategory (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT)');
-		await db.execute('CREATE TABLE Post (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT, postDate TEXT, expireDate TEXT, content TEXT)');
-		await db.execute('CREATE TABLE Relation (id TEXT PRIMARY KEY, collection TEXT, field TEXT, source TEXT, target TEXT, seq TEXT)');
-		await db.execute(q.insert('User').add({
+		db = await new DatabaseSQLite({ filename: ':memory:' }).connect();
+
+		const trnx = await db.transaction();
+		trnx.execute('CREATE TABLE User (id TEXT PRIMARY KEY, username TEXT, password TEXT, "group" TEXT)');
+		trnx.execute('CREATE TABLE PostCategory (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT)');
+		trnx.execute('CREATE TABLE Post (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT, postDate TEXT, expireDate TEXT, content TEXT)');
+		trnx.execute('CREATE TABLE Relation (id TEXT PRIMARY KEY, collection TEXT, field TEXT, source TEXT, target TEXT, seq TEXT)');
+		trnx.execute(q.insert('User').add({
 			id: 'mgrenier',
 			username: 'mgrenier',
 			password: '1234',
 			group: 'Admin'
 		}));
-		await db.execute(q.insert('PostCategory').add({
+		trnx.execute(q.insert('PostCategory').add({
 			id: 'blog',
 			title__fr: 'Blogue',
 			title__en: 'Blog',
 			slug__fr: 'blogue',
 			slug__en: 'blog'
 		}));
-		await db.execute(q.insert('Post').add({
+		trnx.execute(q.insert('Post').add({
 			id: 'post1',
 			title__fr: 'Mon premier blogue post',
 			title__en: 'My first blog post',
@@ -46,7 +46,7 @@ describe("Collection", () => {
 			postDate: '2018-08-05 20:45:00',
 			content: '...'
 		}));
-		await db.execute(q.insert('Relation').add({
+		trnx.execute(q.insert('Relation').add({
 			id: 'post1_author',
 			collection: 'User',
 			field: 'author',
@@ -54,6 +54,7 @@ describe("Collection", () => {
 			target: 'mgrenier',
 			seq: '1'
 		}));
+		await trnx.commit();
 
 		locales = {
 			en: 'English',
