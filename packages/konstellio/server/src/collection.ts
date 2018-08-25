@@ -8,10 +8,11 @@ import { Schema as DataSchema } from "./utilities/migration";
 import * as Dataloader from "dataloader";
 
 const relationCollection = q.collection('Relation');
-const fetchRelation = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
+const fetchRelationQuery = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
 	q.in(q.field('source'), q.var('sources')),
 	q.in(q.field('field'), q.var('fields'))
 ));
+const deleteRelationQuery = q.delete(relationCollection).where(q.in('source', q.var('sources')));
 
 export type CollectionType = { id: string, [field: string]: any };
 
@@ -234,7 +235,7 @@ export class Collection<I, O extends CollectionType> {
 		if (this.driver.features.join && selectRelations.length) {
 			const sources: string[] = result.results.map(({ id }: any) => id);
 			const fields: string[] = selectRelations.map(([field, meta]) => meta.handle);
-			const relation = await this.driver.execute(fetchRelation, { sources, fields });
+			const relation = await this.driver.execute(fetchRelationQuery, { sources, fields });
 			result.results.forEach((result: any) => {
 				relation.results.forEach((rel: any) => {
 					if (rel.source === result.id) {
@@ -274,8 +275,12 @@ export class Collection<I, O extends CollectionType> {
 	async delete(
 		ids: string[]
 	): Promise<boolean> {
-		const result = await this.driver.execute(this.deleteQuery, { ids });
-		return result.acknowledge;
+		const resultA = await this.driver.execute(this.deleteQuery, { ids });
+		if (resultA.acknowledge && this.driver.features.join) {
+			const resultB = await this.driver.execute(deleteRelationQuery, { sources: ids });
+			return resultB.acknowledge;
+		}
+		return resultA.acknowledge;
 	}
 
 	public validate(data: any, errors: Error[] = []): data is I {
