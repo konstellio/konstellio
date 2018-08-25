@@ -11,6 +11,10 @@ export class Pool<T = any> implements IDisposable {
 		this.waiters = [];
 		this.pool = initialObjects ? initialObjects.concat() : [];
 	}
+
+	get size() {
+		return this.pool.length;
+	}
 	
 	isDisposed() {
 		return this.disposed;
