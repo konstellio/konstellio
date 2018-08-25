@@ -398,23 +398,24 @@ export class TransactionSQLite extends DB.Transaction {
 		});
 	}
 
-	async commit(): Promise<void> {
+	async commit(): Promise<DB.QueryCommitResult> {
 		await Promise.all(this.pendingPromises);
 		const driver = this.database.driver;
-		await new Promise((resolve, reject) => driver.serialize(() => {
+		const result = await new Promise<DB.QueryCommitResult>((resolve, reject) => driver.serialize(() => {
 			driver.run('BEGIN');
 			this.statements.forEach(stmt => {
 				driver.run(stmt.sql, stmt.params);
 			});
-			driver.run('COMMIT', (err) => {
+			driver.run('COMMIT', function (err) {
 				if (err) {
 					return reject(err);
 				}
-				resolve();
+				resolve(new DB.QueryCommitResult(this.lastID.toString()));
 			});
 		}));
 		this.statements = [];
 		this.pendingPromises = [];
+		return result;
 	}
 
 	async rollback(): Promise<void> {

@@ -7,14 +7,8 @@ import {
 	q,
 	ColumnType,
 	IndexType,
-	QueryInsertResult,
 	QuerySelectResult,
-	QueryUpdateResult,
-	QueryDeleteResult,
 	QueryShowCollectionResult,
-	QueryDropCollectionResult,
-	QueryAlterCollectionResult,
-	QueryCreateCollectionResult,
 	QueryCollectionExistsResult,
 	QueryDescribeCollectionResult
 } from '@konstellio/db';

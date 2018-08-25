@@ -38,6 +38,6 @@ export abstract class Transaction {
 	abstract execute(query: Query.QueryAlterCollection): void;
 	abstract execute(query: Query.QueryDropCollection): void;
 
-	abstract commit(): Promise<void>;
+	abstract commit(): Promise<Result.QueryCommitResult>;
 	abstract rollback(): Promise<void>;
 }

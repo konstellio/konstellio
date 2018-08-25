@@ -16,32 +16,8 @@ export class QueryAggregateResult<T> extends QueryResult {
 	}
 }
 
-export class QueryInsertResult extends QueryResult {
-	constructor(public readonly id: string) {
-		super();
-	}
-}
-
-export class QueryUpdateResult<T> extends QueryResult {
-	constructor(public readonly data: T) {
-		super();
-	}
-}
-
-export class QueryDeleteResult extends QueryResult {
-	constructor(public readonly acknowledge: boolean) {
-		super();
-	}
-}
-
-export class QueryCreateCollectionResult extends QueryResult {
-	constructor(public readonly acknowledge: boolean) {
-		super();
-	}
-}
-
-export class QueryAlterCollectionResult extends QueryResult {
-	constructor(public readonly acknowledge: boolean) {
+export class QueryCommitResult extends QueryResult {
+	constructor(public readonly lastId: string) {
 		super();
 	}
 }
@@ -60,12 +36,6 @@ export class QueryDescribeCollectionResult extends QueryResult {
 
 export class QueryCollectionExistsResult extends QueryResult {
 	constructor(public readonly exists: boolean) {
-		super();
-	}
-}
-
-export class QueryDropCollectionResult extends QueryResult {
-	constructor(public readonly acknowledge: boolean) {
 		super();
 	}
 }
