@@ -133,6 +133,10 @@ export function isLocalizedField(node: FieldDefinitionNode): boolean {
 	return node.directives !== undefined && node.directives!.find(d => d.name.value === 'localized') !== undefined;
 }
 
+export function isInlinedField(node: FieldDefinitionNode): boolean {
+	return node.directives !== undefined && node.directives!.find(d => d.name.value === 'inlined') !== undefined;
+}
+
 export function getNamedTypeNode(type: TypeNode): string {
 	if (type.kind === Kind.NAMED_TYPE) {
 		return type.name.value;

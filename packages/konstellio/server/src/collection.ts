@@ -1,17 +1,27 @@
 import { ObjectTypeDefinitionNode, UnionTypeDefinitionNode, Kind, DocumentNode, TypeNode, DefinitionNode, FieldDefinitionNode, InputObjectTypeDefinitionNode, InputValueDefinitionNode, NamedTypeNode } from "graphql";
 import { Locales } from "./server";
-import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection, getField, QueryUpdate, QueryDelete, QueryInsert, Variable } from "@konstellio/db";
-import { isCollection, getValue, getDefNodeByNamedType, getNamedTypeNode, isComputedField, isLocalizedField, isListType } from "./utilities/ast";
+import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection, getField, QueryUpdate, QueryDelete, QueryInsert, Variable, Transaction } from "@konstellio/db";
+import { isCollection, getValue, getDefNodeByNamedType, getNamedTypeNode, isComputedField, isLocalizedField, isListType, isInlinedField } from "./utilities/ast";
 import * as Joi from 'joi';
 import { IResolvers } from "graphql-tools";
 import { Schema as DataSchema } from "./utilities/migration";
 import * as Dataloader from "dataloader";
+import { v1 as uuid } from "uuid"
+import { isArray } from "util";
 
 const relationCollection = q.collection('Relation');
-const fetchRelationQuery = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
+const selectRelationQuery = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
 	q.in(q.field('source'), q.var('sources')),
 	q.in(q.field('field'), q.var('fields'))
 ));
+const createRelationQuery = q.insert(relationCollection).add({
+	id: q.var('id'),
+	collection: q.var('collection'),
+	field: q.var('field'),
+	source: q.var('source'),
+	target: q.var('target'),
+	seq: q.var('seq')
+})
 const deleteRelationQuery = q.delete(relationCollection).where(q.in('source', q.var('sources')));
 
 export type CollectionType = { id: string, [field: string]: any };
@@ -31,13 +41,12 @@ export class Collection<I, O extends CollectionType> {
 	public readonly name: string;
 	
 	private readonly collection: DBCollection;
-	private readonly createQuery: QueryInsert;
-	private readonly replaceQuery: QueryUpdate;
 	private readonly deleteQuery: QueryDelete;
 	private readonly defaultLocale: string;
 	private readonly validation: Joi.Schema;
 	private readonly loader: Dataloader<{ id: string, locale?: string, fields?: (string | Field | FieldAs)[] }, O | undefined>;
-	private readonly fields: FieldMeta[];
+	private readonly fields: Field[];
+	private readonly fieldMetas: FieldMeta[];
 	private readonly fieldMap: Map<string, Map<Field, Field>>;
 
 	constructor(
@@ -51,7 +60,7 @@ export class Collection<I, O extends CollectionType> {
 		this.defaultLocale = Object.keys(locales).shift()!;
 		this.validation = createValidationSchemaFromDefinition(ast, node, locales);
 
-		this.fields = node.kind === 'ObjectTypeDefinition'
+		this.fieldMetas = node.kind === 'ObjectTypeDefinition'
 			? gatherObjectFields(ast, node)
 			: (node.types || []).reduce((fields, type) => {
 				const node = getDefNodeByNamedType(ast, type.name.value);
@@ -61,33 +70,26 @@ export class Collection<I, O extends CollectionType> {
 				return fields;
 			}, [] as FieldMeta[]);
 
-		const variables = this.fields.reduce((fields, field) => {
-			if (field.isLocalized) {
-				Object.keys(locales).forEach(locale => {
-					fields[`${field.handle}__${locale}`] = q.var(`${field.handle}__${locale}`);
-				})
-			}
-			else if (driver.features.join || !field.isRelation) {
-				fields[field.handle] = q.var(field.handle);
-			}
-			return fields;
-		}, {} as { [handle: string]: Variable });
-		this.createQuery = q.insert(this.collection).add(variables);
-		this.replaceQuery = q.update(this.collection).set(variables).where(q.eq('id', q.var('id')));
 		this.deleteQuery = q.delete(this.collection).where(q.in('id', q.var('ids')));
+
+		this.fields = this.fieldMetas.reduce((fields, meta) => {
+			fields.push(q.field(meta.handle));
+			return fields;
+		}, [] as Field[]);
 
 		this.fieldMap = new Map<string, Map<Field, Field>>(Object.keys(locales).map(code => [
 			code,
-			new Map<Field, Field>(this.fields.reduce((fields, field) => {
-				if (field.isRelation && driver.features.join) {
+			new Map<Field, Field>(this.fieldMetas.reduce((fields, meta) => {
+				const field = q.field(meta.handle);
+				if (meta.isRelation && driver.features.join) {
 					fields.push([
-						q.field(field.handle),
-						q.field('target', `ref__${field.handle}${field.isLocalized ? `__${code}` : ''}`)
+						field,
+						q.field('target', `ref__${meta.handle}${meta.isLocalized ? `__${code}` : ''}`)
 					]);
 				} else {
 					fields.push([
-						q.field(field.handle),
-						q.field(field.isLocalized ? `${field.handle}__${code}` : field.handle)
+						field,
+						q.field(meta.isLocalized ? `${meta.handle}__${code}` : meta.handle)
 					]);
 				}
 				return fields;
@@ -99,8 +101,7 @@ export class Collection<I, O extends CollectionType> {
 			async (keys) => {
 				const ids = keys.map(key => key.id);
 				const uids = ids.filter((id, pos, ids) => ids.indexOf(id) === pos);
-				const fields = batchedFields.concat([q.field('id')]);
-				// const fields = batchedFields.length > 0 ? batchedFields : undefined;
+				const fields = batchedFields.length ? batchedFields.concat([q.field('id')]) : this.fields;
 				batchedFields = [];
 
 				const results = await this.find({
@@ -128,7 +129,7 @@ export class Collection<I, O extends CollectionType> {
 
 	async findById(
 		id: string,
-		{ locale, fields }: { locale?: string, fields?: (string | Field | FieldAs)[] }
+		{ locale, fields }: { locale?: string, fields?: (string | Field | FieldAs)[] } = {}
 	): Promise<O> {
 		try {
 			const result = await this.loader.load({ id, locale, fields });
@@ -141,7 +142,7 @@ export class Collection<I, O extends CollectionType> {
 
 	async findByIds(
 		ids: string[],
-		{ locale, fields }: { locale?: string, fields?: (string | Field)[] }
+		{ locale, fields }: { locale?: string, fields?: (string | Field)[] } = {}
 	): Promise<O[]> {
 		try {
 			const results = await this.loader.loadMany(ids.map(id => ({ id, locale, fields })));
@@ -154,7 +155,7 @@ export class Collection<I, O extends CollectionType> {
 	}
 
 	async findOne(
-		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, sort?: FieldDirection[], offset?: number }
+		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, sort?: FieldDirection[], offset?: number } = {}
 	): Promise<O> {
 		const results = await this.find({
 			...options,
@@ -167,40 +168,47 @@ export class Collection<I, O extends CollectionType> {
 	}
 
 	async find(
-		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, sort?: FieldDirection[], offset?: number, limit?: number }
+		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, sort?: FieldDirection[], offset?: number, limit?: number } = {}
 	): Promise<O[]> {
 		return this.aggregate<O>(options);
 	}
 
 	async aggregate<T>(
-		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, group?: (Field | Function)[], sort?: FieldDirection[], offset?: number, limit?: number }
+		options: { locale?: string, fields?: (Field | FieldAs)[], condition?: BinaryExpression, group?: (Field | Function)[], sort?: FieldDirection[], offset?: number, limit?: number } = {}
 	): Promise<T[]> {
+		const featuresJoin = this.driver.features.join;
 		const fieldsUsed: Field[] = [];
 		const locale = options.locale || this.defaultLocale;
 		const fieldMap = this.fieldMap.get(locale)!;
 		const fields = options.fields || Array.from(fieldMap.keys());
 
-		const selectUsed: Field[] = [];
-		const selectAlias: FieldAs[] = fields.map(field => field instanceof Field ? q.as(field, field.name) : field);
+		const fieldUsed: Field[] = [];
+		const fieldAlias: FieldAs[] = fields.map(field => field instanceof Field ? q.as(field, field.name) : field);
 
-		const selectRelations: [Field, FieldMeta][] = [];
-		const select: FieldAs[] = [];
+		const fieldRelationMap: [Field, FieldMeta][] = [];
+		const fieldsOnly: FieldAs[] = [];
 
-		selectAlias.forEach(alias => {
+		fieldAlias.forEach(alias => {
 			const field = getField(alias);
 			if (field) {
-				const meta = this.fields.find(meta => meta.handle === field.name);
-				if (meta) {
-					if (meta.isRelation) {
-						selectRelations.push([field, meta]);
-					} else {
-						select.push(alias);
+				if (featuresJoin) {
+					const meta = this.fieldMetas.find(meta => meta.handle === field.name);
+					if (meta) {
+						if (meta.isRelation) {
+							fieldRelationMap.push([field, meta]);
+						} else {
+							fieldsOnly.push(alias);
+						}
 					}
+				} else {
+					fieldsOnly.push(alias);
 				}
 			}
 		});
 
-		let query = q.aggregate(...(selectRelations.length ? ([q.field('id')] as (Field | FieldAs)[]).concat(select) : select));
+		const select = replaceField(fieldRelationMap.length ? ([q.field('id')] as (Field | FieldAs)[]).concat(fieldsOnly) : fieldsOnly, fieldMap, fieldUsed) as (Field | FieldAs)[];
+
+		let query = q.aggregate(...select);
 		query = query.from(this.collection);
 		query = query.range({ limit: options.limit, offset: options.offset });
 		if (options.condition) {
@@ -213,9 +221,9 @@ export class Collection<I, O extends CollectionType> {
 			query = query.sort(...replaceField(options.sort, fieldMap, fieldsUsed));
 		}
 
-		if (this.driver.features.join) {
+		if (featuresJoin) {
 			const relations = fieldsUsed
-				.map(field => [field, this.fields.find(f => f.handle === field.name)] as [Field, FieldMeta])
+				.map(field => [field, this.fieldMetas.find(f => f.handle === field.name)] as [Field, FieldMeta])
 				.filter(([, meta]) => meta !== undefined && meta.isRelation);
 			
 			relations.forEach(([fieldUsed, meta]) => {
@@ -232,14 +240,14 @@ export class Collection<I, O extends CollectionType> {
 			
 		const result = await this.driver.execute<T>(query);
 
-		if (this.driver.features.join && selectRelations.length) {
+		if (featuresJoin && fieldRelationMap.length) {
 			const sources: string[] = result.results.map(({ id }: any) => id);
-			const fields: string[] = selectRelations.map(([field, meta]) => meta.handle);
-			const relation = await this.driver.execute(fetchRelationQuery, { sources, fields });
+			const fields: string[] = fieldRelationMap.map(([field, meta]) => meta.handle);
+			const relation = await this.driver.execute(selectRelationQuery, { sources, fields });
 			result.results.forEach((result: any) => {
 				relation.results.forEach((rel: any) => {
 					if (rel.source === result.id) {
-						const relation = selectRelations.find(([field]) => field.name === rel.field);
+						const relation = fieldRelationMap.find(([field]) => field.name === rel.field);
 						if (relation && relation[1].isList) {
 							result[rel.field] = result[rel.field] || [];
 							result[rel.field].push(rel.target);
@@ -254,38 +262,116 @@ export class Collection<I, O extends CollectionType> {
 		return result.results;
 	}
 
+	private flattenData(data: any): [any, { [field: string]: { collection: string, target: string | string[] } }] {
+		const featuresJoin = this.driver.features.join;
+		const localeCodes = Object.keys(this.locales);
+
+		return Object.keys(data).reduce(([fields, joins], key) => {
+			const meta = this.fieldMetas.find(meta => meta.handle === key);
+			if (meta) {
+				if (meta.isLocalized) {
+					localeCodes.forEach(code => {
+						if (meta.isInlined) {
+							data[key][code] = JSON.stringify(data[key][code]);
+						}
+						if (featuresJoin && meta.isRelation) {
+							joins[`${key}__${code}`] = { collection: meta.type, target: data[key][code] };
+						} else {
+							fields[`${key}__${code}`] = data[key][code];
+						}
+					});
+				} else {
+					if (meta.isInlined) {
+						data[key] = JSON.stringify(data[key]);
+					}
+					if (featuresJoin && meta.isRelation) {
+						joins[key] = { collection: meta.type, target: data[key] };
+					} else {
+						fields[key] = data[key];
+					}
+				}
+			}
+			return [fields, joins] as [any, { [field: string]: { collection: string, target: string | string[] } }];
+		}, [{}, {}] as [any, { [field: string]: { collection: string, target: string | string[] } }]);
+	}
+
+	private addRelationToTransaction(id: string, transaction: Transaction, relations: { [field: string]: { collection: string, target: string | string[] } }) {
+		Object.keys(relations).forEach(field => {
+			const { collection, target } = relations[field];
+			if (isArray(target)) {
+				target.forEach((target, seq) => {
+					transaction.execute(createRelationQuery, {
+						id: uuid(),
+						collection: collection,
+						field: field,
+						source: id,
+						target: target,
+						seq: seq
+					});
+				});
+			} else {
+				transaction.execute(createRelationQuery, {
+					id: uuid(),
+					collection: collection,
+					field: field,
+					source: id,
+					target: target,
+					seq: '0'
+				});
+			}
+		});
+	}
+
 	async create(
 		data: any
 	): Promise<string> {
-		if (this.validate(data)) {
-			debugger;
+		if (!this.validate(data)) {
+			throw new TypeError(`Provided data is not valid.`);
 		}
-		return '';
+
+		const featuresJoin = this.driver.features.join;
+		const id = uuid();
+		const [fields, joins] = this.flattenData(data);
+
+		const transaction = await this.driver.transaction();
+		transaction.execute(q.insert(this.collection).add({ id, ...fields }));
+		if (featuresJoin) {
+			this.addRelationToTransaction(id, transaction, joins);
+		}
+		await transaction.commit();
+		return id;
 	}
 
 	async replace(
+		id: string,
 		data: I
 	): Promise<boolean> {
-		if (this.validate(data)) {
-			debugger;
+		if (!this.validate(data)) {
+			throw new TypeError(`Provided data is not valid.`);
 		}
+
+		const featuresJoin = this.driver.features.join;
+		const [fields, joins] = this.flattenData(data);
+		const transaction = await this.driver.transaction();
+		transaction.execute(deleteRelationQuery, { sources: [id] });
+		transaction.execute(q.update(this.collection).set(fields).where(q.eq('id', id)));
+		if (featuresJoin) {
+			this.addRelationToTransaction(id, transaction, joins);
+		}
+		await transaction.commit();
 		return false;
 	}
 
 	async delete(
 		ids: string[]
 	): Promise<boolean> {
-		try {
-			const transaction = await this.driver.transaction();
-			transaction.execute(this.deleteQuery, { ids });
-			if (this.driver.features.join) {
-				transaction.execute(deleteRelationQuery, { sources: ids });
-			}
-			await transaction.commit();
-			return true;
-		} catch (err) {
-			return false;
+		const transaction = await this.driver.transaction();
+		transaction.execute(this.deleteQuery, { ids });
+		if (this.driver.features.join) {
+			transaction.execute(deleteRelationQuery, { sources: ids });
 		}
+		await transaction.commit();
+		return true;
 	}
 
 	public validate(data: any, errors: Error[] = []): data is I {
@@ -306,6 +392,7 @@ interface FieldMeta {
 	isRelation: boolean
 	isLocalized: boolean
 	isList: boolean
+	isInlined: boolean
 }
 
 function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): FieldMeta[] {
@@ -318,7 +405,8 @@ function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): 
 				handle: field.name.value,
 				isRelation: refType !== undefined && isCollection(refType),
 				isLocalized: isLocalizedField(field),
-				isList: isListType(field.type)
+				isList: isListType(field.type),
+				isInlined: isInlinedField(field)
 			});
 		}
 		return fields;

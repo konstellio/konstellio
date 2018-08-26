@@ -22,7 +22,7 @@ describe("Collection", () => {
 		const trnx = await db.transaction();
 		trnx.execute('CREATE TABLE User (id TEXT PRIMARY KEY, username TEXT, password TEXT, "group" TEXT)');
 		trnx.execute('CREATE TABLE PostCategory (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT)');
-		trnx.execute('CREATE TABLE Post (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT, postDate TEXT, expireDate TEXT, content TEXT)');
+		trnx.execute('CREATE TABLE Post (id TEXT PRIMARY KEY, title__fr TEXT, title__en TEXT, slug__fr TEXT, slug__en TEXT, postDate TEXT, expireDate TEXT, content__fr TEXT, content__en TEXT)');
 		trnx.execute('CREATE TABLE Relation (id TEXT PRIMARY KEY, collection TEXT, field TEXT, source TEXT, target TEXT, seq TEXT)');
 		trnx.execute(q.insert('User').add({
 			id: 'mgrenier',
@@ -44,7 +44,8 @@ describe("Collection", () => {
 			slug__fr: 'mon-premier-blogue-post',
 			slug__en: 'my-first-blog-post',
 			postDate: '2018-08-05 20:45:00',
-			content: '...'
+			content__fr: '[]',
+			content__en: '[]'
 		}));
 		trnx.execute(q.insert('Relation').add({
 			id: 'post1_author',
@@ -95,7 +96,7 @@ describe("Collection", () => {
 				expireDate: DateTime
 				author: User!
 				contributors: [User!]!
-				content: [Content!]! @localized
+				content: [Content!]! @localized @inlined
 			}
 
 			union Content = ContentTitle | ContentText
@@ -140,6 +141,8 @@ describe("Collection", () => {
 				fr: []
 			}
 		});
+
+		const v = await Posts.findById(u);
 
 		debugger;
 	});

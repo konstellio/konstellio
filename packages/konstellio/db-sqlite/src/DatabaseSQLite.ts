@@ -1,5 +1,5 @@
 import * as DB from '@konstellio/db';
-import { q } from '@konstellio/db';
+import { q, Variable } from '@konstellio/db';
 import { Pool } from '@konstellio/promised';
 import { List } from 'immutable';
 import { Database as SQLite, OPEN_READWRITE, OPEN_CREATE } from 'sqlite3';
@@ -403,12 +403,20 @@ export class TransactionSQLite extends DB.Transaction {
 		const driver = this.database.driver;
 		const result = await new Promise<DB.QueryCommitResult>((resolve, reject) => driver.serialize(() => {
 			driver.run('BEGIN');
+			const errors: Error[] = [];
 			this.statements.forEach(stmt => {
-				driver.run(stmt.sql, stmt.params);
+				driver.run(stmt.sql, stmt.params, (err) => {
+					if (err) {
+						errors.push(err);
+					}
+				});
 			});
 			driver.run('COMMIT', function (err) {
 				if (err) {
-					return reject(err);
+					errors.push(err);
+				}
+				if (errors.length) {
+					return reject(errors.pop()!);
 				}
 				resolve(new DB.QueryCommitResult(this.lastID.toString()));
 			});
@@ -681,8 +689,7 @@ export function convertQueryToSQL(query: DB.Query, database: DB.Database, variab
 			sql += ` (${objects.get(0).map<string>((_, key) => `"${key}"`).join(', ')}) `;
 			sql += `VALUES ${objects.map<string>(obj => {
 				return `(${obj!.map<string>(value => {
-					params.push(value);
-					return '?';
+					return valueToSQL(value as DB.Value, params, variables);
 				}).join(', ')})`;
 			}).join(', ')}`;
 		} else {
@@ -702,8 +709,7 @@ export function convertQueryToSQL(query: DB.Query, database: DB.Database, variab
 		}
 		if (query.object) {
 			sql += ` ${query.object!.map<string>((value, key) => {
-				params.push(value);
-				return `"${key}" = ?`;
+				return `"${key}" = ${valueToSQL(value as DB.Value, params, variables)}`;
 			}).join(', ')}`;
 		} else {
 			throw new Error(`Expected QueryUpdate to have some data.`);
