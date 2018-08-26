@@ -2,14 +2,14 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { MessageQueueAMQP } from './MessageQueueAMQP';
-import { driverShouldBehaveLikeAMessageQueue } from '@konstellio/mq/dist/MessageQueue.spec';
+import { MessageQueueAMQP } from '../src/MessageQueueAMQP';
+import { driverShouldBehaveLikeAMessageQueue } from '@konstellio/mq/test/MessageQueue';
 
 describe('AMQP', () => {
 
 	const mq = new MessageQueueAMQP('amqp://docker');
 	before(done => {
-		mq.connect().then(() => done()).catch(done)
+		mq.connect().then(() => done()).catch(done);
 	});
 
 	driverShouldBehaveLikeAMessageQueue(mq);

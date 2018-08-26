@@ -22,16 +22,16 @@ export class Stats {
 const ZeroBuffer = Buffer.alloc(0);
 
 export abstract class FileSystem implements IDisposableAsync {
-	abstract isDisposed(): boolean
-	abstract disposeAsync(): Promise<void>
-	abstract clone(): FileSystem
-	abstract stat(path: string): Promise<Stats>
-	abstract exists(path: string): Promise<boolean>
-	abstract unlink(path: string, recursive?: boolean): Promise<void>
-	abstract copy(source: string, destination: string): Promise<void>
-	abstract rename(oldPath: string, newPath: string): Promise<void>
-	abstract readDirectory(path: string): Promise<string[]>
-	abstract readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	abstract isDisposed(): boolean;
+	abstract disposeAsync(): Promise<void>;
+	abstract clone(): FileSystem;
+	abstract stat(path: string): Promise<Stats>;
+	abstract exists(path: string): Promise<boolean>;
+	abstract unlink(path: string, recursive?: boolean): Promise<void>;
+	abstract copy(source: string, destination: string): Promise<void>;
+	abstract rename(oldPath: string, newPath: string): Promise<void>;
+	abstract readDirectory(path: string): Promise<string[]>;
+	abstract readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 
 	createEmptyFile(path: string): Promise<void> {
 		return this.createWriteStream(path)
@@ -42,9 +42,9 @@ export abstract class FileSystem implements IDisposableAsync {
 		}));
 	}
 
-	abstract createDirectory(path: string, recursive?: boolean): Promise<void>
-	abstract createReadStream(path: string): Promise<Readable>
-	abstract createWriteStream(path: string, overwrite?: boolean): Promise<Writable>
+	abstract createDirectory(path: string, recursive?: boolean): Promise<void>;
+	abstract createReadStream(path: string): Promise<Readable>;
+	abstract createWriteStream(path: string, overwrite?: boolean): Promise<Writable>;
 }
 
 export class FileSystemMirror extends FileSystem {
@@ -68,7 +68,7 @@ export class FileSystemMirror extends FileSystem {
 			this.disposed = true;
 			this.pool.dispose();
 			(this as any).fss = [];
-			(this as any).pool = undefined
+			(this as any).pool = undefined;
 		}
 	}
 
@@ -102,8 +102,8 @@ export class FileSystemMirror extends FileSystem {
 		return Promise.all(this.fss.map(fs => fs.copy(oldPath, newPath))).then(() => {});
 	}
 
-	async readDirectory(path: string): Promise<string[]>
-	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string): Promise<string[]>;
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const fs = await this.pool.acquires();
 		const entries = await fs.readDirectory(path, stat === true);
@@ -161,7 +161,7 @@ export class FileSystemPool extends FileSystem {
 			this.disposed = true;
 			this.pool.dispose();
 			(this as any).fss = [];
-			(this as any).pool = undefined
+			(this as any).pool = undefined;
 		}
 	}
 
@@ -229,8 +229,8 @@ export class FileSystemPool extends FileSystem {
 		}
 	}
 
-	async readDirectory(path: string): Promise<string[]>
-	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string): Promise<string[]>;
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const fs = await this.pool.acquires();
 		try {

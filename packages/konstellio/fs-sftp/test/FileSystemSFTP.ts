@@ -3,16 +3,16 @@ import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import * as fs from 'fs';
-import { FileSystemSFTP } from './FileSystemSFTP';
+import { FileSystemSFTP } from '../src/FileSystemSFTP';
 import * as SFTPServer from 'node-sftp-server';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/test/FileSystem';
 import { Writable, Readable } from 'stream';
 
 describe('SFTP', () => {
 
-	let sftpd: any
+	let sftpd: any;
 
 	before(() => {
 		const tmp = fs.mkdtempSync(join(tmpdir(), 'konstellio-sftp-'));
@@ -65,7 +65,7 @@ dPfvDgduI8HIsyqt17ECQDI/HC8PiYsDIOyVpQuQdIAsbGmoavK7X1MVEWR2nj9t
 					catch (err) {
 						resp.nofile();
 					}
-				})
+				});
 				session.on('readdir', (path: string, resp: any) => {
 					try {
 						const entries = fs.readdirSync(join(tmp, path));

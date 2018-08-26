@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { MessageQueue } from './MessageQueue';
+import { MessageQueue } from '../src/MessageQueue';
 import { Disposable } from '@konstellio/disposable';
 
 function wait(ms: number): Promise<void> {

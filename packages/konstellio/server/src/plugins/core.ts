@@ -62,7 +62,7 @@ export default {
 						username: 'mgrenier',
 						group: 'Author',
 						birthday: '1986-03-17'
-					}
+					};
 				}
 			},
 			Mutation: {
@@ -77,6 +77,6 @@ export default {
 					};
 				}
 			}
-		}
+		};
 	}
-}
+};

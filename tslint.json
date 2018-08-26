@@ -17,7 +17,7 @@
 		"semicolon": [
 			true,
 			"always"
-		],
+		]
 	},
 	"rulesDirectory": []
 }

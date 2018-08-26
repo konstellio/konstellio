@@ -2,11 +2,11 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { FileSystemLocal } from './FileSystemLocal';
+import { FileSystemLocal } from '../src/FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/dist/FileSystem.spec';
+import { shouldBehaveLikeAFileSystem } from '@konstellio/fs/test/FileSystem';
 
 describe('Local', () => {
 
@@ -22,4 +22,4 @@ describe('Local', () => {
 	
 	shouldBehaveLikeAFileSystem(fs);
 
-})
+});

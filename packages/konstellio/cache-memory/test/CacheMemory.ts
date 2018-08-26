@@ -2,7 +2,7 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { CacheMemory } from './CacheMemory';
+import { CacheMemory } from '../src/CacheMemory';
 
 describe('RedisMock', () => {
 
@@ -19,10 +19,10 @@ describe('RedisMock', () => {
 	it('test', async () => {
 		
 		console.log(await cache.has('test'));
-		await cache.set('test', 'Bleh', 600)
+		await cache.set('test', 'Bleh', 600);
 		console.log(await cache.has('test'));
 		console.log(await cache.get('test'));
-		await cache.unset('test')
+		await cache.unset('test');
 		console.log(await cache.has('test'));
 	})
 

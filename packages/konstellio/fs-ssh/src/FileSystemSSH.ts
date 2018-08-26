@@ -27,37 +27,37 @@ export enum SSH2ConnectionState {
 }
 
 export interface FileSystemSSHAlgorithms {
-    kex?: string[];
-    cipher?: string[];
-    serverHostKey?: string[];
-    hmac?: string[];
-    compress?: string[];
+	kex?: string[];
+	cipher?: string[];
+	serverHostKey?: string[];
+	hmac?: string[];
+	compress?: string[];
 }
 
 export interface FileSystemSSHOptions {
-    host?: string;
-    port?: number;
-    forceIPv4?: boolean;
-    forceIPv6?: boolean;
-    hostHash?: "md5" | "sha1";
-    hostVerifier?: (keyHash: string) => boolean;
-    username?: string;
-    password?: string;
-    agent?: string;
-    privateKey?: Buffer | string;
-    passphrase?: string;
-    localHostname?: string;
-    localUsername?: string;
-    tryKeyboard?: boolean;
-    keepaliveInterval?: number;
-    keepaliveCountMax?: number;
-    readyTimeout?: number;
-    strictVendor?: boolean;
-    sock?: NodeJS.ReadableStream;
-    agentForward?: boolean;
-    algorithms?: FileSystemSSHAlgorithms;
+	host?: string;
+	port?: number;
+	forceIPv4?: boolean;
+	forceIPv6?: boolean;
+	hostHash?: "md5" | "sha1";
+	hostVerifier?: (keyHash: string) => boolean;
+	username?: string;
+	password?: string;
+	agent?: string;
+	privateKey?: Buffer | string;
+	passphrase?: string;
+	localHostname?: string;
+	localUsername?: string;
+	tryKeyboard?: boolean;
+	keepaliveInterval?: number;
+	keepaliveCountMax?: number;
+	readyTimeout?: number;
+	strictVendor?: boolean;
+	sock?: NodeJS.ReadableStream;
+	agentForward?: boolean;
+	algorithms?: FileSystemSSHAlgorithms;
 	debug?: (information: string) => any;
-	sudo?: boolean | string
+	sudo?: boolean | string;
 }
 
 export class FileSystemSSH extends FileSystem {
@@ -94,7 +94,7 @@ export class FileSystemSSH extends FileSystem {
 					this.connectionState = SSH2ConnectionState.Closed;
 				});
 				this.connection.on('ready', () => {
-					this.connectionState = SSH2ConnectionState.Ready;;
+					this.connectionState = SSH2ConnectionState.Ready;
 				});
 			}
 
@@ -105,7 +105,7 @@ export class FileSystemSSH extends FileSystem {
 			const onError = (err: Error) => {
 				this.connection!.removeListener('ready', onReady);
 				reject(new CouldNotConnect(err));
-			}
+			};
 
 			this.connection!.once('ready', onReady);
 			this.connection!.once('error', onError);
@@ -164,7 +164,7 @@ export class FileSystemSSH extends FileSystem {
 				});
 			});
 		});
-	};
+	}
 
 	async stat(path: string): Promise<Stats> {
 		const token = await this.pool.acquires();
@@ -277,8 +277,8 @@ export class FileSystemSSH extends FileSystem {
 		this.pool.release(token);
 	}
 
-	async readDirectory(path: string): Promise<string[]>
-	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string): Promise<string[]>;
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();

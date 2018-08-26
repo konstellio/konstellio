@@ -21,7 +21,7 @@ export class q {
 	}
 
 	public static update(name: string | Collection) {
-		return new QueryUpdate().from(name)
+		return new QueryUpdate().from(name);
 	}
 
 	public static delete(name: string | Collection) {
@@ -355,8 +355,8 @@ export class FieldDirection {
 		return this;
 	}
 
-	public rename(name: Field): FieldDirection
-	public rename(name: string, alias?: string): FieldDirection
+	public rename(name: Field): FieldDirection;
+	public rename(name: string, alias?: string): FieldDirection;
 	public rename(name: string | Field, alias?: string): FieldDirection {
 		assert(typeof name === 'string' || name instanceof Field);
 		assert(alias === undefined || typeof alias === 'string');
@@ -501,8 +501,8 @@ export abstract class Comparison {
 		assert(args instanceof List);
 	}
 
-	public rename(name: Field | Function): Comparison
-	public rename(name: string, alias?: string): Comparison
+	public rename(name: Field | Function): Comparison;
+	public rename(name: string, alias?: string): Comparison;
 	public rename(name: string | Field | Function, alias?: string): Comparison {
 		assert(typeof name === 'string' || name instanceof Field);
 		assert(alias === undefined || typeof alias === 'string');
@@ -524,7 +524,7 @@ export abstract class Comparison {
 						return arg.replaceArgument(renameArg);
 					}
 					return arg;
-				}
+				};
 				const renamed = this.field.replaceArgument(renameArg);
 				if (renamed !== this.field) {
 					return new constructor(renamed, this.args);
@@ -705,7 +705,7 @@ export type Join = {
 	alias: string
 	on: BinaryExpression
 	query: QuerySelect
-}
+};
 
 export class QuerySelect extends Query {
 	// @ts-ignore
@@ -1291,24 +1291,24 @@ export type ChangeAddColumn = {
 	type: 'addColumn'
 	column: Column
 	copyColumn?: string
-}
+};
 export type ChangeAlterColumn = {
 	type: 'alterColumn'
 	oldColumn: string
 	newColumn: Column
-}
+};
 export type ChangeDropColumn = {
 	type: 'dropColumn'
 	column: string
-}
+};
 export type ChangeAddIndex = {
 	type: 'addIndex'
 	index: Index
-}
+};
 export type ChangeDropIndex = {
 	type: 'dropIndex'
 	index: string
-}
+};
 
 export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
 

@@ -9,30 +9,30 @@ import { promptSelection } from "./cli";
 
 
 export interface Schema {
-	collections: Collection[]
+	collections: Collection[];
 }
 
 export interface Collection {
-	handle: string
-	indexes: Index[]
-	fields: Field[]
+	handle: string;
+	indexes: Index[];
+	fields: Field[];
 }
 
 export interface IndexField {
-	field: string
-	direction?: 'asc' | 'desc'
+	field: string;
+	direction?: 'asc' | 'desc';
 }
 
 export interface Index {
-	handle: string
-	type: IndexType
-	fields: IndexField[]
+	handle: string;
+	type: IndexType;
+	fields: IndexField[];
 }
 
 export interface Field {
-	handle: string
-	type: ColumnType
-	size?: number
+	handle: string;
+	type: ColumnType;
+	size?: number;
 }
 
 export type SchemaDiff = SchemaDiffAddCollection | SchemaDiffRenameCollection | SchemaDiffDropCollection | SchemaDiffAddField | SchemaDiffDropField | SchemaDiffAlterField | SchemaDiffAddIndex | SchemaDiffAlterIndex | SchemaDiffDropIndex;
@@ -42,18 +42,18 @@ export type SchemaDiffAddCollection = {
 	collection: Collection
 	sourceSchema: Schema
 	renamedTo?: string
-}
+};
 
 export type SchemaDiffRenameCollection = {
 	action: 'rename_collection'
 	collection: Collection
 	renamedFrom: string
-}
+};
 
 export type SchemaDiffDropCollection = {
 	action: 'drop_collection'
 	collection: Collection
-}
+};
 
 export type SchemaDiffAddField = {
 	action: 'add_field'
@@ -61,38 +61,38 @@ export type SchemaDiffAddField = {
 	field: Field
 	sourceCollection: Collection
 	renamedTo?: string
-}
+};
 
 export type SchemaDiffDropField = {
 	action: 'drop_field'
 	collection: Collection
 	field: Field
-}
+};
 
 export type SchemaDiffAlterField = {
 	action: 'alter_field'
 	collection: Collection
 	field: Field
 	sourceCollection: Collection
-}
+};
 
 export type SchemaDiffAddIndex = {
 	action: 'add_index'
 	collection: Collection
 	index: Index
-}
+};
 
 export type SchemaDiffAlterIndex = {
 	action: 'alter_index'
 	collection: Collection
 	index: Index
-}
+};
 
 export type SchemaDiffDropIndex = {
 	action: 'drop_index'
 	collection: Collection
 	index: Index
-}
+};
 
 /**
  * Create Schema from DocumentNode
@@ -108,7 +108,7 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 			}
 			return collections;
 		}, [] as Collection[])
-	}
+	};
 
 	function getDefNodeByNamedType(name: string): DefinitionNode | undefined {
 		return ast.definitions.find((def: any) => def.name && def.name.value === name);
@@ -120,7 +120,7 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 				handle: node.name.value,
 				indexes: transformDirectivesToIndexes(node.directives, node.fields),
 				fields: transformFieldsToFields(node.fields)
-			}
+			};
 		}
 		else if (node.kind === Kind.UNION_TYPE_DEFINITION) {
 			const fields = (node.types || []).reduce((fields, type) => {
@@ -200,16 +200,16 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 
 			if (inlined) {
 				type = [
-					type && type[2] === false ? type[0] : ColumnType.Text,
+					type && !type[2] ? type[0] : ColumnType.Text,
 					type ? type[1] : -1,
 					true
 				];
 			}
 
 			if (
-				computed === false &&
+				!computed &&
 				type &&
-				(multiple === false || type[2] === true)
+				(!multiple || type[2])
 			) {
 				if (localized) {
 					Object.keys(locales).forEach(code => {
@@ -257,7 +257,7 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 					if (refNode.kind === Kind.ENUM_TYPE_DEFINITION) {
 						return [ColumnType.Text, -1, false];
 					}
-					else if (isCollection(refNode) === false) {
+					else if (!isCollection(refNode)) {
 						return [ColumnType.Blob, -1, true];
 					}
 				}
@@ -320,7 +320,7 @@ export function computeSchemaDiff(source: Schema, target: Schema, compareTypes: 
 				else {
 					let alterIndex = targetIndex.type !== sourceIndex.type;
 
-					if (alterIndex === false) {
+					if (!alterIndex) {
 						for (const targetField of targetIndex.fields) {
 							const sourceField = sourceIndex.fields.find(field => field.field === targetField.field);
 							if (sourceField === undefined || sourceField.direction !== targetField.direction) {
@@ -471,7 +471,7 @@ export async function promptSchemaDiffs(stdin: ReadStream, stdout: WriteStream, 
 		}
 		else if (diff.action === 'drop_collection') {
 			const collection = diff.collection;
-			if (renamedCollection.includes(collection.handle) === false) {
+			if (!renamedCollection.includes(collection.handle)) {
 				const choices: [string, string][] = [['$drop', `Drop \`${collection.handle}\``], ['$abort', `Abort migration`]];
 				let choice: string;
 				try {
@@ -531,7 +531,7 @@ export async function executeSchemaDiff(diffs: SchemaDiff[], database: Database)
 		}
 
 		else if (diff.action === 'rename_collection') {
-			if (alterCollections.has(diff.renamedFrom) === false) {
+			if (!alterCollections.has(diff.renamedFrom)) {
 				alterCollections.set(diff.renamedFrom, q.alterCollection(diff.renamedFrom));
 			}
 
@@ -546,7 +546,7 @@ export async function executeSchemaDiff(diffs: SchemaDiff[], database: Database)
 		}
 
 		else {
-			if (alterCollections.has(diff.collection.handle) === false) {
+			if (!alterCollections.has(diff.collection.handle)) {
 				alterCollections.set(diff.collection.handle, q.alterCollection(diff.collection.handle));
 			}
 

@@ -1,7 +1,6 @@
-/node_modules
+/coverage
+/test
 /src
-/examples
-/.vscode
-/.editorconfig
-/.gitignore
-/tsconfig.config
+/docs
+/node_modules
+/npm-debug*

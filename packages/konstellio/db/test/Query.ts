@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import * as Query from './Query';
+import * as Query from '../src/Query';
 
 const { q, ColumnType, IndexType } = Query;
 

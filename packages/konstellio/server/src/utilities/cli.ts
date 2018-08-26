@@ -26,7 +26,7 @@ export function promptQuestion(stdin: ReadStream, stdout: WriteStream, question:
 		});
 
 		rl.on('close', onClose);
-	})
+	});
 }
 
 /**

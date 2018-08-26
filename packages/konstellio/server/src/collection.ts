@@ -6,7 +6,7 @@ import * as Joi from 'joi';
 import { IResolvers } from "graphql-tools";
 import { Schema as DataSchema } from "./utilities/migration";
 import * as Dataloader from "dataloader";
-import { v1 as uuid } from "uuid"
+import { v1 as uuid } from "uuid";
 import { isArray } from "util";
 
 const relationCollection = q.collection('Relation');
@@ -21,7 +21,7 @@ const createRelationQuery = q.insert(relationCollection).add({
 	source: q.var('source'),
 	target: q.var('target'),
 	seq: q.var('seq')
-})
+});
 const deleteRelationQuery = q.delete(relationCollection).where(q.in('source', q.var('sources')));
 
 export type CollectionType = { id: string, [field: string]: any };
@@ -212,7 +212,7 @@ export class Collection<I, O extends CollectionType> {
 		query = query.from(this.collection);
 		query = query.range({ limit: options.limit, offset: options.offset });
 		if (options.condition) {
-			query = query.where(replaceField((options.condition instanceof Comparison ? q.and(options.condition) : options.condition), fieldMap, fieldsUsed))
+			query = query.where(replaceField((options.condition instanceof Comparison ? q.and(options.condition) : options.condition), fieldMap, fieldsUsed));
 		}
 		if (options.group) {
 			query = query.group(...replaceField(options.group, fieldMap, fieldsUsed));
@@ -301,21 +301,21 @@ export class Collection<I, O extends CollectionType> {
 			if (isArray(target)) {
 				target.forEach((target, seq) => {
 					transaction.execute(createRelationQuery, {
+						collection,
+						field,
+						target,
+						seq,
 						id: uuid(),
-						collection: collection,
-						field: field,
-						source: id,
-						target: target,
-						seq: seq
+						source: id
 					});
 				});
 			} else {
 				transaction.execute(createRelationQuery, {
+					collection,
+					field,
+					target,
 					id: uuid(),
-					collection: collection,
-					field: field,
 					source: id,
-					target: target,
 					seq: '0'
 				});
 			}
@@ -387,17 +387,17 @@ export class Collection<I, O extends CollectionType> {
 }
 
 interface FieldMeta {
-	handle: string
-	type: string
-	isRelation: boolean
-	isLocalized: boolean
-	isList: boolean
-	isInlined: boolean
+	handle: string;
+	type: string;
+	isRelation: boolean;
+	isLocalized: boolean;
+	isList: boolean;
+	isInlined: boolean;
 }
 
 function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): FieldMeta[] {
 	return (node.fields || []).reduce((fields, field) => {
-		if (isComputedField(field) === false) {
+		if (!isComputedField(field)) {
 			const type = getNamedTypeNode(field.type);
 			const refType = getDefNodeByNamedType(ast, type);
 			fields.push({
@@ -410,7 +410,7 @@ function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): 
 			});
 		}
 		return fields;
-	}, [] as FieldMeta[])
+	}, [] as FieldMeta[]);
 }
 
 export class Structure<I, O extends CollectionType> extends Collection<I, O> {
@@ -512,9 +512,9 @@ export function createTypeExtensionsFromDefinitions(ast: DocumentNode, locales: 
 export function createValidationSchemaFromDefinition(ast: DocumentNode, node: DefinitionNode, locales: Locales): Joi.Schema {
 	return transformDocumentNodeToSchema(node);
 
-	function transformDocumentNodeToSchema(node: ObjectTypeDefinitionNode): Joi.ObjectSchema
-	function transformDocumentNodeToSchema(node: UnionTypeDefinitionNode): Joi.ArraySchema
-	function transformDocumentNodeToSchema(node: DefinitionNode): Joi.Schema
+	function transformDocumentNodeToSchema(node: ObjectTypeDefinitionNode): Joi.ObjectSchema;
+	function transformDocumentNodeToSchema(node: UnionTypeDefinitionNode): Joi.ArraySchema;
+	function transformDocumentNodeToSchema(node: DefinitionNode): Joi.Schema;
 	function transformDocumentNodeToSchema(node: DefinitionNode): Joi.Schema {
 		if (node.kind === Kind.OBJECT_TYPE_DEFINITION) {
 			return Joi.object().keys((node.fields || []).reduce((keys: any, field) => {
@@ -546,7 +546,7 @@ export function createValidationSchemaFromDefinition(ast: DocumentNode, node: De
 	function transformFieldTypeNodeToSchema(node: FieldDefinitionNode): Joi.Schema | undefined {
 		const directives = node.directives || [];
 		const computed = directives.find(directive => directive.name.value === 'computed') !== undefined;
-		if (computed === true) {
+		if (computed) {
 			return undefined;
 		}
 
@@ -629,7 +629,7 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 					) {
 						if (field.directives && field.directives.find(directive => directive.name.value === 'localized')) {
 							const typeName = getNamedTypeNode(field.type);
-							if (localizedTypes.includes(typeName) === false) {
+							if (!localizedTypes.includes(typeName)) {
 								localizedTypes.push(typeName);
 							}
 						}
@@ -640,9 +640,9 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 							directives: field.directives
 						});
 					}
-					return fields
+					return fields;
 				}, [] as InputValueDefinitionNode[])
-			}
+			};
 			inputTypes.set(node.name.value, inputType);
 		}
 	});
@@ -671,7 +671,7 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 						type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } }
 					}
 				] as InputValueDefinitionNode[])
-			}
+			};
 			inputTypes.set(node.name.value, inputType);
 		}
 	});
@@ -692,7 +692,7 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 				});
 				return fields;
 			}, [] as InputValueDefinitionNode[])
-		})
+		});
 	});
 
 	// Convert field type to their corresponding input type or ID if they reference a collection type
@@ -748,7 +748,7 @@ export function createInputTypeFromDefinitions(ast: DocumentNode, locales: Local
 }
 
 export function createTypeExtensionsFromDatabaseDriver(driver: Database, locales: Locales): string {
-	if (driver.features.join === true) {
+	if (driver.features.join) {
 		return `
 			type Relation
 			@collection

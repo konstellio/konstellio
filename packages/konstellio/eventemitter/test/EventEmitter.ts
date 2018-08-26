@@ -4,7 +4,7 @@ use(require("chai-as-promised"));
 should();
 process.on('unhandledRejection', () => { }); // and then Node deprecation warning goes away !
 
-import { EventEmitter, isEventEmitterInterface } from './EventEmitter';
+import { EventEmitter, isEventEmitterInterface } from '../src/EventEmitter';
 
 describe('EventEmitter', () => {
 
@@ -79,7 +79,7 @@ describe('EventEmitter', () => {
 				toDecrease--;
 				resolve(toDecrease);
 			}, 100);
-		})
+		});
 	});
 	event.on('t2', (d1, d2) => {
 		return new Promise((resolve) => {
@@ -89,7 +89,7 @@ describe('EventEmitter', () => {
 				expect(d2).to.equal('d');
 				resolve(toDecrease);
 			}, 100);
-		})
+		});
 	});
 
 	it('can emitAsync event', () => {

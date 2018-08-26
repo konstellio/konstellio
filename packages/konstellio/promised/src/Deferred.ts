@@ -5,7 +5,7 @@ export class Deferred<T = any> implements IDisposable {
 
 	public readonly promise: Promise<T>;
 	public readonly resolve!: (value?: T | Promise<T>) => void;
-	public readonly reject!: (reason?: any) => void
+	public readonly reject!: (reason?: any) => void;
 
 	constructor() {
 		this.promise = new Promise<T>((resolve, reject) => {

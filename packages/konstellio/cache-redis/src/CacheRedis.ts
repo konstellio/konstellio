@@ -3,8 +3,8 @@ import { ClientOpts, RedisClient, createClient } from 'redis';
 
 export class CacheRedis extends Cache {
 
-	protected client: RedisClient
-	protected disposed: boolean
+	protected client: RedisClient;
+	protected disposed: boolean;
 
 	constructor(redis_url: string, options?: ClientOpts, clientFactory?: (redis_url: string, options?: ClientOpts) => RedisClient) {
 		super();
@@ -24,7 +24,7 @@ export class CacheRedis extends Cache {
 				this.client.quit((err) => {
 					if (err) return reject(err);
 					resolve();
-				})
+				});
 			});
 	}
 

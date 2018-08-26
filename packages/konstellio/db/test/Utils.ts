@@ -1,7 +1,7 @@
 import 'mocha';
 import { expect } from 'chai';
-import { q, Field } from './Query';
-import { simplifyBinaryTree, decomposeBinaryTree, replaceField } from './Utils';
+import { q, Field } from '../src/Query';
+import { simplifyBinaryTree, decomposeBinaryTree, replaceField } from '../src/Utils';
 import { List } from 'immutable';
 
 describe('Utils', () => {

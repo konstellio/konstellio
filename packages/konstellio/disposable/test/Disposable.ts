@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import { Disposable, CompositeDisposable } from './Disposable';
+import { Disposable, CompositeDisposable } from '../src/Disposable';
 
 describe('Disposable', () => {
 

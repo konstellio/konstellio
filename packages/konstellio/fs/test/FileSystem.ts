@@ -1,10 +1,10 @@
-import { FileSystem, Stats } from './FileSystem';
+import { FileSystem, Stats } from '../src/FileSystem';
 import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import { Readable, Writable } from 'stream';
-import { OperationNotSupported } from './Errors';
+import { OperationNotSupported } from '../src/Errors';
 
 export function shouldBehaveLikeAFileSystem (fs: FileSystem) {
 	it('can stat a directory', async () => {

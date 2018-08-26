@@ -6,20 +6,20 @@ import { clearTimeout, setInterval, clearInterval } from 'timers';
 type ConsumerList = {
 	consumers: ConsumeListener[]
 	next: number
-}
+};
 
 type PendingTask = {
 	queue: string
 	task: Payload
 	done?: (response: Error | any) => void
-}
+};
 
 export class MessageQueueMemory extends MessageQueue {
 
-	private emitter: EventEmitter
-	private disposable: CompositeDisposable
-	private consumers: Map<string, ConsumerList>
-	private pendingTasks: PendingTask[]
+	private emitter: EventEmitter;
+	private disposable: CompositeDisposable;
+	private consumers: Map<string, ConsumerList>;
+	private pendingTasks: PendingTask[];
 
 	constructor(retryPendingTaskEvery = 2000) {
 		super();
@@ -35,7 +35,7 @@ export class MessageQueueMemory extends MessageQueue {
 					if (done !== undefined) {
 						this.rpc(queue, task).then(done, done);
 					} else {
-						this.send(queue, task)
+						this.send(queue, task);
 					}
 				} else {
 					pending.push({ queue, task, done });
@@ -55,8 +55,8 @@ export class MessageQueueMemory extends MessageQueue {
 		return;
 	}
 
-	async publish(name: string, payload: Payload): Promise<void>
-	async publish(name: string, topic: string, payload: Payload): Promise<void>
+	async publish(name: string, payload: Payload): Promise<void>;
+	async publish(name: string, topic: string, payload: Payload): Promise<void>;
 	async publish(name: string, topic: string | Payload, payload?: Payload): Promise<void> {
 		let event = `channel:${name}`;
 		if (typeof topic === 'string') {
@@ -67,8 +67,8 @@ export class MessageQueueMemory extends MessageQueue {
 		this.emitter.emit(event, payload);
 	}
 
-	async subscribe(name: string, listener: SubscribListener): Promise<Disposable>
-	async subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>
+	async subscribe(name: string, listener: SubscribListener): Promise<Disposable>;
+	async subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>;
 	async subscribe(name: string, topic: string | SubscribListener, listener?: SubscribListener): Promise<Disposable> {
 		let event = `channel:${name}`;
 		if (typeof topic === 'string') {

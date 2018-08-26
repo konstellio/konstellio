@@ -27,36 +27,36 @@ export enum SFTPConnectionState {
 }
 
 export interface FileSystemSFTPAlgorithms {
-    kex?: string[];
-    cipher?: string[];
-    serverHostKey?: string[];
-    hmac?: string[];
-    compress?: string[];
+	kex?: string[];
+	cipher?: string[];
+	serverHostKey?: string[];
+	hmac?: string[];
+	compress?: string[];
 }
 
 export interface FileSystemSFTPOptions {
-    host?: string;
-    port?: number;
-    forceIPv4?: boolean;
-    forceIPv6?: boolean;
-    hostHash?: "md5" | "sha1";
-    hostVerifier?: (keyHash: string) => boolean;
-    username?: string;
-    password?: string;
-    agent?: string;
-    privateKey?: Buffer | string;
-    passphrase?: string;
-    localHostname?: string;
-    localUsername?: string;
-    tryKeyboard?: boolean;
-    keepaliveInterval?: number;
-    keepaliveCountMax?: number;
-    readyTimeout?: number;
-    strictVendor?: boolean;
-    sock?: NodeJS.ReadableStream;
-    agentForward?: boolean;
-    algorithms?: FileSystemSFTPAlgorithms;
-    debug?: (information: string) => any;
+	host?: string;
+	port?: number;
+	forceIPv4?: boolean;
+	forceIPv6?: boolean;
+	hostHash?: "md5" | "sha1";
+	hostVerifier?: (keyHash: string) => boolean;
+	username?: string;
+	password?: string;
+	agent?: string;
+	privateKey?: Buffer | string;
+	passphrase?: string;
+	localHostname?: string;
+	localUsername?: string;
+	tryKeyboard?: boolean;
+	keepaliveInterval?: number;
+	keepaliveCountMax?: number;
+	readyTimeout?: number;
+	strictVendor?: boolean;
+	sock?: NodeJS.ReadableStream;
+	agentForward?: boolean;
+	algorithms?: FileSystemSFTPAlgorithms;
+	debug?: (information: string) => any;
 }
 
 export class FileSystemSFTP extends FileSystem {
@@ -115,7 +115,7 @@ export class FileSystemSFTP extends FileSystem {
 			const onError = (err: Error) => {
 				this.connection!.removeListener('sftpready', onReady);
 				reject(new CouldNotConnect(err));
-			}
+			};
 
 			this.connection!.once('sftpready', onReady);
 			this.connection!.once('error', onError);
@@ -223,7 +223,7 @@ export class FileSystemSFTP extends FileSystem {
 						this.pool.release(token);
 					});
 				// }
-			})
+			});
 		}
 	}
 
@@ -319,8 +319,8 @@ export class FileSystemSFTP extends FileSystem {
 		});
 	}
 
-	async readDirectory(path: string): Promise<string[]>
-	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string): Promise<string[]>;
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();

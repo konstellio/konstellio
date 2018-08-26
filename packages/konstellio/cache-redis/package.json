@@ -5,11 +5,10 @@
   "main": "dist/CacheRedis.js",
   "types": "dist/CacheRedis.d.ts",
   "scripts": {
-    "compile": "rimraf ./dist && tsc --pretty",
     "docker:redis": "docker run --rm -it -p 6379:6379 redis:3",
-    "test": "mocha --full-trace dist/**/*.spec.js",
-    "test:ts": "mocha --require ts-node/register --full-trace src/**/*.spec.ts",
-    "test:ts:coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace src/**/*.spec.ts",
+    "compile": "rimraf dist && tsc --pretty",
+    "test": "mocha --require ts-node/register --full-trace test/**/*.ts",
+    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts",
     "lint": "tslint --project ./tsconfig.json"
   },
   "keywords": [],

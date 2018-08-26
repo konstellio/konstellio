@@ -63,8 +63,8 @@ export class FileSystemLocal extends FileSystem {
 						return reject(err);
 					}
 					return resolve();
-				})
-			})
+				});
+			});
 		}
 		else if (stats.isDirectory && recursive) {
 			const children = await this.readDirectory(path, true);
@@ -112,7 +112,7 @@ export class FileSystemLocal extends FileSystem {
 					if (err) {
 						return reject(err);
 					}
-					return resolve()
+					return resolve();
 				}
 			);
 		});
@@ -161,18 +161,18 @@ export class FileSystemLocal extends FileSystem {
 						return reject(err);
 					}
 					return resolve();
-				})
+				});
 			}
 		});
 	}
 
-	readDirectory(path: string): Promise<string[]>
-	readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	readDirectory(path: string): Promise<string[]>;
+	readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		return new Promise((resolve, reject) => {
 			readdir(join(this.rootDirectory, path), (err, entries) => {
 				if (err) {
-					return reject(err)
+					return reject(err);
 				}
 				if (stat !== true) {
 					return resolve(entries);
@@ -185,7 +185,7 @@ export class FileSystemLocal extends FileSystem {
 				.then(
 					(stats) => resolve(entries.map((entry, idx) => [entry, stats[idx]] as [string, Stats])),
 					(err) => reject(err)
-				)
+				);
 			});
 		});
 	}

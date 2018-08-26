@@ -7,13 +7,13 @@ export function isDisposableInterface (obj: any): boolean {
 }
 
 export interface IDisposable {
-	isDisposed (): boolean
-	dispose (): void
+	isDisposed (): boolean;
+	dispose (): void;
 }
 
 export interface IDisposableAsync {
-	isDisposed (): boolean
-	disposeAsync (): Promise<void>
+	isDisposed (): boolean;
+	disposeAsync (): Promise<void>;
 }
 
 export class Disposable implements IDisposable, IDisposableAsync {

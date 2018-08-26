@@ -3,8 +3,8 @@ import { Cache, Serializable } from '@konstellio/cache';
 
 export class CacheMemory extends Cache {
 
-	protected client: RedisClient
-	protected disposed: boolean
+	protected client: RedisClient;
+	protected disposed: boolean;
 
 	constructor() {
 		super();
@@ -24,7 +24,7 @@ export class CacheMemory extends Cache {
 				this.client.quit((err) => {
 					if (err) return reject(err);
 					resolve();
-				})
+				});
 			});
 	}
 

@@ -2,7 +2,7 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { FileSystemLocal } from '../FileSystemLocal';
+import { FileSystemLocal } from '../../src/FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';

@@ -11,7 +11,7 @@ export function mergeAST(documents: DocumentNode[]): DocumentNode {
 	concat.definitions.forEach(node => {
 		const name = (node as any).name.value;
 		if (isTypeExtensionNode(node)) {
-			if (nodeExtMap.has(name) === false) {
+			if (!nodeExtMap.has(name)) {
 				nodeExtMap.set(name, []);
 			}
 			nodeExtMap.get(name)!.push(node);
@@ -67,7 +67,7 @@ export function mergeAST(documents: DocumentNode[]): DocumentNode {
 					definitions.push(node);
 				}
 			}
-			else if (isTypeExtensionNode(node) && nodeDefMap.has((node as any).name.value) === false) {
+			else if (isTypeExtensionNode(node) && !nodeDefMap.has((node as any).name.value)) {
 				definitions.push(node);
 			}
 			return definitions;

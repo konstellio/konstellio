@@ -7,7 +7,7 @@ export enum Compare {
 }
 
 export interface Features {
-	join: boolean
+	join: boolean;
 }
 
 export abstract class Database {

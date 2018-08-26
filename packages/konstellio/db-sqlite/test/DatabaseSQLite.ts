@@ -2,7 +2,7 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { DatabaseSQLite } from './DatabaseSQLite';
+import { DatabaseSQLite } from '../src/DatabaseSQLite';
 import {
 	q,
 	ColumnType,
@@ -22,7 +22,7 @@ describe('SQLite', () => {
 		title: string
 		postDate: Date
 		likes: number
-	}
+	};
 
 	let driver: DatabaseSQLite;
 

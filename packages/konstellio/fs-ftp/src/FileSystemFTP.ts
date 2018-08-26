@@ -36,7 +36,7 @@ export interface FileSystemFTPOptions {
 	connTimeout?: number;
 	pasvTimeout?: number;
 	keepalive?: number;
-	debug?: (msg: string) => void
+	debug?: (msg: string) => void;
 }
 
 export class FileSystemFTP extends FileSystem {
@@ -84,7 +84,7 @@ export class FileSystemFTP extends FileSystem {
 			const onError = (err: Error) => {
 				this.connection!.removeListener('ready', onReady);
 				reject(new CouldNotConnect(err));
-			}
+			};
 
 			this.connection!.once('ready', onReady);
 			this.connection!.once('error', onError);
@@ -159,7 +159,7 @@ export class FileSystemFTP extends FileSystem {
 					}
 					this.pool.release(token);
 				});
-			})
+			});
 		}
 	}
 
@@ -238,8 +238,8 @@ export class FileSystemFTP extends FileSystem {
 		});
 	}
 
-	async readDirectory(path: string): Promise<string[]>
-	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>
+	async readDirectory(path: string): Promise<string[]>;
+	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();

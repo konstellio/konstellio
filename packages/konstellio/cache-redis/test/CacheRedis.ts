@@ -2,7 +2,7 @@ import 'mocha';
 import { use, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { CacheRedis } from './CacheRedis';
+import { CacheRedis } from '../src/CacheRedis';
 
 describe('Redis', () => {
 

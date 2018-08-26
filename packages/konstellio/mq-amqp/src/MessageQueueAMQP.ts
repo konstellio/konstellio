@@ -11,10 +11,10 @@ try { connect = require('amqplib/callback_api').connect; } catch(e) { }
 export class MessageQueueAMQP extends MessageQueue {
 
 	private client!: Connection;
-	private emitter: EventEmitter
-	private disposable: CompositeDisposable
-	private replyToChannel!: LibChannel
-	private replyToQueue!: string
+	private emitter: EventEmitter;
+	private disposable: CompositeDisposable;
+	private replyToChannel!: LibChannel;
+	private replyToQueue!: string;
 	private channels: Map<string, { channel: LibChannel, queue: string }>;
 	private queues: Map<string, LibChannel>;
 
@@ -84,7 +84,7 @@ export class MessageQueueAMQP extends MessageQueue {
 		return new Promise<{ channel: LibChannel, queue: string }>((resolve, reject) => {
 			const hash = `${name}:${topic}`;
 			if (this.channels.has(hash)) {
-				return resolve(this.channels.get(hash)!)
+				return resolve(this.channels.get(hash)!);
 			}
 			this.client.createChannel((err, channel) => {
 				if (err) return reject(err);
@@ -115,7 +115,7 @@ export class MessageQueueAMQP extends MessageQueue {
 
 					this.channels.set(hash, { channel, queue: res.queue });
 					resolve({ channel, queue: res.queue });
-				})
+				});
 			});
 		});
 	}
@@ -123,7 +123,7 @@ export class MessageQueueAMQP extends MessageQueue {
 	private async getQueue(name: string): Promise<LibChannel> {
 		return new Promise<LibChannel>((resolve, reject) => {
 			if (this.channels.has(name)) {
-				return resolve(this.queues.get(name)!)
+				return resolve(this.queues.get(name)!);
 			}
 			this.client.createChannel((err, channel) => {
 				if (err) return reject(err);
@@ -132,13 +132,13 @@ export class MessageQueueAMQP extends MessageQueue {
 					if (err) return reject(err);
 					this.queues.set(name, channel);
 					resolve(channel);
-				})
+				});
 			});
 		});
 	}
 
-	async publish(name: string, payload: Payload): Promise<void>
-	async publish(name: string, topic: string, payload: Payload): Promise<void>
+	async publish(name: string, payload: Payload): Promise<void>;
+	async publish(name: string, topic: string, payload: Payload): Promise<void>;
 	async publish(name: string, topic: string | Payload, payload?: Payload): Promise<void> {
 		if (typeof topic !== 'string') {
 			payload = topic;
@@ -148,8 +148,8 @@ export class MessageQueueAMQP extends MessageQueue {
 		channel.publish(name, topic, Buffer.from(JSON.stringify(payload)));
 	}
 
-	async subscribe(name: string, listener: SubscribListener): Promise<Disposable>
-	async subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>
+	async subscribe(name: string, listener: SubscribListener): Promise<Disposable>;
+	async subscribe(name: string, topic: string, listener: SubscribListener): Promise<Disposable>;
 	async subscribe(name: string, topic: string | SubscribListener, listener?: SubscribListener): Promise<Disposable> {
 		if (typeof topic !== 'string') {
 			listener = topic;

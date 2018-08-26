@@ -12,6 +12,6 @@ export async function* lstree(fs: FileSystem, path: string): AsyncIterableIterat
 			if (!entry[1].isFile) {
 				pathToList.push(entry[0]);
 			}
-		};
+		}
 	}
 }

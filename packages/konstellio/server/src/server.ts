@@ -24,28 +24,28 @@ export enum ServerListenMode {
 }
 
 export interface ServerListenOptions {
-	skipMigration?: boolean
-	mode?: ServerListenMode
+	skipMigration?: boolean;
+	mode?: ServerListenMode;
 }
 
 export interface ServerListenStatus {
-	mode: ServerListenMode
-	family?: string
-	address?: string
-	port?: number
+	mode: ServerListenMode;
+	family?: string;
+	address?: string;
+	port?: number;
 }
 
 export interface ServerConfig {
-	locales: Locales
-	fs: FileSystem
-	db: Database
-	cache: Cache
-	mq: MessageQueue
+	locales: Locales;
+	fs: FileSystem;
+	db: Database;
+	cache: Cache;
+	mq: MessageQueue;
 	http?: {
 		host?: string
 		port?: number
-	}
-	plugins?: string[]
+	};
+	plugins?: string[];
 }
 
 export type Locales = {
@@ -53,13 +53,13 @@ export type Locales = {
 };
 
 export interface HTTPConfig {
-	host?: string
-	port?: number
-	http2?: boolean
+	host?: string;
+	port?: number;
+	http2?: boolean;
 	https?: {
 		key: string
 		cert: string
-	}
+	};
 }
 
 export async function createServer(config: ServerConfig): Promise<Server> {
@@ -68,9 +68,9 @@ export async function createServer(config: ServerConfig): Promise<Server> {
 
 export class Server implements IDisposableAsync {
 
-	private disposed: boolean
-	private plugins: Plugin[]
-	private server: fastify.FastifyInstance | undefined
+	private disposed: boolean;
+	private plugins: Plugin[];
+	private server: fastify.FastifyInstance | undefined;
 
 	protected fs: FileSystem;
 	protected db: Database;
@@ -90,7 +90,7 @@ export class Server implements IDisposableAsync {
 	}
 
 	async disposeAsync(): Promise<void> {
-		if (this.disposed === true) {
+		if (this.disposed) {
 			return;
 		}
 
@@ -162,7 +162,7 @@ export class Server implements IDisposableAsync {
 		const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales);
 		
 		// Do migration
-		if (skipMigration === false) {
+		if (!skipMigration) {
 			const dbSchema = await createSchemaFromDatabase(this.db, this.config.locales);
 			const schemaDiffs = await promptSchemaDiffs(
 				process.stdin as ReadStream,

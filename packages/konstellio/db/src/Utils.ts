@@ -44,7 +44,7 @@ export function decomposeBinaryTree(tree: Binary): BinaryExpression[] {
 			}
 			else if (root.operator === 'or') {
 				if (root.operands) {
-					decomposed.push(...root.operands.toArray())
+					decomposed.push(...root.operands.toArray());
 				}
 			}
 			else if (root.operator === 'xor') {

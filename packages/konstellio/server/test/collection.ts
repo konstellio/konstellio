@@ -3,9 +3,9 @@ import { should } from "chai";
 import { DocumentNode, parse } from "graphql";
 import { Database, q } from "@konstellio/db";
 import { DatabaseSQLite } from "@konstellio/db-sqlite";
-import { Locales } from "./server";
-import { Schema, createSchemaFromDefinitions } from "./utilities/migration";
-import { createCollections } from "./collection";
+import { Locales } from "../src/server";
+import { Schema, createSchemaFromDefinitions } from "../src/utilities/migration";
+import { createCollections } from "../src/collection";
 should();
 
 describe("Collection", () => {

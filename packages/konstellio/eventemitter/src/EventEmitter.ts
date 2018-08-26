@@ -32,7 +32,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 	}
 
 	isDisposed (): boolean {
-		return this.disposable == null || this.disposable.isDisposed();
+		return this.disposable === null || this.disposable.isDisposed();
 	}
 
 	dispose (): void {
@@ -91,7 +91,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 			if (--count <= 0) {
 				disposable.dispose();
 			}
-		}
+		};
 		const disposable = this.on(event, proxyHandler);
 		return disposable;
 	}
@@ -103,7 +103,7 @@ export class EventEmitter implements IDisposable, IDisposableAsync, IEventEmitte
 		if (typeof event !== 'string') {
 			throw new TypeError(`Expected event argument to be a string, got ${typeof event}.`);
 		}
-		if (handler != null && typeof handler !== 'function') {
+		if (handler !== null && typeof handler !== 'function') {
 			throw new TypeError(`Expected handler to be a function, got ${typeof handler}.`);
 		}
 		const handlers = (<Map<string, Set<Handler>>>this.events).get(event);
