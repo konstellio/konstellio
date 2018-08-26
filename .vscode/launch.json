@@ -25,7 +25,7 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/db-sqlite/src/**/*.spec.ts"
+				"${workspaceFolder}/packages/konstellio/db-sqlite/test/**/*.ts"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
@@ -43,7 +43,7 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/server/src/**/*.spec.ts"
+				"${workspaceFolder}/packages/konstellio/server/test/**/*.ts"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		}
