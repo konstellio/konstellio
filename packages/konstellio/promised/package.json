@@ -10,16 +10,20 @@
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts",
     "lint": "tslint --project ./tsconfig.json"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/konstellio/promised.git"
+    "url": "git+https://github.com/konstellio/konstellio.git"
   },
-  "engines": {
-    "node": ">=8.9.0"
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/konstellio/konstellio/issues"
   },
+  "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
     "@konstellio/disposable": "^0.0.12"
   },
