@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/mq-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "dist/MessageQueueMemory.js",
   "types": "dist/MessageQueueMemory.d.ts",
@@ -30,9 +30,9 @@
     "@konstellio/mq": "^0.x"
   },
   "devDependencies": {
-    "@konstellio/disposable": "^0.1.0",
-    "@konstellio/eventemitter": "^0.1.0",
-    "@konstellio/mq": "^0.1.0",
+    "@konstellio/disposable": "^0.1.1",
+    "@konstellio/eventemitter": "^0.1.1",
+    "@konstellio/mq": "^0.1.1",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",

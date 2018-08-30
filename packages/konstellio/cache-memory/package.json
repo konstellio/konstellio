@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/cache-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "dist/CacheMemory.js",
   "types": "dist/CacheMemory.d.ts",
@@ -30,8 +30,8 @@
     "redis-mock": "^0.29.0"
   },
   "devDependencies": {
-    "@konstellio/cache": "^0.1.0",
-    "@konstellio/disposable": "^0.1.0",
+    "@konstellio/cache": "^0.1.1",
+    "@konstellio/disposable": "^0.1.1",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
