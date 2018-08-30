@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/fs-ftp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "",
   "main": "dist/FileSystemFTP.js",
   "types": "dist/FileSystemFTP.d.ts",
@@ -34,8 +34,8 @@
   "devDependencies": {
     "@konstellio/disposable": "^0.1.1",
     "@konstellio/eventemitter": "^0.1.1",
-    "@konstellio/fs": "^0.1.1",
-    "@konstellio/promised": "^0.1.1",
+    "@konstellio/fs": "^0.1.2",
+    "@konstellio/promised": "^0.1.2",
     "@types/chai-as-promised": "7.1.0",
     "@types/ftp": "^0.3.29",
     "@types/mocha": "^5.2.5",
