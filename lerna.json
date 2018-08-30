@@ -8,9 +8,9 @@
     }
   },
   "packages": [
-    "packages/konstellio/*",
     "packages/examples/*",
+    "packages/konstellio/*",
     "packages/tools/*"
   ],
-  "version": "0.0.20"
+  "version": "0.1.0"
 }

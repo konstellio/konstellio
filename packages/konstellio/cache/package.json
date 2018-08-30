@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/cache",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "",
   "main": "dist/Cache.js",
   "types": "dist/Cache.d.ts",
@@ -28,7 +28,7 @@
     "@konstellio/disposable": "^0.x"
   },
   "devDependencies": {
-    "@konstellio/disposable": "^0.x",
+    "@konstellio/disposable": "^0.1.0",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",

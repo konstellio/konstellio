@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/disposable",
-  "version": "0.0.12",
+  "version": "0.1.0",
   "description": "",
   "main": "dist/Disposable.js",
   "types": "dist/Disposable.d.ts",
@@ -24,7 +24,6 @@
     "url": "https://github.com/konstellio/konstellio/issues"
   },
   "homepage": "https://github.com/konstellio/konstellio#readme",
-  "dependencies": {},
   "devDependencies": {
     "@types/mocha": "^5.2.5",
     "chai": "^4.1.2",
