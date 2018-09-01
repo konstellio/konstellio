@@ -14,7 +14,7 @@ function normalizePath(path: string) {
 		path = path.substr(0, path.length - 1);
 	}
 	if (!path.startsWith('/')) {
-		path = '/' + path;
+		path = `/${path}`;
 	}
 	return path;
 }
@@ -163,7 +163,7 @@ export class FileSystemFTP extends FileSystem {
 		}
 	}
 
-	async copy(): Promise<void> {
+	async copy(source: string, destination: string): Promise<void> {
 		throw new OperationNotSupported('copy');
 	}
 

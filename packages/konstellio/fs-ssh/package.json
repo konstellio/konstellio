@@ -6,7 +6,7 @@
   "types": "dist/FileSystemSSH.d.ts",
   "scripts": {
     "compile": "rimraf dist && tsc --pretty",
-    "test": "mocha --require ts-node/register --full-trace test/**/*.ts",
+    "test": "cross-env TS_NODE_FILES=true mocha --require ts-node/register --full-trace test/**/*.ts",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts",
     "lint": "tslint --project ./tsconfig.json"
   },
@@ -42,6 +42,7 @@
     "@types/ssh2": "^0.5.35",
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
+    "cross-env": "^5.2.0",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rimraf": "^2.6.2",

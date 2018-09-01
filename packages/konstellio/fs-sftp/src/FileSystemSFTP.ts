@@ -227,7 +227,7 @@ export class FileSystemSFTP extends FileSystem {
 		}
 	}
 
-	async copy(): Promise<void> {
+	async copy(source: string, destination: string): Promise<void> {
 		throw new OperationNotSupported('copy');
 		// const token = await this.pool.acquires();
 		// const [conn] = await this.getConnection();
