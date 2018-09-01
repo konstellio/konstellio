@@ -2,3 +2,6 @@ node_modules
 /packages/*/*/dist
 /packages/*/*/coverage
 /packages/*/*/docs
+/.travis.build.sh
+/.travis.dockerfile
+/.dockerignore

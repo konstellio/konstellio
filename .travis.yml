@@ -1,0 +1,13 @@
+language: node_js
+
+node_js:
+  - "10"
+
+services:
+  - redis-server
+  - rabbitmq
+
+install:
+  - npm ci
+  - npm run init
+  - npm run compile

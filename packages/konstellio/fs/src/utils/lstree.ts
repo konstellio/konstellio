@@ -7,7 +7,7 @@ export async function* lstree(fs: FileSystem, path: string): AsyncIterableIterat
 		const path = pathToList.shift()!;
 		const pathEntries = await fs.readDirectory(path, true);
 		for (const entry of pathEntries) {
-			entry[0] = path + '/' + entry[0];
+			entry[0] = `${path}/${entry[0]}`;
 			yield entry;
 			if (!entry[1].isFile) {
 				pathToList.push(entry[0]);

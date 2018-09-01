@@ -3,9 +3,13 @@
   "private": true,
   "scripts": {
     "clean": "lerna clean --yes",
-    "init": "lerna bootstrap --hoist"
+    "init": "lerna bootstrap --hoist",
+    "compile": "lerna run compile",
+    "test": "lerna run test",
+    "test:local": "littletravis"
   },
   "devDependencies": {
-    "lerna": "^3.0.0-rc.0"
+    "lerna": "^3.0.0-rc.0",
+    "littletravis": "^0.0.2"
   }
 }

@@ -3,7 +3,8 @@
     "publish": {
       "ignoreChanges": [
         "*.md",
-        "*.spec.ts"
+        "*.json",
+        "test/**"
       ]
     }
   },
