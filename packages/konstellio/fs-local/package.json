@@ -6,8 +6,8 @@
   "types": "dist/FileSystemLocal.d.ts",
   "scripts": {
     "compile": "rimraf dist && tsc --pretty",
-    "test": "mocha --require ts-node/register --full-trace test/**/*.ts",
-    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts",
+    "test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
+    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
     "lint": "tslint --project ./tsconfig.json"
   },
   "publishConfig": {
