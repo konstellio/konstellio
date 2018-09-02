@@ -110,41 +110,41 @@ describe("Collection", () => {
 				text: String!
 			}
 		`);
-		schema = await createSchemaFromDefinitions(ast, locales);
+		schema = await createSchemaFromDefinitions(ast, locales, db.features.join);
 	});
 
 	it('create collections', async () => {
-		const [Users, Categories, Posts] = createCollections(db, schema, ast, locales);
+		// const [Users, Categories, Posts] = createCollections(db, schema, ast, locales);
 		
-		// const t = await Posts.findById('post1', { locale: 'fr', fields: [q.field('title'), q.as('title', 'bleh')] });
-		const t = await Posts.find({
-			fields: [q.field('title'), q.field('slug'), q.field('author')],
-			condition: q.and(q.gte('slug', 'my-first-blog-post'), q.eq('author', 'mgrenier')),
-			sort: [q.sort('title', 'desc')]
-		});
+		// // const t = await Posts.findById('post1', { locale: 'fr', fields: [q.field('title'), q.as('title', 'bleh')] });
+		// const t = await Posts.find({
+		// 	fields: [q.field('title'), q.field('slug'), q.field('author')],
+		// 	condition: q.and(q.gte('slug', 'my-first-blog-post'), q.eq('author', 'mgrenier')),
+		// 	sort: [q.sort('title', 'desc')]
+		// });
 
-		const u = await Posts.create({
-			title: {
-				fr: 'Mon deuxième blogue post',
-				en: 'My second blog post'
-			},
-			slug: {
-				fr: 'mon-deuxieme-blogue-post',
-				en: 'my-second-blog-post'
-			},
-			categories: [],
-			postDate: '2018-08-23 20:45:00',
-			author: 'mgrenier',
-			contributors: ['mgrenier'],
-			content: {
-				en: [],
-				fr: []
-			}
-		});
+		// const u = await Posts.create({
+		// 	title: {
+		// 		fr: 'Mon deuxième blogue post',
+		// 		en: 'My second blog post'
+		// 	},
+		// 	slug: {
+		// 		fr: 'mon-deuxieme-blogue-post',
+		// 		en: 'my-second-blog-post'
+		// 	},
+		// 	categories: [],
+		// 	postDate: '2018-08-23 20:45:00',
+		// 	author: 'mgrenier',
+		// 	contributors: ['mgrenier'],
+		// 	content: {
+		// 		en: [],
+		// 		fr: []
+		// 	}
+		// });
 
-		const v = await Posts.findById(u);
+		// const v = await Posts.findById(u);
 
-		debugger;
+		// debugger;
 	});
 
 });

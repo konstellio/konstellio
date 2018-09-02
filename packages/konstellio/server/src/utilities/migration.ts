@@ -97,7 +97,7 @@ export type SchemaDiffDropIndex = {
 /**
  * Create Schema from DocumentNode
  */
-export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Locales): Promise<Schema> {
+export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Locales, supportsJoin: boolean): Promise<Schema> {
 	return {
 		collections: ast.definitions.reduce((collections, node) => {
 			if (isCollection(node)) {
@@ -256,6 +256,9 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 				if (refNode) {
 					if (refNode.kind === Kind.ENUM_TYPE_DEFINITION) {
 						return [ColumnType.Text, -1, false];
+					}
+					else if (isCollection(refNode) && !supportsJoin) {
+						return [ColumnType.Text, -1, true];
 					}
 					else if (!isCollection(refNode)) {
 						return [ColumnType.Blob, -1, true];

@@ -159,7 +159,7 @@ export class Server implements IDisposableAsync {
 		// Merge every AST
 		const mergedAST = mergeAST(ASTs);
 
-		const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales);
+		const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales, this.db.features.join);
 		
 		// Do migration
 		if (!skipMigration) {
