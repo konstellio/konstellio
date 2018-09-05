@@ -32,6 +32,24 @@
 		{
 			"type": "node",
 			"request": "launch",
+			"name": "Test @konstellio/promised",
+			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"-u",
+				"tdd",
+				"--timeout",
+				"999999",
+				"--colors",
+				"--require",
+				"ts-node/register",
+				"--full-trace",
+				"${workspaceFolder}/packages/konstellio/promised/test/**/*.ts"
+			],
+			"internalConsoleOptions": "openOnSessionStart"
+		},
+		{
+			"type": "node",
+			"request": "launch",
 			"name": "Test @konstellio/server",
 			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
 			"args": [
