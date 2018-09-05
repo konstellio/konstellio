@@ -2,11 +2,11 @@ import 'mocha';
 import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
-import { FileSystemLocal } from '../../src/FileSystemLocal';
+import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { lstree } from '@konstellio/fs';
+import { lstree } from '../../src';
 
 describe('lstree', () => {
 

@@ -280,4 +280,11 @@ export class FileSystemPool extends FileSystem {
 			throw err;
 		}
 	}
+
+	async consume<I, R>(
+		items: IterableIterator<I> | I[],
+		callback: (item: I, consumer: FileSystem) => undefined | R | Promise<undefined | R>
+	) {
+		return this.pool.consume(items, callback);
+	}
 }
