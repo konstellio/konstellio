@@ -2,7 +2,7 @@ import { mkdir, unlink, lstat, rename, copyFile, createReadStream, createWriteSt
 import { Readable, Writable } from 'stream';
 import * as mkdirp from 'mkdirp';
 import { join } from 'path';
-import { FileSystem, Stats, FileAlreadyExists, FileNotFound } from '../dist';
+import { FileSystem, Stats, FileAlreadyExists, FileNotFound } from '../src';
 
 export class FileSystemLocal extends FileSystem {
 
