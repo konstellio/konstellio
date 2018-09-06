@@ -40,39 +40,21 @@ describe('Pool', () => {
 		const t = await g.acquires();
 		expect(t).to.eq(a);
 	});
-	
-	it('consume', async () => {
+
+	it('iterate', async () => {
 
 		const items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 		const pool = new Pool(['a','b','c']);
 		
 		expect(pool.size).to.equal(3);
 
-		await pool.consume(items, async (item, consumer) => {
-			// console.info(`${consumer} : consume ${item}`);
-			await new Promise(resolve => setTimeout(resolve, 300));
-		});
+		for await (const s of pool.iterate(items[Symbol.iterator](), async (i, c) => {
+			await new Promise(resolve => setTimeout(resolve, (Math.random() * 5) * 200));
+			return i + c;
 
-		expect(pool.size).to.equal(3);
-	});
-
-	it('consume iterator', async () => {
-
-		const counter = function*(t = 3) {
-			for (let i = 0; i < t; ++i) {
-				yield i;
-			}
-		};
-
-		const items = counter(10);
-		const pool = new Pool(['a','b','c']);
-		
-		expect(pool.size).to.equal(3);
-
-		await pool.consume(items, async (item, consumer) => {
-			// console.info(`${consumer} : consume ${item}`);
-			await new Promise(resolve => setTimeout(resolve, 300));
-		});
+		})) {
+			// console.log('state', s);
+		}
 
 		expect(pool.size).to.equal(3);
 	});

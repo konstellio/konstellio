@@ -49,36 +49,34 @@ export class Pool<T = any> implements IDisposable {
 		}
 	}
 
-	async consume<I, R>(
-		items: IterableIterator<I> | I[],
-		callback: (item: I, consumer: T) => undefined | R | Promise<undefined | R>
-	) {
-		const iterator = items[Symbol.iterator]();
-		return new Promise(async (resolve, reject) => {
-			const errors: Error[] = [];
-			const pending: Promise<any>[] = [];
-			while (true) {
-				const consumer = await this.acquires();
-		
-				const item = iterator.next();
-				if (item.done) {
-					this.release(consumer);
-					break;
-				}
-	
-				const running = Promise.resolve(callback(item.value, consumer))
-				.catch(err => { errors.push(err); })
-				.then(() => { this.release(consumer); });
-	
-				pending.push(running);
+	async *iterate<I, R>(
+		iterator: AsyncIterableIterator<I> | IterableIterator<I>,
+		callback: (item: I, consumer: T) => R | Promise<R>
+	): AsyncIterableIterator<R> {
+		const yieldResults: R[] = [];
+		const pending: Promise<void>[] = [];
+		while (true) {
+			const consumer = await this.acquires();
+			for (const result of yieldResults.splice(0, yieldResults.length)) {
+				yield result;
 			}
-	
-			Promise.all(pending).then(() => {
-				if (errors.length) {
-					return reject(errors[0]);
-				}
-				resolve();
-			});
-		});
+
+			const item = await iterator.next();
+			if (item.done) {
+				this.release(consumer);
+				break;
+			}
+
+			const promise = Promise.resolve(callback(item.value, consumer))
+			.then(result => yieldResults.push(result))
+			.catch(err => {})
+			.then(() => this.release(consumer));
+
+			pending.push(promise);
+		}
+		await Promise.all(pending);
+		for (const result of yieldResults.splice(0, yieldResults.length)) {
+			yield result;
+		}
 	}
 }
