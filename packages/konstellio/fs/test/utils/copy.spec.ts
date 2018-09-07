@@ -1,5 +1,5 @@
 import 'mocha';
-import { use, should } from 'chai';
+import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 import { FileSystemLocal } from '../FileSystemLocal';
@@ -28,20 +28,28 @@ describe('copy', () => {
 	
 	it('copy file', async () => {
 		await new Promise((resolve, reject) => {
-			// const t = copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
+			const t = copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
+			t.on('finish', resolve);
+			t.on('error', reject);
+			t.on('data', chunk => {
+				// console.log('copy', ...chunk);
+			});
+		});
+
+		expect(false).to.equal(true);
+	});
+
+	it('copy directory', async () => {
+		await new Promise((resolve, reject) => {
 			const t = copy(fsA, 'Griffin', fsB, 'Family-Guys');
 			t.on('finish', resolve);
 			t.on('error', reject);
 			t.on('data', chunk => {
-				// console.log('bleh', chunk[0]);
+				// console.log('copy', ...chunk);
 			});
 		});
-	});
 
-	// it('copy directory', async () => {
-	// 	for await (const state of copy(fsA, 'Griffin', fsB, 'Family-Guys')) {
-	// 		console.log(state);
-	// 	}
-	// });
+		expect(false).to.equal(true);
+	});
 
 });
