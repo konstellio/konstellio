@@ -27,11 +27,15 @@ describe('copy', () => {
 	});
 	
 	it('copy file', async () => {
-		await copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
+		for await (const state of copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt')) {
+			console.log(state);
+		}
 	});
 
 	it('copy directory', async () => {
-		await copy(fsA, 'Griffin', fsB, 'Family-Guys');
+		for await (const state of copy(fsA, 'Griffin', fsB, 'Family-Guys')) {
+			console.log(state);
+		}
 	});
 
 });

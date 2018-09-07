@@ -141,11 +141,11 @@ export class FileSystemMirror extends FileSystem {
 
 }
 
-export class FileSystemPool extends FileSystem {
+export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSystem {
 	private disposed: boolean;
-	private pool: Pool<FileSystem>;
+	private pool: Pool<T>;
 
-	constructor(protected readonly fss: FileSystem[]) {
+	constructor(protected readonly fss: T[]) {
 		super();
 		assert(fss.length > 0, `Expected at least one file system.`);
 		this.disposed = false;
@@ -281,10 +281,10 @@ export class FileSystemPool extends FileSystem {
 		}
 	}
 
-	async consume<I, R>(
-		items: IterableIterator<I> | I[],
-		callback: (item: I, consumer: FileSystem) => undefined | R | Promise<undefined | R>
-	) {
-		return this.pool.consume(items, callback);
+	async *iterate<I, R>(
+		iterator: IterableIterator<I> | AsyncIterableIterator<I>,
+		callback: (item: I, consumer: T) => R | Promise<R> | IterableIterator<R> | AsyncIterableIterator<R>
+	): AsyncIterableIterator<R> {
+		yield* this.pool.iterate(iterator, callback);
 	}
 }
