@@ -280,11 +280,4 @@ export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSyste
 			throw err;
 		}
 	}
-
-	async *iterate<I, R>(
-		iterator: IterableIterator<I> | AsyncIterableIterator<I>,
-		callback: (item: I, consumer: T) => R | Promise<R> | IterableIterator<R> | AsyncIterableIterator<R>
-	): AsyncIterableIterator<R> {
-		yield* this.pool.iterate(iterator, callback);
-	}
 }

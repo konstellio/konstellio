@@ -27,15 +27,21 @@ describe('copy', () => {
 	});
 	
 	it('copy file', async () => {
-		for await (const state of copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt')) {
-			console.log(state);
-		}
+		await new Promise((resolve, reject) => {
+			// const t = copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
+			const t = copy(fsA, 'Griffin', fsB, 'Family-Guys');
+			t.on('finish', resolve);
+			t.on('error', reject);
+			t.on('data', chunk => {
+				// console.log('bleh', chunk[0]);
+			});
+		});
 	});
 
-	it('copy directory', async () => {
-		for await (const state of copy(fsA, 'Griffin', fsB, 'Family-Guys')) {
-			console.log(state);
-		}
-	});
+	// it('copy directory', async () => {
+	// 	for await (const state of copy(fsA, 'Griffin', fsB, 'Family-Guys')) {
+	// 		console.log(state);
+	// 	}
+	// });
 
 });
