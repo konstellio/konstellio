@@ -48,13 +48,15 @@ describe('Pool', () => {
 		
 		expect(pool.size).to.equal(3);
 
+		const results: number[] = [];
 		for await (const s of pool.iterate(items[Symbol.iterator](), async (i, c) => {
 			await new Promise(resolve => setTimeout(resolve, (Math.random() * 5) * 200));
-			return i + c;
-
+			return i;
 		})) {
-			// console.log('state', s);
+			results.push(s);
 		}
+
+		expect(results.sort()).to.eql(items);
 
 		expect(pool.size).to.equal(3);
 	});
