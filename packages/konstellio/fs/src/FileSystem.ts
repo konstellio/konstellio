@@ -143,7 +143,7 @@ export class FileSystemMirror extends FileSystem {
 
 export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSystem {
 	private disposed: boolean;
-	private pool: Pool<T>;
+	public readonly pool: Pool<T>;
 
 	constructor(protected readonly fss: T[]) {
 		super();

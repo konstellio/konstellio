@@ -1,5 +1,7 @@
 import { Deferred } from "./Deferred";
 import { IDisposable } from '@konstellio/disposable';
+import { TypedTransformOptions, TypedTransform, TypedTransformCallback } from "./Stream";
+import { Transform } from "stream";
 
 export class Pool<T = any> implements IDisposable {
 	private disposed: boolean;
@@ -48,4 +50,39 @@ export class Pool<T = any> implements IDisposable {
 			w.resolve(obj);
 		}
 	}
+
+	transform<I = any, R = any>(
+		opts: PoolTransformOptions,
+		transform: (chunk: I, consumer: T, push: (chunk: I, encoding?: string) => void) => undefined | R | Promise<undefined | R>
+	): TypedTransform<I> {
+		const pool = this; // tslint:disable-line
+		const workers: Promise<void>[] = [];
+		return new Transform({
+			...opts,
+			async transform(chunk: I, encoding, done: TypedTransformCallback<I>) {
+				const transformer = this; // tslint:disable-line
+				const consumer = await pool.acquires();
+				const worker = new Promise(async (resolve, reject) => {
+					await transform(chunk, consumer, transformer.push);
+					resolve();
+				}).catch(err => { }).then(() => pool.release(consumer));
+				workers.push(worker);
+				done();
+			},
+			async flush(done: TypedTransformCallback<I>) {
+				await Promise.all(workers);
+				done();
+			}
+		}) as TypedTransform<I>;
+	}
+}
+
+export interface PoolTransformOptions {
+	highWaterMark?: number;
+	encoding?: string;
+	objectMode?: boolean;
+	decodeStrings?: boolean;
+	allowHalfOpen?: boolean;
+	readableObjectMode?: boolean;
+	writableObjectMode?: boolean;
 }

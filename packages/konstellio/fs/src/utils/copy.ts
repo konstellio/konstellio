@@ -9,6 +9,10 @@ export function copy(
 	fsDestination: FileSystem | FileSystemPool,
 	destination: string
 ) {
+	if (fsSource === fsDestination && !(fsSource instanceof FileSystemPool)) {
+		throw new Error(`You should probably be using fsSource.copy() instead.`);
+	}
+
 	const files: [string, string, Stats][] = [];
 	let totalSize = 0;
 	let transferedSize = 0;
@@ -39,22 +43,40 @@ export function copy(
 			done();
 		}
 	});
-	// TODO if both FileSystemPool, make copy parallel. Inspired by https://www.npmjs.com/package/parallel-transform
-	const copyFiles = new Transform({
-		objectMode: true,
-		highWaterMark: 1,
-		async transform(entry, encoding, done) {
-			const readStream = await fsSource.createReadStream(entry[0]);
+	
+	const copyFiles = fsSource instanceof FileSystemPool
+		? fsSource.pool.transform({
+			objectMode: true,
+			highWaterMark: 1,
+		}, async (entry, fs, push) => {
+			const readStream = await fs.createReadStream(entry[0]);
 			const writeStream = await fsDestination.createWriteStream(entry[1]);
 
-			readStream.on('end', done);
-			readStream.on('data', chunk => {
-				transferedSize += chunk.length;
-				this.push([...entry, transferedSize, totalSize]);
+			await new Promise((resolve, reject) => {
+				writeStream.on('finish', resolve);
+				writeStream.on('error', reject);
+				readStream.on('data', chunk => {
+					transferedSize += chunk.length;
+					push([...entry, transferedSize, totalSize]);
+				});
+				readStream.pipe(writeStream);
 			});
-			readStream.on('error', done);
-			readStream.pipe(writeStream);
-		}
-	});
+		})
+		: new Transform({
+			objectMode: true,
+			highWaterMark: 1,
+			async transform(entry, encoding, done) {
+				const readStream = await fsSource.createReadStream(entry[0]);
+				const writeStream = await fsDestination.createWriteStream(entry[1]);
+
+				readStream.on('end', done);
+				readStream.on('error', done);
+				readStream.on('data', chunk => {
+					transferedSize += chunk.length;
+					this.push([...entry, transferedSize, totalSize]);
+				});
+				readStream.pipe(writeStream);
+			}
+		});
 	return lstree(fsSource, source).pipe(mapDestination).pipe(createDirectories).pipe(copyFiles);
 }
