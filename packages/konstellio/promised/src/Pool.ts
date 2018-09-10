@@ -63,7 +63,7 @@ export class Pool<T = any> implements IDisposable {
 				const transformer = this; // tslint:disable-line
 				const consumer = await pool.acquires();
 				const worker = new Promise(async (resolve, reject) => {
-					await transform(chunk, consumer, transformer.push);
+					await transform(chunk, consumer, transformer.push.bind(transformer));
 					resolve();
 				}).catch(err => { }).then(() => pool.release(consumer));
 				workers.push(worker);
