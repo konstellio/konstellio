@@ -4,9 +4,9 @@ import { lstree } from "./lstree";
 import { Transform } from "stream";
 
 export function copy(
-	fsSource: FileSystem | FileSystemPool,
+	fsSource: FileSystem,
 	source: string,
-	fsDestination: FileSystem | FileSystemPool,
+	fsDestination: FileSystem,
 	destination: string
 ) {
 	if (fsSource === fsDestination && !(fsSource instanceof FileSystemPool)) {
