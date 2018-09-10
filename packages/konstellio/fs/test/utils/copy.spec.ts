@@ -6,7 +6,7 @@ import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { copy } from '../../src';
+import { copy, FileSystemPool } from '../../src';
 
 describe('copy', () => {
 
@@ -29,27 +29,40 @@ describe('copy', () => {
 	it('copy file', async () => {
 		await new Promise((resolve, reject) => {
 			const t = copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
-			t.on('finish', resolve);
+			t.on('end', resolve);
 			t.on('error', reject);
 			t.on('data', chunk => {
-				// console.log('copy', ...chunk);
+				// console.log('copy', chunk[0], chunk[1], ((chunk[3] / chunk[4]) * 100).toFixed(2));
 			});
 		});
 
-		expect(false).to.equal(true);
+		// TODO: validate copy of file
 	});
 
 	it('copy directory', async () => {
 		await new Promise((resolve, reject) => {
 			const t = copy(fsA, 'Griffin', fsB, 'Family-Guys');
-			t.on('finish', resolve);
+			t.on('end', resolve);
 			t.on('error', reject);
 			t.on('data', chunk => {
-				// console.log('copy', ...chunk);
+				// console.log('copy', chunk[0], chunk[1], ((chunk[3] / chunk[4]) * 100).toFixed(2));
 			});
 		});
 
-		expect(false).to.equal(true);
+		// TODO: validate copy of directory
+	});
+
+	it('copy parallel directory', async () => {
+		await new Promise((resolve, reject) => {
+			const t = copy(new FileSystemPool([fsA, fsA.clone()]), 'Griffin', new FileSystemPool([fsB, fsB.clone()]), 'Griffin copy');
+			t.on('end', resolve);
+			t.on('error', reject);
+			t.on('data', chunk => {
+				// console.log('copy', chunk[0], chunk[1], ((chunk[3] / chunk[4]) * 100).toFixed(2));
+			});
+		});
+
+		// TODO: validate copy of directory
 	});
 
 });
