@@ -25,9 +25,9 @@
   },
   "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
-    "@konstellio/disposable": "^0.x",
-    "@konstellio/eventemitter": "^0.x",
-    "@konstellio/mq": "^0.x",
+    "@konstellio/disposable": "^0.2.0",
+    "@konstellio/eventemitter": "^0.2.0",
+    "@konstellio/mq": "^0.2.0",
     "amqplib": "^0.5.2"
   },
   "devDependencies": {

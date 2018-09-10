@@ -25,10 +25,10 @@
   },
   "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
-    "@konstellio/disposable": "^0.x",
-    "@konstellio/eventemitter": "^0.x",
-    "@konstellio/fs": "^0.x",
-    "@konstellio/promised": "^0.x",
+    "@konstellio/disposable": "^0.2.0",
+    "@konstellio/eventemitter": "^0.2.0",
+    "@konstellio/fs": "^0.2.0",
+    "@konstellio/promised": "^0.2.0",
     "ssh2": "^0.6.1"
   },
   "devDependencies": {

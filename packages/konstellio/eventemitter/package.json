@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
-    "@konstellio/disposable": "0.x"
+    "@konstellio/disposable": "^0.2.0"
   },
   "devDependencies": {
     "@konstellio/disposable": "^0.2.0",
