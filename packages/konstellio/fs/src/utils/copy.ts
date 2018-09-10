@@ -55,7 +55,7 @@ export function copy(
 			await new Promise((resolve, reject) => {
 				writeStream.on('finish', resolve);
 				writeStream.on('error', reject);
-				readStream.on('data', chunk => {
+				readStream.on('data', (chunk: any) => {
 					transferedSize += chunk.length;
 					push([...entry, transferedSize, totalSize]);
 				});
