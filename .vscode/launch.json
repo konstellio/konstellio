@@ -25,7 +25,8 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/db-sqlite/test/**/*.ts"
+				"${workspaceFolder}/packages/konstellio/db-sqlite/test/**/*.ts",
+				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
@@ -43,7 +44,27 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/fs/test/**/*.spec.ts"
+				"${workspaceFolder}/packages/konstellio/fs/test/**/copy.spec.ts",
+				"--exit"
+			],
+			"internalConsoleOptions": "openOnSessionStart"
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Test @konstellio/fs-ftp",
+			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"-u",
+				"tdd",
+				"--timeout",
+				"999999",
+				"--colors",
+				"--require",
+				"ts-node/register",
+				"--full-trace",
+				"${workspaceFolder}/packages/konstellio/fs-ftp/test/**/*.ts",
+				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
@@ -61,7 +82,8 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/promised/test/**/*.ts"
+				"${workspaceFolder}/packages/konstellio/promised/test/**/*.ts",
+				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
@@ -79,7 +101,8 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/server/test/**/*.ts"
+				"${workspaceFolder}/packages/konstellio/server/test/**/*.ts",
+				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		}
