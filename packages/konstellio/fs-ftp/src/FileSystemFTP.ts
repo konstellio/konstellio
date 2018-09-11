@@ -192,9 +192,14 @@ export class FileSystemFTP extends FileSystem {
 					this.pool.release(token);
 					return;
 				}
-				stream.on('finish', () => this.pool.release(token));
-				stream.on('error', () => this.pool.release(token));
-				resolve(stream as Readable);
+				const transfer = new Transform({
+					transform(chunk, encode, done) {
+						done(undefined, chunk);
+					}
+				});
+				transfer.on('end', () => this.pool.release(token));
+				transfer.on('error', () => this.pool.release(token));
+				resolve(stream.pipe(transfer));
 			});
 		});
 	}

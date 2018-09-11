@@ -63,7 +63,7 @@ describe('FTP', () => {
 			const chunks: Buffer[] = [];
 			stream.on('error', err => reject(err));
 			stream.on('data', chunk => chunks.push(chunk as Buffer));
-			stream.on('close', () => resolve(Buffer.concat(chunks)));
+			stream.on('end', () => resolve(Buffer.concat(chunks)));
 		});
 
 		expect(data).to.be.an.instanceOf(Buffer);
@@ -86,7 +86,7 @@ describe('FTP', () => {
 			const chunks: Buffer[] = [];
 			readStream.on('error', err => reject(err));
 			readStream.on('data', chunk => chunks.push(chunk as Buffer));
-			readStream.on('close', () => resolve(Buffer.concat(chunks)));
+			readStream.on('end', () => resolve(Buffer.concat(chunks)));
 		});
 
 		expect(data).to.be.an.instanceOf(Buffer);
