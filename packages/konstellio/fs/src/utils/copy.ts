@@ -68,7 +68,7 @@ export function copy(
 			transform(entry, encoding, done) {
 				Promise.all([
 					fsSource.createReadStream(entry[0]),
-					fsDestination.createWriteStream(entry[1])
+					fsDestination.createWriteStream(entry[1], true)
 				])
 				.then(([readStream, writeStream]) => {
 					writeStream.on('close', done);
