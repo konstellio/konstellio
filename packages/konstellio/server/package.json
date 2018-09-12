@@ -3,9 +3,10 @@
   "name": "@konstellio/server",
   "version": "0.2.2",
   "description": "",
-  "main": "./dist/server.js",
-  "types": "./dist/server.d.ts",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
   "scripts": {
+    "prepublish": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --require ts-node/register --full-trace test/**/*.spec.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.spec.ts --exit",
