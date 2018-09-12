@@ -1,14 +1,14 @@
 {
   "private": true,
   "name": "blog",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "@konstellio/cache-memory": "^0.2.2",
-    "@konstellio/db-sqlite": "^0.2.2",
-    "@konstellio/fs-local": "^0.2.2",
-    "@konstellio/mq-memory": "^0.2.2",
-    "@konstellio/server": "^0.2.2"
+    "@konstellio/cache-memory": "^0.2.3",
+    "@konstellio/db-sqlite": "^0.2.3",
+    "@konstellio/fs-local": "^0.2.3",
+    "@konstellio/mq-memory": "^0.2.3",
+    "@konstellio/server": "^0.2.3"
   }
 }
