@@ -27,16 +27,16 @@ export function copy(
 	const createDirectories = new Transform({
 		objectMode: true,
 		highWaterMark: 1,
-		async transform(entry, encoding, done) {
+		transform(entry, encoding, done) {
 			if (entry[2].isFile) {
 				files.push(entry);
 				totalSize += entry[2].size;
+				done();
 			} else {
-				await fsDestination.createDirectory(entry[1], true);
+				fsDestination.createDirectory(entry[1], true).then(() => done(), done);
 			}
-			done();
 		},
-		async flush(done) {
+		flush(done) {
 			for (const file of files) {
 				this.push(file);
 			}
@@ -53,7 +53,7 @@ export function copy(
 			const writeStream = await fsDestination.createWriteStream(entry[1]);
 
 			await new Promise((resolve, reject) => {
-				writeStream.on('finish', resolve);
+				writeStream.on('close', resolve);
 				writeStream.on('error', reject);
 				readStream.on('data', (chunk: any) => {
 					transferedSize += chunk.length;
@@ -65,17 +65,20 @@ export function copy(
 		: new Transform({
 			objectMode: true,
 			highWaterMark: 1,
-			async transform(entry, encoding, done) {
-				const readStream = await fsSource.createReadStream(entry[0]);
-				const writeStream = await fsDestination.createWriteStream(entry[1]);
-
-				readStream.on('end', done);
-				readStream.on('error', done);
-				readStream.on('data', chunk => {
-					transferedSize += chunk.length;
-					this.push([...entry, transferedSize, totalSize]);
+			transform(entry, encoding, done) {
+				Promise.all([
+					fsSource.createReadStream(entry[0]),
+					fsDestination.createWriteStream(entry[1])
+				])
+				.then(([readStream, writeStream]) => {
+					writeStream.on('close', done);
+					writeStream.on('error', done);
+					readStream.on('data', chunk => {
+						transferedSize += chunk.length;
+						this.push([...entry, transferedSize, totalSize]);
+					});
+					readStream.pipe(writeStream);
 				});
-				readStream.pipe(writeStream);
 			}
 		});
 	return lstree(fsSource, source).pipe(mapDestination).pipe(createDirectories).pipe(copyFiles);
