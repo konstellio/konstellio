@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@konstellio/server",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
@@ -40,7 +40,7 @@
     "@konstellio/db-sqlite": "^0.2.3",
     "@konstellio/disposable": "^0.2.3",
     "@konstellio/eventemitter": "^0.2.3",
-    "@konstellio/fs": "^0.2.4",
+    "@konstellio/fs": "^0.2.5",
     "@konstellio/mq": "^0.2.3",
     "@types/chai-as-promised": "7.1.0",
     "@types/graphql": "^0.13.4",
