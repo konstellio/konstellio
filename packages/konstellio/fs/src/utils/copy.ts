@@ -43,7 +43,6 @@ export function copy(
 			done();
 		}
 	});
-	
 	const copyFiles = fsSource instanceof FileSystemPool
 		? fsSource.pool.transform({
 			objectMode: true,
@@ -53,6 +52,7 @@ export function copy(
 			const writeStream = await fsDestination.createWriteStream(entry[1]);
 
 			await new Promise((resolve, reject) => {
+				writeStream.on('end', resolve);
 				writeStream.on('close', resolve);
 				writeStream.on('error', reject);
 				readStream.on('data', (chunk: any) => {
@@ -71,6 +71,7 @@ export function copy(
 					fsDestination.createWriteStream(entry[1], true)
 				])
 				.then(([readStream, writeStream]) => {
+					writeStream.on('end', done);
 					writeStream.on('close', done);
 					writeStream.on('error', done);
 					readStream.on('data', chunk => {
