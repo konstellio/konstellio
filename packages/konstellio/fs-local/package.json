@@ -1,6 +1,6 @@
 {
   "name": "@konstellio/fs-local",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "",
   "main": "dist/FileSystemLocal.js",
   "types": "dist/FileSystemLocal.d.ts",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "@konstellio/disposable": "^0.2.3",
     "@konstellio/eventemitter": "^0.2.3",
-    "@konstellio/fs": "^0.2.5",
+    "@konstellio/fs": "^0.2.6",
     "@konstellio/promised": "^0.2.3",
     "@types/mkdirp": "^0.5.2",
     "@types/mocha": "^5.2.5",
