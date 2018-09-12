@@ -44,7 +44,7 @@
 				"--require",
 				"ts-node/register",
 				"--full-trace",
-				"${workspaceFolder}/packages/konstellio/fs/test/**/copy.spec.ts",
+				"${workspaceFolder}/packages/konstellio/fs/test/**/*.spec.ts",
 				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"

@@ -2,34 +2,49 @@ import { FileSystem, Stats } from "../FileSystem";
 import { Readable } from "stream";
 
 export function lstree(fs: FileSystem, path: string) {
-	const pathToList = [path];
+	const directories = [path];
 	let first = true;
+	let abort = false;
 	return new Readable({
 		objectMode: true,
 		highWaterMark: 1,
-		async read() {
-			if (first) {
-				const stat = await fs.stat(path);
-				this.push([path, stat]);
-				if (stat.isFile) {
-					this.push(null);
-				}
-				first = false;
-				return;
+		read(size) {
+			if (abort) {
+				return this.push(null);
 			}
-
-			if (pathToList.length === 0) {
-				this.push(null);
-			} else {
-				const path = pathToList.shift()!;
-				const pathEntries = await fs.readDirectory(path, true);
-				for (const entry of pathEntries) {
-					entry[0] = `${path}/${entry[0]}`;
-					this.push(entry);
-					if (!entry[1].isFile) {
-						pathToList.push(entry[0]);
+			if (first) {
+				fs.stat(path)
+				.then(stat => {
+					first = false;
+					if (stat.isFile) {
+						abort = true;
 					}
-				}
+					this.push([path, stat]);
+				})
+				.catch(err => {
+					abort = true;
+					this.emit('error', err);
+				});
+			}
+			else if (directories.length === 0) {
+				this.push(null);
+			}
+			else {
+				const path = directories.shift()!;
+				fs.readDirectory(path, true)
+				.then(entries => {
+					for (const entry of entries) {
+						entry[0] = `${path}/${entry[0]}`;
+						if (!entry[1].isFile) {
+							directories.push(entry[0]);
+						}
+						this.push(entry);
+					}
+				})
+				.catch(err => {
+					abort = true;
+					this.emit('error', err);
+				});
 			}
 		}
 	});
