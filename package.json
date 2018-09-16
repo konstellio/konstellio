@@ -9,7 +9,7 @@
     "test:local": "littletravis"
   },
   "devDependencies": {
-    "lerna": "^3.3.0",
+    "lerna": "^3.4.0",
     "littletravis": "^0.0.2"
   }
 }
