@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { IDisposableAsync } from '@konstellio/disposable';
 import { Readable, Writable, Transform } from 'stream';
-import { Pool } from '@konstellio/promised';
+import { Pool, Deferred } from '@konstellio/promised';
 
 export class Stats {
 
@@ -280,4 +280,87 @@ export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSyste
 			throw err;
 		}
 	}
+}
+
+export class FileSystemCache extends FileSystem {
+
+	private disposed: boolean;
+	private cache: Map<string, [number, Deferred<any>]>;
+
+	constructor(protected readonly fs: FileSystem, protected readonly ttl: number = 60000) {
+		super();
+		this.disposed = false;
+		this.cache = new Map();
+	}
+
+	isDisposed() {
+		return this.disposed;
+	}
+
+	async disposeAsync(): Promise<void> {
+		if (!this.isDisposed()) {
+			this.disposed = true;
+			(this as any).fs = undefined;
+			(this as any).cache = undefined;
+		}
+	}
+
+	clone() {
+		return new FileSystemCache(this.fs);
+	}
+
+	protected cacheOrCompute<T = any>(hash: string, compute: () => Promise<T>): Promise<T> {
+		const now = Date.now();
+		if (this.cache.has(hash)) {
+			const [expired, defer] = this.cache.get(hash)!;
+			if (expired >= now) {
+				return defer.promise as Promise<T>;
+			}
+		}
+		const defer = new Deferred<T>();
+		this.cache.set(hash, [now + this.ttl, defer]);
+
+		compute().then(res => defer.resolve(res));
+
+		return defer.promise;
+	}
+
+	stat(path: string): Promise<Stats> {
+		return this.cacheOrCompute(`stat:${path}`, () => this.fs.stat(path));
+	}
+
+	exists(path: string): Promise<boolean> {
+		return this.cacheOrCompute(`exists:${path}`, () => this.fs.exists(path));
+	}
+
+	unlink(path: string, recursive?: boolean): Promise<void> {
+		return this.fs.unlink(path, recursive);
+	}
+
+	copy(source: string, destination: string): Promise<void> {
+		return this.fs.copy(source, destination);
+	}
+
+	rename(oldPath: string, newPath: string): Promise<void> {
+		return this.fs.rename(oldPath, newPath);
+	}
+
+	readDirectory(path: string): Promise<string[]>;
+	readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
+	readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		return this.cacheOrCompute(`readdir:${path}`, () => this.fs.readDirectory(path, stat!));
+	}
+	
+	createDirectory(path: string, recursive?: boolean): Promise<void> {
+		return this.fs.createDirectory(path, recursive);
+	}
+
+	createReadStream(path: string): Promise<Readable> {
+		return this.fs.createReadStream(path);
+	}
+
+	createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
+		return this.fs.createWriteStream(path, overwrite);
+	}
+
 }
