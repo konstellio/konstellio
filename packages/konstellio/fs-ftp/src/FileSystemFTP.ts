@@ -205,9 +205,9 @@ export class FileSystemFTP extends FileSystem {
 	}
 
 	async createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
-		const exists = await this.exists(path);
-		if (exists) {
-			if (overwrite !== true) {
+		if (overwrite !== true) {
+			const exists = await this.exists(path);
+			if (exists) {
 				throw new FileAlreadyExists();
 			}
 		}
@@ -223,7 +223,9 @@ export class FileSystemFTP extends FileSystem {
 		});
 
 		return new Promise<Writable>((resolve) => {
-			conn.put(stream, normalizePath(path), () => this.pool.release(token));
+			conn.put(stream, normalizePath(path), (err) => {
+				this.pool.release(token);
+			});
 			resolve(stream);
 		});
 	}
