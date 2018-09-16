@@ -320,7 +320,7 @@ export class FileSystemCache extends FileSystem {
 		const defer = new Deferred<T>();
 		this.cache.set(hash, [now + this.ttl, defer]);
 
-		compute().then(res => defer.resolve(res));
+		compute().then(res => defer.resolve(res)).catch(err => defer.reject(err));
 
 		return defer.promise;
 	}
