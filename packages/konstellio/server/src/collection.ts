@@ -442,10 +442,6 @@ export class Structure<I, O extends CollectionType> extends Collection<I, O> {
 
 }
 
-export class Single<I, O extends CollectionType> extends Collection<I, O> {
-	
-}
-
 export function createCollections(driver: Database, schema: DataSchema, ast: DocumentNode, locales: Locales): Collection<any, any>[] {
 	const collections: Collection<any, any>[] = [];
 
@@ -464,9 +460,6 @@ export function createCollections(driver: Database, schema: DataSchema, ast: Doc
 		}
 		else if (type === 'structure') {
 			collections.push(new Structure(driver, locales, ast, node));
-		}
-		else if (type === 'single') {
-			collections.push(new Single(driver, locales, ast, node));
 		}
 		else {
 			throw new SyntaxError(`Collection ${collection.handle} is of unknown type ${type}.`);
@@ -493,8 +486,7 @@ export function createTypeExtensionsFromDefinitions(ast: DocumentNode, locales: 
 			// @ts-ignore
 			const collectionClass = {
 				collection: Collection,
-				structure: Structure,
-				single: Single
+				structure: Structure
 			}[type] as typeof Collection;
 
 			const extension = collectionClass.createTypeExtension(ast, node);
