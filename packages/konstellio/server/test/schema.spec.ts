@@ -2,7 +2,7 @@ import "mocha";
 import { expect, should } from "chai";
 import { createSchemaFromDefinitions } from "../src/utilities/migration";
 import { parse } from "graphql";
-import { ColumnType } from "@konstellio/db/src";
+import { ColumnType } from "@konstellio/db";
 should();
 
 describe("Schema", () => {
@@ -300,7 +300,6 @@ describe("Schema", () => {
 		});
 
 		it('localized field', async () => {
-
 			const locales = { en: 'English', fr: 'French' };
 			const definitions = parse(`
 				type CollectionA
@@ -319,24 +318,24 @@ describe("Schema", () => {
 				}
 			`);
 			const schema = await createSchemaFromDefinitions(definitions, locales, false);
-
-			debugger;
 			
-		// 	expect(schema.collections.length).to.equal(2);
-		// 	expect(schema.collections[0].handle).to.equal('CollectionA');
-		// 	expect(schema.collections[0].indexes.length).to.equal(0);
-		// 	expect(schema.collections[0].fields.length).to.equal(1);
-		// 	expect(schema.collections[0].fields[0].handle).to.equal('id');
-		// 	expect(schema.collections[0].fields[0].type).to.equal(ColumnType.Text);
-		// 	expect(schema.collections[1].handle).to.equal('CollectionB');
-		// 	expect(schema.collections[1].indexes.length).to.equal(0);
-		// 	expect(schema.collections[1].fields.length).to.equal(3);
-		// 	expect(schema.collections[1].fields[0].handle).to.equal('id');
-		// 	expect(schema.collections[1].fields[0].type).to.equal(ColumnType.Text);
-		// 	expect(schema.collections[1].fields[1].handle).to.equal('title__en');
-		// 	expect(schema.collections[1].fields[1].type).to.equal(ColumnType.Text);
-		// 	expect(schema.collections[1].fields[2].handle).to.equal('title__fr');
-		// 	expect(schema.collections[1].fields[2].type).to.equal(ColumnType.Text);
+			expect(schema.collections.length).to.equal(2);
+			expect(schema.collections[0].handle).to.equal('CollectionA');
+			expect(schema.collections[0].indexes.length).to.equal(0);
+			expect(schema.collections[0].fields.length).to.equal(1);
+			expect(schema.collections[0].fields[0].handle).to.equal('id');
+			expect(schema.collections[0].fields[0].type).to.equal(ColumnType.Text);
+			expect(schema.collections[1].handle).to.equal('CollectionB');
+			expect(schema.collections[1].indexes.length).to.equal(0);
+			expect(schema.collections[1].fields.length).to.equal(4);
+			expect(schema.collections[1].fields[0].handle).to.equal('id');
+			expect(schema.collections[1].fields[0].type).to.equal(ColumnType.Text);
+			expect(schema.collections[1].fields[1].handle).to.equal('title__en');
+			expect(schema.collections[1].fields[1].type).to.equal(ColumnType.Text);
+			expect(schema.collections[1].fields[2].handle).to.equal('title__fr');
+			expect(schema.collections[1].fields[2].type).to.equal(ColumnType.Text);
+			expect(schema.collections[1].fields[3].handle).to.equal('subtype');
+			expect(schema.collections[1].fields[3].type).to.equal(ColumnType.Text);
 		});
 	});
 
