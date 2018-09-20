@@ -51,7 +51,9 @@ describe('Database', () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					title: String!
@@ -92,7 +94,9 @@ describe('Database', () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					title: String! @localized
@@ -156,7 +160,9 @@ describe('Database', () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					title: String!
@@ -183,7 +189,9 @@ describe('Database', () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_id", type: "primary", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					title: String! @localized

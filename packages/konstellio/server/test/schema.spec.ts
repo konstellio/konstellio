@@ -67,7 +67,9 @@ describe("Schema", () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_Primary", type: "primary", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_Primary", type: "primary", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 				}
@@ -88,7 +90,9 @@ describe("Schema", () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_Sparse", type: "index", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_Sparse", type: "index", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 				}
@@ -109,7 +113,9 @@ describe("Schema", () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_Unique", type: "unique", fields: [{ field: "id", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_Unique", type: "unique", fields: [{ field: "id", direction: "asc" }] }
+				])
 				{
 					id: ID!
 				}
@@ -130,7 +136,9 @@ describe("Schema", () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_Sparse", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "date", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_Sparse", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "date", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					date: Date!
@@ -154,8 +162,10 @@ describe("Schema", () => {
 			const definitions = parse(`
 				type CollectionA
 				@collection
-				@index(handle: "CollectionA_SparseA", type: "index", fields: [{ field: "id", direction: "asc" }])
-				@index(handle: "CollectionA_SparseB", type: "index", fields: [{ field: "date", direction: "asc" }])
+				@indexes(indexes: [
+					{ handle: "CollectionA_SparseA", type: "index", fields: [{ field: "id", direction: "asc" }] },
+					{ handle: "CollectionA_SparseB", type: "index", fields: [{ field: "date", direction: "asc" }] }
+				])
 				{
 					id: ID!
 					date: Date!

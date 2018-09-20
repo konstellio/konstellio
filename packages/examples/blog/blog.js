@@ -14,7 +14,9 @@ module.exports = {
 			}
 
 			extend type User
-			@index(handle: "User_birthday", type: "index", fields: [{ field: "birthday", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "User_birthday", type: "index", fields: [{ field: "birthday", direction: "asc" }] }
+			])
 			{
 				birthday: Date
 				displayName: String! @computed
@@ -34,7 +36,9 @@ module.exports = {
 
 			type Post
 			@collection
-			@index(handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }] }
+			])
 			{
 				id: ID!
 				title: String! @localized

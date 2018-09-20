@@ -140,46 +140,49 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 
 	function transformDirectivesToIndexes(directives: ReadonlyArray<DirectiveNode> | undefined, fields: ReadonlyArray<FieldDefinitionNode> | undefined): Index[] {
 		return (directives || []).reduce((indexes, directive) => {
-			if (directive.name.value === 'index') {
+			if (directive.name.value === 'indexes') {
 				const args = getArgumentsValues(directive.arguments);
-				assert(typeof args.handle === 'string', 'Expected field @index.handle of type string.');
-				assert(typeof args.type === 'string', 'Expected field @index.type of type string.');
-				assert(['primary', 'unique', 'index'].indexOf(args.type) > -1, 'Expected field @index.type to be either "primary", "unique" or "index".');
-				assert(args.fields && isArray(args.fields), 'Expected field @index.fields of type array.');
-				(args.fields as IndexField[] || []).forEach(field => {
-					assert(typeof field.field === 'string', 'Expected field @index.fields[].field of type string');
-					assert(['asc', 'desc'].indexOf(field.direction || '') > -1, 'Expected field @index.fields[].direction to be either "asc" or "desc".');
-				});
-				const localized = (args.fields as IndexField[]).reduce((localize, field) => {
-					const fieldNode = (fields || []).find(f => f.name.value === field.field);
-					if (fieldNode) {
-						const directives = fieldNode.directives || [];
-						const localized = directives.find(directive => directive.name.value === 'localized') !== undefined;
-						if (localized) {
-							localize.push(field.field);
+				assert(args.indexes && isArray(args.indexes), 'Expected field @indexes.indexes of type array.');
+				args.indexes.forEach((index: Index) => {
+					assert(typeof index.handle === 'string', 'Expected field @indexes.handle of type string.');
+					assert(typeof index.type === 'string', 'Expected field @indexes.type of type string.');
+					assert(['primary', 'unique', 'index'].indexOf(index.type) > -1, 'Expected field @indexes.type to be either "primary", "unique" or "index".');
+					assert(index.fields && isArray(index.fields), 'Expected field @indexes.fields of type array.');
+					(index.fields as IndexField[] || []).forEach(field => {
+						assert(typeof field.field === 'string', 'Expected field @indexes.fields[].field of type string');
+						assert(['asc', 'desc'].indexOf(field.direction || '') > -1, 'Expected field @indexes.fields[].direction to be either "asc" or "desc".');
+					});
+					const localized = (index.fields as IndexField[]).reduce((localize, field) => {
+						const fieldNode = (fields || []).find(f => f.name.value === field.field);
+						if (fieldNode) {
+							const directives = fieldNode.directives || [];
+							const localized = directives.find(directive => directive.name.value === 'localized') !== undefined;
+							if (localized) {
+								localize.push(field.field);
+							}
 						}
-					}
-					return localize;
-				}, [] as string[]);
+						return localize;
+					}, [] as string[]);
 
-				if (localized.length > 0) {
-					Object.keys(locales).forEach(code => {
-						indexes.push({
-							handle: `${args.handle}__${code}`,
-							type: args.type as IndexType,
-							fields: (args.fields as IndexField[]).map(field => ({
-								field: localized.includes(field.field) ? `${field.field}__${code}` : field.field,
-								direction: field.direction
-							}))
+					if (localized.length > 0) {
+						Object.keys(locales).forEach(code => {
+							indexes.push({
+								handle: `${index.handle}__${code}`,
+								type: index.type as IndexType,
+								fields: (index.fields as IndexField[]).map(field => ({
+									field: localized.includes(field.field) ? `${field.field}__${code}` : field.field,
+									direction: field.direction
+								}))
+							});
 						});
-					});
-				} else {
-					indexes.push({
-						handle: args.handle,
-						type: args.type as IndexType,
-						fields: args.fields as IndexField[]
-					});
-				}
+					} else {
+						indexes.push({
+							handle: index.handle,
+							type: index.type as IndexType,
+							fields: index.fields as IndexField[]
+						});
+					}
+				});
 			}
 			return indexes;
 		}, [] as Index[]);

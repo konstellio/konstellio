@@ -68,7 +68,9 @@ describe("Collection", () => {
 
 			type User
 			@collection
-			@index(handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }] }
+			])
 			{
 				id: ID!
 				username: String!
@@ -86,7 +88,9 @@ describe("Collection", () => {
 
 			type Post
 			@collection
-			@index(handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }] }
+			])
 			{
 				id: ID!
 				title: String! @localized

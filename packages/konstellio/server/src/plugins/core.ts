@@ -8,13 +8,46 @@ export default {
 			scalar Date
 			scalar DateTime
 
+			directive @collection(
+				type: String
+			) on OBJECT | ENUM | UNION
+
+			enum DirectiveIndexType {
+				primary
+				index
+				unique
+			}
+			enum DirectiveIndexFieldDirection {
+				asc
+				desc
+			}
+			input DirectiveIndexField {
+				field: String!
+				direction: DirectiveIndexFieldDirection
+			}
+			input DirectiveIndex {
+				handle: String!
+				type: DirectiveIndexType!
+				fields: [DirectiveIndexField]!
+			}
+			directive @indexes(
+				indexes: [DirectiveIndex!]!
+			) on OBJECT | ENUM | UNION
+
+			directive @localized on FIELD_DEFINITION
+			directive @computed on FIELD_DEFINITION
+			directive @hidden on FIELD_DEFINITION
+			directive @inlined on FIELD_DEFINITION
+
 			enum Group {
 				Guest
 			}
 
 			type User
 			@collection
-			@index(handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }] }
+			])
 			{
 				id: ID!
 				username: String!

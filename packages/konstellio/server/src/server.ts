@@ -176,9 +176,8 @@ export class Server implements IDisposableAsync {
 			}
 		}
 
-		// TODO: Create collections with mergedAST
+		// Create collections with mergedAST
 		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales);
-		debugger;
 
 		// Create input type from definitions
 		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);

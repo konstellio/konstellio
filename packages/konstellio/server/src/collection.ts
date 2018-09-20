@@ -429,7 +429,9 @@ export class Structure<I, O extends CollectionType> extends Collection<I, O> {
 
 		function extendObjectType(node: ObjectTypeDefinitionNode) {
 			return `extend type ${node.name.value}
-			@index(handle: "${node.name.value}_struct", type: "index", fields: [{ field: "parent", direction: "asc" }, { field: "order", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "${node.name.value}_struct", type: "index", fields: [{ field: "parent", direction: "asc" }, { field: "order", direction: "asc" }] }
+			])
 			{
 				parent: ${node.name.value} @inlined
 				left: Int @hidden
@@ -744,10 +746,12 @@ export function createTypeExtensionsFromDatabaseDriver(driver: Database, locales
 		return `
 			type Relation
 			@collection
-			@index(handle: "Relation_collection", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }])
-			@index(handle: "Relation_field", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }, { field: "field", direction: "asc" }])
-			@index(handle: "Relation_source", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "source", direction: "asc" }, { field: "seq", direction: "asc" }])
-			@index(handle: "Relation_target", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "target", direction: "asc" }])
+			@indexes(indexes: [
+				{ handle: "Relation_collection", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }] },
+				{ handle: "Relation_field", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "collection", direction: "asc" }, { field: "field", direction: "asc" }] },
+				{ handle: "Relation_source", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "source", direction: "asc" }, { field: "seq", direction: "asc" }] },
+				{ handle: "Relation_target", type: "index", fields: [{ field: "id", direction: "asc" }, { field: "target", direction: "asc" }] }
+			])
 			{
 				id: ID!
 				collection: String!
