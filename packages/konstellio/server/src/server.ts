@@ -15,6 +15,7 @@ import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDif
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
 import { AddressInfo } from 'net';
+import { Server as WebSocketServer } from 'ws';
 
 export enum ServerListenMode {
 	All = ~(~0 << 2),
@@ -222,17 +223,28 @@ export class Server implements IDisposableAsync {
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
 		
+		const app = fastify();
 		if (mode & ServerListenMode.Graphql) {
-			const app = fastify();
-			app.get('/', async (_, res) => {
+			app.get('/', async (req, res) => {
+				console.log(req.ip);
 				res.send({
 					mode,
 					plugins: this.plugins
 				});
 			});
 
-			// TODO: Auth => https://github.com/fastify/fastify-cookie/blob/master/plugin.js
-			// TODO: Create a websocker server => https://github.com/fastify/fastify-websocket/blob/master/index.js
+			app.decorateRequest('user', undefined);
+			app.addHook('preHandler', async (req, res) => {
+				const authorization = req.req.headers['authorization'];
+				if (authorization && authorization.substr(0, 6) === 'Bearer') {
+					const token = authorization.substr(7);
+					if (this.cache.has(`token:${token}`)) {
+						req.user = (await this.cache.get(`token:${token}`)).toString();
+						return;
+					}
+				}
+				req.user = undefined;
+			});
 
 			app.route({
 				method: ['GET', 'POST'],
@@ -240,6 +252,7 @@ export class Server implements IDisposableAsync {
 				async handler(req, res) {
 					// TODO: Build schema for this request & cache it
 					try {
+						// https://github.com/nfishe/fastify-apollo/blob/master/graphql.js
 						const result = await runHttpQuery([req, res], {
 							method: 'POST',
 							options: {
@@ -260,24 +273,32 @@ export class Server implements IDisposableAsync {
 					}
 				}
 			});
-
-			await new Promise((resolve, reject) => {
-				app.listen(
-					this.config.http && this.config.http.port || 8080,
-					this.config.http && this.config.http.host || '127.0.0.1',
-					(err) => {
-						if (err) return reject(err);
-						const addr = app.server.address() as AddressInfo;
-						status.family = addr.family;
-						status.address = addr.address;
-						status.port = addr.port;
-						resolve();
-					}
-				);
-			});
-
-			this.server = app;
 		}
+
+		if (mode && ServerListenMode.Websocket) {
+			// https://github.com/websockets/ws/blob/master/doc/ws.md
+			const websocketServer = new WebSocketServer({
+				server: app.server
+			});
+			app.decorateRequest('websocket', websocketServer);
+		}
+
+		await new Promise((resolve, reject) => {
+			app.listen(
+				this.config.http && this.config.http.port || 8080,
+				this.config.http && this.config.http.host || '127.0.0.1',
+				(err) => {
+					if (err) return reject(err);
+					const addr = app.server.address() as AddressInfo;
+					status.family = addr.family;
+					status.address = addr.address;
+					status.port = addr.port;
+					resolve();
+				}
+			);
+		});
+
+		this.server = app;
 
 		return status;
 	}
