@@ -4,8 +4,7 @@ import { FileSystem } from '@konstellio/fs';
 import { MessageQueue } from '@konstellio/mq';
 import { IDisposableAsync } from '@konstellio/disposable';
 import * as assert from 'assert';
-import * as fastify from 'fastify';
-import { runHttpQuery } from 'apollo-server-core';
+import { ApolloServer } from 'apollo-server';
 import { Plugin } from './plugin';
 import CorePlugin from './plugins/core';
 import { parse } from 'graphql';
@@ -14,26 +13,15 @@ import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
-import { AddressInfo } from 'net';
-import { Server as WebSocketServer } from 'ws';
-
-export enum ServerListenMode {
-	All = ~(~0 << 2),
-	Graphql = 1 << 0,
-	Websocket = 2 << 0,
-	Worker = 3 << 1
-}
 
 export interface ServerListenOptions {
 	skipMigration?: boolean;
-	mode?: ServerListenMode;
 }
 
 export interface ServerListenStatus {
-	mode: ServerListenMode;
 	family?: string;
 	address?: string;
-	port?: number;
+	port?: number | string;
 }
 
 export interface ServerConfig {
@@ -45,6 +33,9 @@ export interface ServerConfig {
 	http?: {
 		host?: string
 		port?: number
+		sslKey?: string
+		sslCert?: string
+		http2?: boolean
 	};
 	plugins?: string[];
 }
@@ -71,7 +62,6 @@ export class Server implements IDisposableAsync {
 
 	private disposed: boolean;
 	private plugins: Plugin[];
-	private server: fastify.FastifyInstance | undefined;
 
 	protected fs: FileSystem;
 	protected db: Database;
@@ -112,14 +102,13 @@ export class Server implements IDisposableAsync {
 		this.plugins.push(plugin);
 	}
 
-	async listen({ skipMigration, mode }: ServerListenOptions = {}): Promise<ServerListenStatus> {
+	async listen({ skipMigration }: ServerListenOptions = {}): Promise<ServerListenStatus> {
 		if (this.isDisposed()) {
 			throw new Error(`Can not call Server.listen on a disposed server.`);
 		}
 
 		skipMigration = !!skipMigration;
-		mode = mode || ServerListenMode.All;
-		const status: ServerListenStatus = { mode };
+		const status: ServerListenStatus = { };
 
 		await this.db.connect();
 		await this.cache.connect();
@@ -222,85 +211,25 @@ export class Server implements IDisposableAsync {
 		const extendedSchema = transformSchema(baseSchema, [
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
-		
-		const app = fastify();
-		if (mode & ServerListenMode.Graphql) {
-			app.get('/', async (req, res) => {
-				console.log(req.ip);
-				res.send({
-					mode,
-					plugins: this.plugins
-				});
-			});
 
-			app.decorateRequest('user', undefined);
-			app.addHook('preHandler', async (req, res) => {
-				const authorization = req.req.headers['authorization'];
-				if (authorization && authorization.substr(0, 6) === 'Bearer') {
-					const token = authorization.substr(7);
-					if (this.cache.has(`token:${token}`)) {
-						req.user = (await this.cache.get(`token:${token}`)).toString();
-						return;
-					}
-				}
-				req.user = undefined;
-			});
+		// TODO : Transform schema ondemand for permission https://www.apollographql.com/docs/graphql-tools/schema-transforms.html
+		// TODO : PubSub from @konstellio/cache; implements https://github.com/apollographql/graphql-subscriptions/blob/master/src/pubsub-engine.ts
+		// like https://github.com/davidyaha/graphql-mqtt-subscriptions/blob/master/src/mqtt-pubsub.ts
 
-			app.route({
-				method: ['GET', 'POST'],
-				url: '/graphql',
-				async handler(req, res) {
-					// TODO: Build schema for this request & cache it
-					try {
-						// https://github.com/nfishe/fastify-apollo/blob/master/graphql.js
-						const result = await runHttpQuery([req, res], {
-							method: 'POST',
-							options: {
-								schema: extendedSchema as any
-							},
-							query: req.body || req.query
-						});
-						// res.header('Content-Length', Buffer.byteLength(result, 'utf8').toString()); // FIXME: Required ?
-						res.send(JSON.parse(result));
-					} catch (error) {
-						if (error.name === 'HttpQueryError') {
-							for (const key in error.headers) {
-								res.header(key, error.headers[key]);
-							}
-							// res.code(error.statusCode); // FIXME: Required ?
-							res.send(JSON.parse(error.message));
-						}
-					}
-				}
-			});
-		}
-
-		if (mode && ServerListenMode.Websocket) {
-			// https://github.com/websockets/ws/blob/master/doc/ws.md
-			const websocketServer = new WebSocketServer({
-				server: app.server
-			});
-			app.decorateRequest('websocket', websocketServer);
-		}
-
-		await new Promise((resolve, reject) => {
-			app.listen(
-				this.config.http && this.config.http.port || 8080,
-				this.config.http && this.config.http.host || '127.0.0.1',
-				(err) => {
-					if (err) return reject(err);
-					const addr = app.server.address() as AddressInfo;
-					status.family = addr.family;
-					status.address = addr.address;
-					status.port = addr.port;
-					resolve();
-				}
-			);
+		const apollo = new ApolloServer({
+			schema: extendedSchema
 		});
 
-		this.server = app;
+		const info = await apollo.listen(
+			this.config.http && this.config.http.port || 8080,
+			this.config.http && this.config.http.host || '127.0.0.1'
+		);
 
-		return status;
+		return {
+			family: info.family,
+			address: info.address || '127.0.0.1',
+			port: info.port || 8080
+		};
 	}
 }
 

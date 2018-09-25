@@ -66,6 +66,13 @@ export default {
 				modification: DateTime!
 			}
 
+			type LoginResponse {
+				token: String!
+			}
+			type LogoutResponse {
+				acknowledge: Boolean!
+			}
+
 			type Query {
 				me: User!
 			}
@@ -76,11 +83,8 @@ export default {
 				createUser(data: UserInput): Boolean
 			}
 
-			type LoginResponse {
-				token: String!
-			}
-			type LogoutResponse {
-				acknowledge: Boolean!
+			type Subscription {
+
 			}
 		`;
 	},

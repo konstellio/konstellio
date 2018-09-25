@@ -13,6 +13,10 @@ module.exports = {
 				createPost(data: PostInput): Boolean
 			}
 
+			extend type Subscription {
+				postAdded: Post
+			}
+
 			extend type User
 			@indexes(indexes: [
 				{ handle: "User_birthday", type: "index", fields: [{ field: "birthday", direction: "asc" }] }
@@ -95,6 +99,13 @@ module.exports = {
 							content: []
 						}
 					}]
+				}
+			},
+			Subscription: {
+				postAdded: {
+					subscribe(...args) {
+						console.log(args);
+					}
 				}
 			},
 			User: {
