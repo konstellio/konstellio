@@ -82,10 +82,6 @@ export default {
 				logout: LogoutResponse
 				createUser(data: UserInput): Boolean
 			}
-
-			type Subscription {
-
-			}
 		`;
 	},
 

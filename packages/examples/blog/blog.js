@@ -13,7 +13,7 @@ module.exports = {
 				createPost(data: PostInput): Boolean
 			}
 
-			extend type Subscription {
+			type Subscription {
 				postAdded: Post
 			}
 
@@ -103,9 +103,30 @@ module.exports = {
 			},
 			Subscription: {
 				postAdded: {
-					subscribe(...args) {
-						console.log(args);
+					subscribe(_, {}, { pubsub }) {
+						return pubsub.asyncIterator(['post_added']);
 					}
+				}
+			},
+			Mutation: {
+				createPost: (_, args, { pubsub }) => {
+					pubsub.publish('post_added', {
+						postAdded: {
+							id: 'id',
+							title: 'Titre',
+							slug: 'titre',
+							postDate: '2018-04-28 00:00:00',
+							author: {
+								id: 'bleh',
+								username: 'mgrenier',
+								group: 'Author',
+								birthday: '1986-03-17'
+							},
+							contributors: [],
+							content: []
+						}
+					});
+					return false;
 				}
 			},
 			User: {
