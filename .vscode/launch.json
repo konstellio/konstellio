@@ -105,6 +105,25 @@
 				"--exit"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Test @konstellio/mq",
+			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"-u",
+				"tdd",
+				"--timeout",
+				"999999",
+				"--colors",
+				"--require",
+				"ts-node/register",
+				"--full-trace",
+				"${workspaceFolder}/packages/konstellio/mq/test/**/*.spec.ts",
+				"--exit"
+			],
+			"internalConsoleOptions": "openOnSessionStart"
 		}
 	]
 }
