@@ -12,7 +12,6 @@ import { mergeAST } from './utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
-import { MQPubSub } from './utilities/pubsub';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
 
 export interface ServerListenOptions {
@@ -215,13 +214,10 @@ export class Server implements IDisposableAsync {
 
 		// TODO : Transform schema ondemand for permission https://www.apollographql.com/docs/graphql-tools/schema-transforms.html
 
-		const pubsub = new MQPubSub(this.mq);
-
 		const apollo = new ApolloServer({
 			schema: extendedSchema,
 			context: async () => {
 				return {
-					pubsub,
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,

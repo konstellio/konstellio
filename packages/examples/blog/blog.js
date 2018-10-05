@@ -103,14 +103,14 @@ module.exports = {
 			},
 			Subscription: {
 				postAdded: {
-					subscribe(_, {}, { pubsub }) {
-						return pubsub.asyncIterator(['post_added']);
+					subscribe(_, {}, { mq }) {
+						return mq.subscribeIterator('post_added');
 					}
 				}
 			},
 			Mutation: {
-				createPost: (_, args, { pubsub }) => {
-					pubsub.publish('post_added', {
+				createPost: (_, args, { mq }) => {
+					mq.publish('post_added', {
 						postAdded: {
 							id: 'id',
 							title: 'Titre',
