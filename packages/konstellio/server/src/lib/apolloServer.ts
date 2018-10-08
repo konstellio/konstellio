@@ -51,26 +51,17 @@ export class ApolloServer extends ApolloServerBase {
 		path = path || '/graphql';
 
 		if (!disableHealthCheck) {
-			const healthCheckSchema = {
-				body: {
-					type: 'object',
-					properties: {
-						status: { type: 'string' }
-					}
-				}
-			};
-			
 			// uses same path as engine proxy, but is generally useful.
-			app.get('/.well-known/apollo/server-health', { schema: healthCheckSchema }, (req, res) => {
+			app.get('/.well-known/apollo/server-health', (req, res) => {
 				// Response follows https://tools.ietf.org/html/draft-inadarei-api-health-check-01
 				res.type('application/health+json');
 				
 				if (onHealthCheck) {
 					onHealthCheck(req)
-						.then(() => res.send({ status: 'pass' }))
-						.catch(() => res.status(503).send({ status: 'pass' }));
+						.then(() => res.send(JSON.stringify({ status: 'pass' })))
+						.catch(() => res.status(503).send(JSON.stringify({ status: 'fail' })));
 				} else {
-					res.send({ status: 'pass' });
+					res.send(JSON.stringify({ status: 'pass' }));
 				}
 			});
 		}
