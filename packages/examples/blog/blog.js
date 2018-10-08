@@ -113,8 +113,8 @@ module.exports = {
 					mq.publish('post_added', {
 						postAdded: {
 							id: 'id',
-							title: 'Titre',
-							slug: 'titre',
+							title: args.data.title.en,
+							slug: args.data.slug.en,
 							postDate: '2018-04-28 00:00:00',
 							author: {
 								id: 'bleh',

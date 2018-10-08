@@ -4,7 +4,8 @@ import { FileSystem } from '@konstellio/fs';
 import { MessageQueue } from '@konstellio/mq';
 import { IDisposableAsync } from '@konstellio/disposable';
 import * as assert from 'assert';
-import { ApolloServer } from 'apollo-server';
+import { ApolloServer } from './lib/apolloServer';
+import * as fastify from 'fastify';
 import { Plugin } from './plugin';
 import CorePlugin from './plugins/core';
 import { parse } from 'graphql';
@@ -13,6 +14,7 @@ import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
+import { AddressInfo } from 'net';
 
 export interface ServerListenOptions {
 	skipMigration?: boolean;
@@ -212,12 +214,12 @@ export class Server implements IDisposableAsync {
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
 
-		// TODO : Transform schema ondemand for permission https://www.apollographql.com/docs/graphql-tools/schema-transforms.html
+		// TODO : Fastify Apollo Server...
 
 		const apollo = new ApolloServer({
 			schema: extendedSchema,
 			context: async () => {
-				return {
+				return { 
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,
@@ -226,16 +228,19 @@ export class Server implements IDisposableAsync {
 			}
 		});
 
-		const info = await apollo.listen(
+		const app = fastify();
+		apollo.applyMiddleware({ app });
+		apollo.installSubscriptionHandlers(app.server);
+
+		const info = await app.listen(
 			this.config.http && this.config.http.port || 8080,
 			this.config.http && this.config.http.host || '127.0.0.1'
-		);
+		).then(() => {
+			const { family, address, port } = app.server.address() as AddressInfo;
+			return { family, address, port };
+		});
 
-		return {
-			family: info.family,
-			address: info.address || '127.0.0.1',
-			port: info.port || 8080
-		};
+		return info;
 	}
 }
 
