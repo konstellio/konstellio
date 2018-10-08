@@ -4,7 +4,7 @@ import { FileSystem } from '@konstellio/fs';
 import { MessageQueue } from '@konstellio/mq';
 import { IDisposableAsync } from '@konstellio/disposable';
 import * as assert from 'assert';
-import { ApolloServer } from './lib/apolloServer';
+import { ApolloServer, Request, Response } from './lib/apolloServer';
 import * as fastify from 'fastify';
 import { Plugin } from './plugin';
 import CorePlugin from './plugins/core';
@@ -218,8 +218,10 @@ export class Server implements IDisposableAsync {
 
 		const apollo = new ApolloServer({
 			schema: extendedSchema,
-			context: async () => {
-				return { 
+			context: async ({ req, res }: { req: Request, res: Response }) => {
+				// TODO : user https://github.com/konstellio/konstellio/blob/v0.3/packages/konstellio/server/src/server.ts#L238
+				// TODO : schema ?
+				return {
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,
