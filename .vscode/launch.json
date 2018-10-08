@@ -8,7 +8,7 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Launch examples/blog",
-			"preLaunchTask": "compile-konstellio-server",
+			"preLaunchTask": "Compile server",
 			"program": "${workspaceFolder}/packages/examples/blog/index.js"
 		},
 		{
