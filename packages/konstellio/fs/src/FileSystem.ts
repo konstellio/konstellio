@@ -282,12 +282,19 @@ export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSyste
 	}
 }
 
-export class FileSystemCache extends FileSystem {
+export interface FileSystemCacheable {
+	flushCache(): Promise<void>;
+	setTTL(ttl: number): void;
+}
 
+export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 	private disposed: boolean;
 	private cache: Map<string, [number, Deferred<any>]>;
 
-	constructor(protected readonly fs: FileSystem, protected readonly ttl: number = 60000) {
+	constructor(
+		protected readonly fs: FileSystem,
+		protected ttl: number = 60000
+	) {
 		super();
 		this.disposed = false;
 		this.cache = new Map();
@@ -307,6 +314,14 @@ export class FileSystemCache extends FileSystem {
 
 	clone() {
 		return new FileSystemCache(this.fs);
+	}
+
+	async flushCache(): Promise<void> {
+		this.cache = new Map();
+	}
+
+	setTTL(ttl: number): void {
+		this.ttl = ttl;
 	}
 
 	protected cacheOrCompute<T = any>(hash: string, compute: () => Promise<T>): Promise<T> {

@@ -1,5 +1,5 @@
-import { FileSystem, Stats, FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
-import { Pool } from '@konstellio/promised';
+import { FileSystem, Stats, FileSystemCacheable, FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
+import { Pool, Deferred } from '@konstellio/promised';
 import * as FTPClient from 'ftp';
 import { Readable, Writable, Transform } from 'stream';
 import { dirname, basename, sep } from 'path';
@@ -39,20 +39,23 @@ export interface FileSystemFTPOptions {
 	debug?: (msg: string) => void;
 }
 
-export class FileSystemFTP extends FileSystem {
+export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 
 	private disposed: boolean;
 	private connection?: FTPClient;
 	private connectionState: FTPConnectionState;
 	private pool: Pool;
+	private cache: Map<string, [number, Deferred<any>]>;
 
 	constructor(
-		private readonly options: FileSystemFTPOptions
+		private readonly options: FileSystemFTPOptions,
+		protected ttl: number = 60000
 	) {
 		super();
 		this.disposed = false;
 		this.connectionState = FTPConnectionState.Closed;
 		this.pool = new Pool([{}]);
+		this.cache = new Map();
 	}
 
 	clone() {
@@ -115,6 +118,30 @@ export class FileSystemFTP extends FileSystem {
 		}
 	}
 
+	async flushCache(): Promise<void> {
+		this.cache = new Map();
+	}
+
+	setTTL(ttl: number): void {
+		this.ttl = ttl;
+	}
+
+	protected cacheOrCompute<T = any>(hash: string, compute: () => Promise<T>): Promise<T> {
+		const now = Date.now();
+		if (this.cache.has(hash)) {
+			const [expired, defer] = this.cache.get(hash)!;
+			if (expired >= now) {
+				return defer.promise as Promise<T>;
+			}
+		}
+		const defer = new Deferred<T>();
+		this.cache.set(hash, [now + this.ttl, defer]);
+
+		compute().then(res => defer.resolve(res)).catch(err => defer.reject(err));
+
+		return defer.promise;
+	}
+
 	async stat(path: string): Promise<Stats> {
 		const normalized = normalizePath(path);
 		if (normalized === '/') {
@@ -143,6 +170,8 @@ export class FileSystemFTP extends FileSystem {
 					if (err) {
 						reject(err);
 					} else {
+						this.cache.delete(`readdir:${normalizePath(dirname(path))}`);
+						this.cache.delete(`readdirstat:${normalizePath(dirname(path))}`);
 						resolve();
 					}
 					this.pool.release(token);
@@ -155,6 +184,8 @@ export class FileSystemFTP extends FileSystem {
 					if (err) {
 						reject(err);
 					} else {
+						this.cache.delete(`readdir:${normalizePath(dirname(path))}`);
+						this.cache.delete(`readdirstat:${normalizePath(dirname(path))}`);
 						resolve();
 					}
 					this.pool.release(token);
@@ -175,6 +206,10 @@ export class FileSystemFTP extends FileSystem {
 				if (err) {
 					reject(err);
 				} else {
+					this.cache.delete(`readdir:${normalizePath(dirname(oldPath))}`);
+					this.cache.delete(`readdirstat:${normalizePath(dirname(oldPath))}`);
+					this.cache.delete(`readdir:${normalizePath(dirname(newPath))}`);
+					this.cache.delete(`readdirstat:${normalizePath(dirname(newPath))}`);
 					resolve();
 				}
 				this.pool.release(token);
@@ -224,6 +259,8 @@ export class FileSystemFTP extends FileSystem {
 
 		return new Promise<Writable>((resolve) => {
 			conn.put(stream, normalizePath(path), (err) => {
+				this.cache.delete(`readdir:${normalizePath(dirname(path))}`);
+				this.cache.delete(`readdirstat:${normalizePath(dirname(path))}`);
 				this.pool.release(token);
 			});
 			resolve(stream);
@@ -238,6 +275,8 @@ export class FileSystemFTP extends FileSystem {
 				if (err) {
 					reject(err);
 				} else {
+					this.cache.delete(`readdir:${normalizePath(dirname(path))}`);
+					this.cache.delete(`readdirstat:${normalizePath(dirname(path))}`);
 					resolve();
 				}
 				this.pool.release(token);
@@ -248,6 +287,12 @@ export class FileSystemFTP extends FileSystem {
 	async readDirectory(path: string): Promise<string[]>;
 	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
+		return this.cacheOrCompute(`readdir${stat && 'stat'}:${normalizePath(path)}`, () => this.readDirectoryImpl(path, stat!));
+	}
+
+	protected async readDirectoryImpl(path: string): Promise<string[]>;
+	protected async readDirectoryImpl(path: string, stat: boolean): Promise<[string, Stats][]>;
+	protected async readDirectoryImpl(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
 		return new Promise<(string | [string, Stats])[]>((resolve, reject) => {
