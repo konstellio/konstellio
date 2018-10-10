@@ -214,14 +214,25 @@ export class Server implements IDisposableAsync {
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
 
-		// TODO : Fastify Apollo Server...
+		const app = fastify();
+		app.decorateRequest('user', undefined);
+		app.addHook('preHandler', async (req, res) => {
+			const authorization = req.req.headers['authorization'];
+			if (authorization && authorization.substr(0, 6) === 'Bearer') {
+				const token = authorization.substr(7);
+				if (this.cache.has(`token:${token}`)) {
+					req.user = (await this.cache.get(`token:${token}`)).toString();
+					return;
+				}
+			}
+			req.user = undefined;
+		});
 
 		const apollo = new ApolloServer({
 			schema: extendedSchema,
 			context: async ({ req, res }: { req: Request, res: Response }) => {
-				// TODO : user https://github.com/konstellio/konstellio/blob/v0.3/packages/konstellio/server/src/server.ts#L238
-				// TODO : schema ?
 				return {
+					user: req.user,
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,
@@ -230,7 +241,6 @@ export class Server implements IDisposableAsync {
 			}
 		});
 
-		const app = fastify();
 		apollo.applyMiddleware({ app });
 		apollo.installSubscriptionHandlers(app.server);
 
