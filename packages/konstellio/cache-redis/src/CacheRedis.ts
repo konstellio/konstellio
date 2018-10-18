@@ -36,28 +36,6 @@ export class CacheRedis extends Cache {
 		return this.disposeAsync();
 	}
 
-	set(key: string, value: Serializable, ttl: number): Promise<void> {
-		return new Promise((resolve, reject) => {
-			this.client.set(key, value.toString(), 'EX', ttl, (err) => {
-				if (err) {
-					return reject(err);
-				}
-				resolve();
-			});
-		});
-	}
-
-	expire(key: string, ttl: number): Promise<void> {
-		return new Promise((resolve, reject) => {
-			this.client.expire(key, ttl, (err) => {
-				if (err) {
-					return reject(err);
-				}
-				resolve();
-			});
-		});
-	}
-
 	get(key: string): Promise<Serializable> {
 		return new Promise((resolve, reject) => {
 			this.client.get(key, (err, reply) => {
@@ -80,6 +58,26 @@ export class CacheRedis extends Cache {
 		});
 	}
 
+	set(key: string, value: Serializable, ttl?: number): Promise<void> {
+		return new Promise((resolve, reject) => {
+			if (ttl) {
+				this.client.set(key, value.toString(), 'EX', ttl, (err) => {
+					if (err) {
+						return reject(err);
+					}
+					resolve();
+				});
+			} else {
+				this.client.set(key, value.toString(), (err) => {
+					if (err) {
+						return reject(err);
+					}
+					resolve();
+				});
+			}
+		});
+	}
+
 	unset(key: string): Promise<void> {
 		return new Promise((resolve, reject) => {
 			this.client.del(key, (err) => {
@@ -91,5 +89,45 @@ export class CacheRedis extends Cache {
 		});
 	}
 
+	increment(key: string, amount?: number, ttl?: number): Promise<void> {
+		return new Promise((resolve, reject) => {
+			let cmd = this.client.multi().incrby(key, amount || 1);
+			if (ttl) {
+				cmd = cmd.expire(key, ttl);
+			}
+			cmd.exec((err) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve();
+			});
+		});
+	}
 
+	decrement(key: string, amount?: number, ttl?: number): Promise<void> {
+		return new Promise((resolve, reject) => {
+			let cmd = this.client.multi().decrby(key, amount || 1);
+			if (ttl) {
+				cmd = cmd.expire(key, ttl);
+			}
+			cmd.exec((err) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve();
+			});
+		});
+	}
+
+
+	expire(key: string, ttl: number): Promise<void> {
+		return new Promise((resolve, reject) => {
+			this.client.expire(key, ttl, (err) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve();
+			});
+		});
+	}
 }
