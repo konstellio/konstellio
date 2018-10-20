@@ -1,7 +1,7 @@
 import { IResolvers } from 'graphql-tools';
 
 export default {
-	identifier: 'konstellio/core',
+	identifier: 'konstellio/server',
 	async getTypeDef(): Promise<string> {
 		return `
 			scalar Cursor
@@ -10,6 +10,7 @@ export default {
 
 			directive @collection(
 				type: String
+				indexes: [DirectiveIndex!]
 			) on OBJECT | ENUM | UNION
 
 			enum DirectiveIndexType {
@@ -30,30 +31,11 @@ export default {
 				type: DirectiveIndexType!
 				fields: [DirectiveIndexField]!
 			}
-			directive @indexes(
-				indexes: [DirectiveIndex!]!
-			) on OBJECT | ENUM | UNION
 
 			directive @localized on FIELD_DEFINITION
 			directive @computed on FIELD_DEFINITION
 			directive @hidden on FIELD_DEFINITION
 			directive @inlined on FIELD_DEFINITION
-
-			enum Group {
-				Guest
-			}
-
-			type User
-			@collection
-			@indexes(indexes: [
-				{ handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }] }
-			])
-			{
-				id: ID!
-				username: String!
-				password: String!
-				group: Group
-			}
 
 			type File
 			@collection
@@ -66,50 +48,21 @@ export default {
 				modification: DateTime!
 			}
 
-			type LoginResponse {
-				token: String!
-			}
-			type LogoutResponse {
-				acknowledge: Boolean!
-			}
-
 			type Query {
-				me: User!
+				void: Boolean @hidden
 			}
 
 			type Mutation {
-				login(username: String!, password: String!): LoginResponse
-				logout: LogoutResponse
-				createUser(data: UserInput): Boolean
+				void: Boolean @hidden
+			}
+
+			type Subscription {
+				void: Boolean @hidden
 			}
 		`;
 	},
 
 	async getResolvers(): Promise<IResolvers> {
-		return {
-			Query: {
-				async me() {
-					// console.log(getSelectionsFromInfo(info));
-					return {
-						id: 'bleh',
-						username: 'mgrenier',
-						group: 'Author',
-						birthday: '1986-03-17'
-					};
-				}
-			},
-			Mutation: {
-				async login(_, { username, password }, { }) {
-					return {
-						token: `${username}:${password}`
-					};
-				},
-				async logout(_, { }, { }) {
-					return {
-						acknowledge: true
-					};
-				}
-			}
-		};
+		return {};
 	}
 };

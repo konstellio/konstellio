@@ -3,7 +3,7 @@ import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, Fiel
 function mergeDirectives(directives: ReadonlyArray<DirectiveNode>): ReadonlyArray<DirectiveNode> {
 	let indexesDirective: DirectiveNode | undefined;
 	return directives.reduce((directives, directive) => {
-		if (directive.name.value === 'indexes') {
+		if (directive.name.value === 'collection') {
 			if (!indexesDirective) {
 				indexesDirective = directive;
 				directives.push(directive);

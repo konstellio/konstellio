@@ -140,17 +140,17 @@ export async function createSchemaFromDefinitions(ast: DocumentNode, locales: Lo
 
 	function transformDirectivesToIndexes(directives: ReadonlyArray<DirectiveNode> | undefined, fields: ReadonlyArray<FieldDefinitionNode> | undefined): Index[] {
 		return (directives || []).reduce((indexes, directive) => {
-			if (directive.name.value === 'indexes') {
+			if (directive.name.value === 'collection') {
 				const args = getArgumentsValues(directive.arguments);
-				assert(args.indexes && isArray(args.indexes), 'Expected field @indexes.indexes of type array.');
-				args.indexes.forEach((index: Index) => {
-					assert(typeof index.handle === 'string', 'Expected field @indexes.handle of type string.');
-					assert(typeof index.type === 'string', 'Expected field @indexes.type of type string.');
-					assert(['primary', 'unique', 'index'].indexOf(index.type) > -1, 'Expected field @indexes.type to be either "primary", "unique" or "index".');
-					assert(index.fields && isArray(index.fields), 'Expected field @indexes.fields of type array.');
+				assert(!args.indexes || isArray(args.indexes), 'Expected field @collection.indexes of type array.');
+				(args.indexes || []).forEach((index: Index) => {
+					assert(typeof index.handle === 'string', 'Expected field @collection.indexes.handle of type string.');
+					assert(typeof index.type === 'string', 'Expected field @collection.indexes.type of type string.');
+					assert(['primary', 'unique', 'index'].indexOf(index.type) > -1, 'Expected field @collection.indexes.type to be either "primary", "unique" or "index".');
+					assert(index.fields && isArray(index.fields), 'Expected field @collection.indexes.fields of type array.');
 					(index.fields as IndexField[] || []).forEach(field => {
-						assert(typeof field.field === 'string', 'Expected field @indexes.fields[].field of type string');
-						assert(['asc', 'desc'].indexOf(field.direction || '') > -1, 'Expected field @indexes.fields[].direction to be either "asc" or "desc".');
+						assert(typeof field.field === 'string', 'Expected field @collection.indexes.fields[].field of type string');
+						assert(['asc', 'desc'].indexOf(field.direction || '') > -1, 'Expected field @collection.indexes.fields[].direction to be either "asc" or "desc".');
 					});
 					const localized = (index.fields as IndexField[]).reduce((localize, field) => {
 						const fieldNode = (fields || []).find(f => f.name.value === field.field);
