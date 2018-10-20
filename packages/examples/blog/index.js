@@ -1,3 +1,4 @@
+// @ts-check
 const { createServer } = require('@konstellio/server');
 const { FileSystemLocal } = require('@konstellio/fs-local');
 const { DatabaseSQLite } = require('@konstellio/db-sqlite');
@@ -20,6 +21,7 @@ const { join } = require('path');
 		mq: new MessageQueueMemory()
 	});
 
+	server.register(require('@konstellio/plugin-user').default);
 	server.register(require('./blog.js'));
 
 	const status = await server.listen();

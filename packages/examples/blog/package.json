@@ -9,6 +9,7 @@
     "@konstellio/db-sqlite": "^0.2.9",
     "@konstellio/fs-local": "^0.2.9",
     "@konstellio/mq-memory": "^0.2.9",
+    "@konstellio/plugin-user": "^0.2.9",
     "@konstellio/server": "^0.2.9"
   }
 }

@@ -13,8 +13,12 @@ import { mergeAST } from './utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
 import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
 import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
-import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
+import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment, SchemaDirectiveVisitor } from 'graphql-tools';
 import { AddressInfo } from 'net';
+
+type Mutable<T> = {
+	-readonly[P in keyof T]: T[P]
+};
 
 export interface ServerListenOptions {
 	skipMigration?: boolean;
@@ -65,10 +69,12 @@ export class Server implements IDisposableAsync {
 	private disposed: boolean;
 	private plugins: Plugin[];
 
-	protected fs: FileSystem;
-	protected db: Database;
-	protected cache: Cache;
-	protected mq: MessageQueue;
+	public readonly app!: fastify.FastifyInstance;
+	public readonly apollo!: ApolloServer;
+	public readonly fs: FileSystem;
+	public readonly db: Database;
+	public readonly cache: Cache;
+	public readonly mq: MessageQueue;
 
 	constructor(
 		public readonly config: ServerConfig
@@ -214,47 +220,58 @@ export class Server implements IDisposableAsync {
 			new ReplaceFieldWithFragment(baseSchema, fragments)
 		]);
 
-		const app = fastify();
-		app.decorateRequest('user', undefined);
-		app.addHook('preHandler', async (req, res) => {
-			const authorization = req.req.headers['authorization'];
-			if (authorization && authorization.substr(0, 6) === 'Bearer') {
-				const token = authorization.substr(7);
-				if (this.cache.has(`token:${token}`)) {
-					req.user = (await this.cache.get(`token:${token}`)).toString();
-					return;
-				}
-			}
-			req.user = undefined;
-		});
+		// Setup fastify routes and handlers
+		(this as Mutable<Server>).app = fastify();
+		this.plugins.forEach(plugin => plugin.setupRoutes && plugin.setupRoutes(this));
 
-		const apollo = new ApolloServer({
+		// Prepare GraphQL directives
+		const directiveRecords = await Promise.all(this.plugins.map(plugin => plugin.getDirectives && plugin.getDirectives(this)) as Promise<undefined | Record<string, typeof SchemaDirectiveVisitor>>[]);
+		const directives = directiveRecords.reduce<Record<string, typeof SchemaDirectiveVisitor>>((directives, directiveRecord) => {
+			if (directiveRecord) {
+				Object.assign(directives, directiveRecord);
+			}
+			return directives;
+		}, {});
+
+		// Setup Apollo server
+		(this as Mutable<Server>).apollo = new ApolloServer({
 			schema: extendedSchema,
+			schemaDirectives: directives as any, // TODO : graph-tools dependency mixup... need to use type `any`
 			context: async ({ req, res }: { req: Request, res: Response }) => {
-				return {
-					user: req.user,
+				const ctx = {
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,
 					fs: this.fs
 				};
+
+				for (const plugin of this.plugins) {
+					if (plugin.setupContext) {
+						Object.assign(ctx, await plugin.setupContext(this, req, res));
+					}
+				}
+
+				return ctx;
 			}
 		});
 
-		apollo.applyMiddleware({ app });
-		apollo.installSubscriptionHandlers(app.server);
+		this.apollo.applyMiddleware({ app: this.app });
+		this.apollo.installSubscriptionHandlers(this.app.server);
 
-		const info = await app.listen(
+		// Start server
+		const info = await this.app!.listen(
 			this.config.http && this.config.http.port || 8080,
 			this.config.http && this.config.http.host || '127.0.0.1'
 		).then(() => {
-			const { family, address, port } = app.server.address() as AddressInfo;
+			const { family, address, port } = this.app!.server.address() as AddressInfo;
 			return { family, address, port };
 		});
 
 		return info;
 	}
 }
+
+export { Request, Response, Plugin };
 
 function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {
 	return plugins.sort((a, b) => {

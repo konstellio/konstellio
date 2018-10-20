@@ -13,14 +13,16 @@ module.exports = {
 				createPost(data: PostInput): Boolean
 			}
 
-			type Subscription {
+			extend type Subscription {
 				postAdded: Post
 			}
 
 			extend type User
-			@indexes(indexes: [
-				{ handle: "User_birthday", type: "index", fields: [{ field: "birthday", direction: "asc" }] }
-			])
+			@collection(
+				indexes: [
+					{ handle: "User_birthday", type: "index", fields: [{ field: "birthday", direction: "asc" }] }
+				]
+			)
 			{
 				birthday: Date
 				displayName: String! @computed
@@ -39,10 +41,11 @@ module.exports = {
 			}
 
 			type Post
-			@collection
-			@indexes(indexes: [
-				{ handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }] }
-			])
+			@collection(
+				indexes: [
+					{ handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }] }
+				]
+			)
 			{
 				id: ID!
 				title: String! @localized
