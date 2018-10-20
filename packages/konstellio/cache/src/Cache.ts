@@ -1,6 +1,6 @@
 import { IDisposableAsync } from '@konstellio/disposable';
 
-export type Serializable = string | number | boolean | Date;
+export type Serializable = string | number | boolean | Date | null;
 
 export abstract class Cache implements IDisposableAsync {
 
