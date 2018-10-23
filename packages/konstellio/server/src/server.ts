@@ -6,15 +6,21 @@ import { IDisposableAsync } from '@konstellio/disposable';
 import * as assert from 'assert';
 import { ApolloServer, Request, Response } from './lib/apolloServer';
 import * as fastify from 'fastify';
-import { Plugin } from './plugin';
+import { Plugin } from './lib/plugin';
 import CorePlugin from './plugins/core';
 import { parse } from 'graphql';
-import { mergeAST } from './utilities/ast';
+import { mergeAST } from './lib/utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
-import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
-import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
+import { createCollections } from './collection';
+import { createTypeExtensionsFromDefinitions, createTypeExtensionsFromDatabaseDriver } from './lib/collection/createTypeExtensions';
+import { createInputTypeFromDefinitions } from './lib/collection/createInputType';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment, SchemaDirectiveVisitor } from 'graphql-tools';
 import { AddressInfo } from 'net';
+import { createSchemaFromDefinitions } from './lib/migration/createSchemaFromDefinitions';
+import { createSchemaFromDatabase } from './lib/migration/createSchemaFromDatabase';
+import { promptSchemaDiffs } from './lib/migration/promptSchemaDiffs';
+import { computeSchemaDiff } from './lib/migration/computeSchemaDiff';
+import { executeSchemaDiff } from './lib/migration/executeSchemaDiff';
 
 type Mutable<T> = {
 	-readonly[P in keyof T]: T[P]
@@ -80,7 +86,7 @@ export class Server implements IDisposableAsync {
 		public readonly config: ServerConfig
 	) {
 		this.disposed = false;
-		this.plugins = [];
+		this.plugins = [CorePlugin as Plugin];
 
 		this.fs = config.fs;
 		this.db = config.db;
@@ -120,13 +126,10 @@ export class Server implements IDisposableAsync {
 
 		await this.db.connect();
 		await this.cache.connect();
-		await this.mq.connect();		
-
-		// Reorder plugin to respect their dependencies
-		const pluginOrder = [CorePlugin as Plugin].concat(reorderPluginOnDependencies(this.plugins));
+		await this.mq.connect();
 
 		// Gather plugins type definition
-		const typeDefs = await Promise.all(pluginOrder.map(async (plugin) => {
+		const typeDefs = await Promise.all(this.plugins.map(async (plugin) => {
 			return plugin.getTypeDef ? plugin.getTypeDef(this) : '';
 		}));
 
@@ -138,7 +141,7 @@ export class Server implements IDisposableAsync {
 			createTypeExtensionsFromDatabaseDriver(this.db, this.config.locales)
 		];
 		for (const ast of ASTs) {
-			const extended = await Promise.all(pluginOrder.reduce((typeDefs, plugin) => {
+			const extended = await Promise.all(this.plugins.reduce((typeDefs, plugin) => {
 				if (plugin.getTypeExtension) {
 					typeDefs.push(Promise.resolve(plugin.getTypeExtension(this, ast)));
 				}
@@ -181,7 +184,7 @@ export class Server implements IDisposableAsync {
 		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);
 
 		// Gather plugins resolvers
-		const resolvers = await Promise.all(pluginOrder.map(async (plugin) => {
+		const resolvers = await Promise.all(this.plugins.map(async (plugin) => {
 			return plugin.getResolvers ? plugin.getResolvers(this) : {};
 		}));
 
@@ -272,17 +275,3 @@ export class Server implements IDisposableAsync {
 }
 
 export { Request, Response, Plugin };
-
-function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {
-	return plugins.sort((a, b) => {
-		const aONb = (a.dependencies || []).indexOf(b.identifier) > -1;
-		const bONa = (b.dependencies || []).indexOf(a.identifier) > -1;
-		if (aONb) {
-			if (bONa) {
-				throw new Error(`Detected circular plugin dependency between ${a.identifier} and ${b.identifier}`);
-			}
-			return 1;
-		}
-		return bONa ? -1 : 0;
-	});
-}

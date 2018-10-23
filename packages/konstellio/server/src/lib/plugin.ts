@@ -1,10 +1,9 @@
 import { DocumentNode } from "graphql";
 import { IResolvers, SchemaDirectiveVisitor } from "graphql-tools";
-import { Server, Request, Response } from "./server";
+import { Server, Request, Response } from "../server";
 
 export interface Plugin {
 	identifier: string;
-	dependencies?: string[];
 
 	getTypeDef?: (server: Server) => string | Promise<string>;
 	getTypeExtension?: (server: Server, document: DocumentNode) => string | Promise<string>;
