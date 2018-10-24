@@ -286,8 +286,12 @@ export class Collection<I, O extends CollectionType> {
 						data[key] = JSON.stringify(data[key]);
 					}
 					if (featuresJoin && meta.isRelation) {
-						joins[key] = { collection: meta.type, target: data[key] };
-					} else {
+						joins[key] = { collection: this.name, target: data[key] };
+					}
+					else if (featuresJoin && meta.isList) {
+						joins[key] = { collection: this.name, target: data[key] };
+					}
+					else {
 						fields[key] = data[key];
 					}
 				}
@@ -397,6 +401,7 @@ interface FieldMeta {
 }
 
 function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): FieldMeta[] {
+	const nodeName = node.name.value;
 	return (node.fields || []).reduce((fields, field) => {
 		if (!isComputedField(field)) {
 			const type = getNamedTypeNode(field.type);
