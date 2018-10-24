@@ -8,8 +8,8 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Launch examples/blog",
-			"preLaunchTask": "Compile server",
-			"program": "${workspaceFolder}/packages/examples/blog/index.js"
+			"program": "${workspaceFolder}/packages/examples/blog/index.js",
+			"console": "integratedTerminal"
 		},
 		{
 			"type": "node",
