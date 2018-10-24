@@ -11,7 +11,7 @@ import CorePlugin from './plugins/core';
 import { parse } from 'graphql';
 import { mergeAST } from './lib/utilities/ast';
 import { ReadStream, WriteStream } from 'tty';
-import { createCollections } from './collection';
+import { createCollections, Collection } from './collection';
 import { createTypeExtensionsFromDefinitions, createTypeExtensionsFromDatabaseDriver } from './lib/collection/createTypeExtensions';
 import { createInputTypeFromDefinitions } from './lib/collection/createInputType';
 import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment, SchemaDirectiveVisitor } from 'graphql-tools';
@@ -178,7 +178,10 @@ export class Server implements IDisposableAsync {
 		}
 
 		// Create collections with mergedAST
-		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales);
+		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales).reduce((collections, collection) => {
+			collections[collection.name] = collection;
+			return collections;
+		}, {} as { [name: string]: Collection<any, any> });
 
 		// Create input type from definitions
 		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);
@@ -242,6 +245,7 @@ export class Server implements IDisposableAsync {
 			schemaDirectives: directives as any, // TODO : graph-tools dependency mixup... need to use type `any`
 			context: async ({ req, res }: { req: Request, res: Response }) => {
 				const ctx = {
+					collections,
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,
