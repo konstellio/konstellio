@@ -27,15 +27,19 @@
   },
   "homepage": "https://github.com/konstellio/konstellio#readme",
   "peerDependencies": {
+    "@konstellio/db": "^0.2.0",
     "@konstellio/disposable": "^0.2.0",
     "@konstellio/eventemitter": "^0.2.0",
     "@konstellio/server": "^0.2.0"
   },
   "devDependencies": {
+    "@konstellio/db": "^0.2.0",
     "@konstellio/disposable": "^0.2.0",
     "@konstellio/eventemitter": "^0.2.0",
     "@konstellio/server": "^0.2.0",
+    "@types/bcrypt": "^3.0.0",
     "@types/chai-as-promised": "7.1.0",
+    "@types/jsonwebtoken": "^8.3.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
     "chai": "^4.1.2",
@@ -49,5 +53,9 @@
     "tslint-config-airbnb": "^5.9.2",
     "tslint-config-prettier": "^1.14.0",
     "typescript": "^3.0.1"
+  },
+  "dependencies": {
+    "bcrypt": "^3.0.2",
+    "jsonwebtoken": "^8.3.0"
   }
 }

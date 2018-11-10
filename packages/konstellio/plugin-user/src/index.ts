@@ -1,14 +1,16 @@
 import { IResolvers, SchemaDirectiveVisitor } from 'graphql-tools';
 import { PermissionDirective } from './permissionDirective';
 import { Server, Plugin, Request, Response } from '@konstellio/server';
+import { q } from '@konstellio/db';
+import { hash, compare } from 'bcrypt';
+import { sign, verify } from 'jsonwebtoken';
+import { AuthenticationError } from 'apollo-server-core';
 
 export default {
 	identifier: 'konstellio/plugin-user',
 	async getTypeDef(): Promise<string> {
 		return `
 			directive @permission(
-				group: String
-				groups: [String!]
 				role: String
 				roles: [String!]
 			) on FIELD_DEFINITION
@@ -46,8 +48,7 @@ export default {
 			}
 
 			extend type Mutation {
-				login(username: String!, password: String!): LoginResponse	@permission(group: "nobody")
-				logout: LogoutResponse										@permission(role: "auth.loggedin")
+				login(username: String!, password: String!): LoginResponse	@permission(role: "auth.loggedout")
 			}
 		`;
 	},
@@ -61,26 +62,29 @@ export default {
 	async getResolvers(): Promise<IResolvers> {
 		return {
 			Query: {
-				async me() {
+				async me(_, {  }, { req, collections: { User } }) {
 					// console.log(getSelectionsFromInfo(info));
-					return {
-						id: 'bleh',
-						username: 'mgrenier',
-						group: 'Author',
-						birthday: '1986-03-17'
-					};
+					const user = await User.findById(req.userId);
+					return user;
 				}
 			},
 			Mutation: {
-				async login(_, { username, password }, { }) {
-					return {
-						token: `${username}:${password}`
-					};
-				},
-				async logout(_, { }, { }) {
-					return {
-						acknowledge: true
-					};
+				async login(_, { username, password }, { collections: { User, UserGroup }, cache, config }) {
+					try {
+						const user = await User.findOne({
+							fields: [q.field('id'), q.field('password')],
+							condition: q.eq(q.field('username'), username)
+						});
+
+						if (await comparePassword(password, user.password)) {
+							const token = sign({ userid: user.id }, config.secret);
+							return {
+								token
+							};
+						}
+					} catch (err) {}
+
+					throw new AuthenticationError(`Could not authenticate. Please try again later.`);
 				}
 			}
 		};
@@ -91,15 +95,12 @@ export default {
 			const authorization = request.req.headers['authorization'];
 			if (authorization && authorization.substr(0, 6) === 'Bearer') {
 				const token = authorization.substr(7);
-				if (server.cache.has(`auth.token:${token}`)) {
-					const userId = await server.cache.get(`auth.token.${token}`);
-					if (userId) {
-						// let userGroups = await server.cache.get(`auth.userGroups.${userId}`);
-						request.userId = userId;
-						request.userGroups = [];
-						request.userRoles = [];
-					}
-					return;
+				try {
+					const { userid: userId } = verify(token, server.config.secret) as any;
+
+					request.userId = userId;
+				} catch (err) {
+					request.userId = null;
 				}
 			}
 		});
@@ -107,9 +108,15 @@ export default {
 
 	async setupContext(server: Server, request: Request, response: Response): Promise<any> {
 		return {
-			userId: request.userId,
-			userGroups: request.userGroups,
-			userRoles: request.userRoles
+			userId: request.userId
 		};
 	}
 } as Plugin;
+
+export async function hashPassword(password: string): Promise<string> {
+	return hash(password, 10);
+}
+
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+	return compare(password, hash);
+}

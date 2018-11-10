@@ -37,6 +37,7 @@ export interface ServerListenStatus {
 }
 
 export interface ServerConfig {
+	secret: string;
 	locales: Locales;
 	fs: FileSystem;
 	db: Database;
@@ -81,6 +82,7 @@ export class Server implements IDisposableAsync {
 	public readonly db: Database;
 	public readonly cache: Cache;
 	public readonly mq: MessageQueue;
+	public readonly collections!: { [name: string]: Collection<any, any> };
 
 	constructor(
 		public readonly config: ServerConfig
@@ -178,7 +180,7 @@ export class Server implements IDisposableAsync {
 		}
 
 		// Create collections with mergedAST
-		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales).reduce((collections, collection) => {
+		(this as Mutable<Server>).collections = createCollections(this.db, astSchema, mergedAST, this.config.locales).reduce((collections, collection) => {
 			collections[collection.name] = collection;
 			return collections;
 		}, {} as { [name: string]: Collection<any, any> });
@@ -211,9 +213,19 @@ export class Server implements IDisposableAsync {
 			}, fragments);
 		}, [] as { field: string, fragment: string }[]);
 
+		// Prepare GraphQL directives
+		const directiveRecords = await Promise.all(this.plugins.map(plugin => plugin.getDirectives && plugin.getDirectives(this)) as Promise<undefined | Record<string, typeof SchemaDirectiveVisitor>>[]);
+		const directives = directiveRecords.reduce<Record<string, typeof SchemaDirectiveVisitor>>((directives, directiveRecord) => {
+			if (directiveRecord) {
+				Object.assign(directives, directiveRecord);
+			}
+			return directives;
+		}, {});
+
 		// Create schema
 		const baseSchema = makeExecutableSchema({
 			typeDefs: [mergedAST, inputTypeDefinitions] as any,
+			schemaDirectives: directives,
 			resolvers: mergedResolvers,
 			resolverValidationOptions: {
 				allowResolversNotInSchema: true,
@@ -230,22 +242,16 @@ export class Server implements IDisposableAsync {
 		(this as Mutable<Server>).app = fastify();
 		this.plugins.forEach(plugin => plugin.setupRoutes && plugin.setupRoutes(this));
 
-		// Prepare GraphQL directives
-		const directiveRecords = await Promise.all(this.plugins.map(plugin => plugin.getDirectives && plugin.getDirectives(this)) as Promise<undefined | Record<string, typeof SchemaDirectiveVisitor>>[]);
-		const directives = directiveRecords.reduce<Record<string, typeof SchemaDirectiveVisitor>>((directives, directiveRecord) => {
-			if (directiveRecord) {
-				Object.assign(directives, directiveRecord);
-			}
-			return directives;
-		}, {});
-
 		// Setup Apollo server
 		(this as Mutable<Server>).apollo = new ApolloServer({
 			schema: extendedSchema,
 			schemaDirectives: directives as any, // TODO : graph-tools dependency mixup... need to use type `any`
 			context: async ({ req, res }: { req: Request, res: Response }) => {
 				const ctx = {
-					collections,
+					req,
+					res,
+					config: this.config,
+					collections: this.collections,
 					db: this.db,
 					cache: this.cache,
 					mq: this.mq,

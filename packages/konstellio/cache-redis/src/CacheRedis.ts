@@ -61,14 +61,14 @@ export class CacheRedis extends Cache {
 	set(key: string, value: Serializable, ttl?: number): Promise<void> {
 		return new Promise((resolve, reject) => {
 			if (ttl) {
-				this.client.set(key, value.toString(), 'EX', ttl, (err) => {
+				this.client.set(key, value && value.toString() || '', 'EX', ttl, (err) => {
 					if (err) {
 						return reject(err);
 					}
 					resolve();
 				});
 			} else {
-				this.client.set(key, value.toString(), (err) => {
+				this.client.set(key, value && value.toString() || '', (err) => {
 					if (err) {
 						return reject(err);
 					}

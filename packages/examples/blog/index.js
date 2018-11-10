@@ -9,6 +9,7 @@ const { join } = require('path');
 (async () => {
 
 	const server = await createServer({
+		secret: '1234',
 		locales: {
 			en: 'English',
 			fr: 'French'

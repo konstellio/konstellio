@@ -1,3 +1,4 @@
+import { EventEmitter } from '@konstellio/eventemitter';
 import { ObjectTypeDefinitionNode, UnionTypeDefinitionNode, Kind, DocumentNode } from "graphql";
 import { Locales } from "./server";
 import { Database, q, Field, FieldAs, BinaryExpression, FieldDirection, replaceField, Comparison, Collection as DBCollection, getField, QueryDelete, Transaction } from "@konstellio/db";
@@ -27,7 +28,7 @@ const deleteRelationQuery = q.delete(relationCollection).where(q.in('source', q.
 
 export type CollectionType = { id: string, [field: string]: any };
 
-export class Collection<I, O extends CollectionType> {
+export class Collection<I, O extends CollectionType> extends EventEmitter {
 
 	// @ts-ignore
 	public static createTypeExtension(ast: DocumentNode, node: ObjectTypeDefinitionNode | UnionTypeDefinitionNode): string {
@@ -56,6 +57,7 @@ export class Collection<I, O extends CollectionType> {
 		ast: DocumentNode,
 		node: ObjectTypeDefinitionNode | UnionTypeDefinitionNode
 	) {
+		super();
 		this.name = node.name.value;
 		this.collection = q.collection(this.name);
 		this.defaultLocale = Object.keys(locales).shift()!;
@@ -195,7 +197,7 @@ export class Collection<I, O extends CollectionType> {
 				if (featuresJoin) {
 					const meta = this.fieldMetas.find(meta => meta.handle === field.name);
 					if (meta) {
-						if (meta.isRelation) {
+						if (meta.isRelation || meta.isList) {
 							fieldRelationMap.push([field, meta]);
 						} else {
 							fieldsOnly.push(alias);
