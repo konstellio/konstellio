@@ -91,6 +91,8 @@ export default {
 	},
 
 	async setupRoutes(server: Server): Promise<void> {
+		const { cache } = server;
+		const { User, UserGroup } = server.collections;
 		server.app!.addHook('preHandler', async (request: any, response: any) => {
 			const authorization = request.req.headers['authorization'];
 			if (authorization && authorization.substr(0, 6) === 'Bearer') {
@@ -98,17 +100,36 @@ export default {
 				try {
 					const { userid: userId } = verify(token, server.config.secret) as any;
 
+					let userGroups: string[] = [];
+					if (await cache.has(`auth.userGroups:${userId}`)) {
+						userGroups = (await cache.get(`auth.userGroups:${userId}`) || '').toString().split(',');
+					} else {
+						const user = await User.findById(userId, { fields: [q.field('id'), q.field('groups')] });
+						userGroups = user.groups;
+						await cache.set(`auth.userGroups:${userId}`, userGroups.join(','));
+					}
+
+					const groupRoles = await Promise.all(userGroups.map(groupId => new Promise<string[]>(async (resolve, reject) => {
+						if (await cache.has(`auth.groupRoles:${groupId}`)) {
+							return resolve(await (await cache.get(`auth.groupRoles:${groupId}`) || '').toString().split(','));
+						}
+						const group = await UserGroup.findById(groupId, { fields: [q.field('id'), q.field('roles')] });
+						const roles: string[] = group.roles || [];
+						await cache.set(`auth.groupRoles:${groupId}`, roles.join(','));
+						resolve(roles);
+					})));
+
 					request.userId = userId;
-				} catch (err) {
-					request.userId = null;
-				}
+					request.userRoles = groupRoles.reduce((roles, groupRoles) => [...roles, ...groupRoles], []);
+				} catch (err) {}
 			}
 		});
 	},
 
 	async setupContext(server: Server, request: Request, response: Response): Promise<any> {
 		return {
-			userId: request.userId
+			userId: request.userId || undefined,
+			userRoles: request.userRoles || undefined,
 		};
 	}
 } as Plugin;
