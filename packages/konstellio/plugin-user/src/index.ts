@@ -1,6 +1,6 @@
 import { IResolvers, SchemaDirectiveVisitor } from 'graphql-tools';
 import { PermissionDirective } from './permissionDirective';
-import { Server, Plugin, Request, Response } from '@konstellio/server';
+import { Server, Plugin, Request, Response, getSelectionsFromInfo } from '@konstellio/server';
 import { q } from '@konstellio/db';
 import { hash, compare } from 'bcrypt';
 import { sign, verify } from 'jsonwebtoken';
@@ -62,9 +62,9 @@ export default {
 	async getResolvers(): Promise<IResolvers> {
 		return {
 			Query: {
-				async me(_, {  }, { req, collections: { User } }) {
-					// console.log(getSelectionsFromInfo(info));
-					const user = await User.findById(req.userId);
+				async me(_, {  }, { req, collections: { User } }, info) {
+					const selections = getSelectionsFromInfo(info);
+					const user = await User.findById(req.userId, { fields: selections.map(handle => q.field(handle)) });
 					return user;
 				}
 			},
