@@ -21,6 +21,7 @@ import { createSchemaFromDatabase } from './lib/migration/createSchemaFromDataba
 import { promptSchemaDiffs } from './lib/migration/promptSchemaDiffs';
 import { computeSchemaDiff } from './lib/migration/computeSchemaDiff';
 import { executeSchemaDiff } from './lib/migration/executeSchemaDiff';
+import { createDefaultResolvers } from './lib/collection/createDefaultResolvers';
 
 type Mutable<T> = {
 	-readonly[P in keyof T]: T[P]
@@ -124,7 +125,6 @@ export class Server implements IDisposableAsync {
 		}
 
 		skipMigration = !!skipMigration;
-		const status: ServerListenStatus = { };
 
 		await this.db.connect();
 		await this.cache.connect();
@@ -192,6 +192,7 @@ export class Server implements IDisposableAsync {
 		const resolvers = await Promise.all(this.plugins.map(async (plugin) => {
 			return plugin.getResolvers ? plugin.getResolvers(this) : {};
 		}));
+		resolvers.unshift(createDefaultResolvers(mergedAST, this.config.locales));
 
 		// Merge every resolvers
 		const mergedResolvers = resolvers.reduce((resolvers, resolver) => {
@@ -284,4 +285,20 @@ export class Server implements IDisposableAsync {
 	}
 }
 
-export { Request, Response, Plugin };
+export { Request, Response };
+export * from './lib/collection/createDefaultResolvers';
+export * from './lib/collection/createInputType';
+export * from './lib/collection/createTypeExtensions';
+export * from './lib/collection/createValidationSchema';
+export * from './lib/migration/computeSchemaDiff';
+export * from './lib/migration/createSchemaFromDatabase';
+export * from './lib/migration/createSchemaFromDefinitions';
+export * from './lib/migration/executeSchemaDiff';
+export * from './lib/migration/promptSchemaDiffs';
+export * from './lib/migration/types';
+export * from './lib/apolloServer';
+export * from './lib/plugin';
+export * from './lib/utilities/ast';
+export * from './lib/utilities/cli';
+export * from './lib/utilities/resolver';
+// export * from './collection';
