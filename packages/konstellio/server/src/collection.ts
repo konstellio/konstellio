@@ -402,8 +402,7 @@ interface FieldMeta {
 	isInlined: boolean;
 }
 
-function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): FieldMeta[] {
-	const nodeName = node.name.value;
+export function gatherObjectFields(ast: DocumentNode, node: ObjectTypeDefinitionNode): FieldMeta[] {
 	return (node.fields || []).reduce((fields, field) => {
 		if (!isComputedField(field)) {
 			const type = getNamedTypeNode(field.type);
