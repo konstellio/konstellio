@@ -1,0 +1,40 @@
+directive @permission(
+	role: String
+	roles: [String!]
+) on FIELD_DEFINITION
+
+type UserGroup implements Node
+@collection
+{
+	id: ID!
+	name: String!
+	roles: [String!]!
+}
+
+type User implements Node
+@collection(
+	indexes: [
+		{ handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }] }
+	]
+)
+{
+	id: ID!
+	username: String!
+	password: String! @hidden
+	groups: [UserGroup!]!
+}
+
+type LoginResponse {
+	token: String!
+}
+type LogoutResponse {
+	acknowledge: Boolean!
+}
+
+extend type Query {
+	me: User!		@permission(role: "auth.loggedin")
+}
+
+extend type Mutation {
+	login(username: String!, password: String!): LoginResponse	@permission(role: "auth.loggedout")
+}

@@ -1,0 +1,44 @@
+
+type Post implements Node
+@collection(
+	indexes: [
+		{ handle: "Post_slug", type: "unique", fields: [{ field: "slug", direction: "asc" }] }
+	]
+)
+{
+	id: ID!
+	title: String! @localized
+	slug: String! @localized
+	categories: [PostCategory!]!
+	postDate: DateTime!
+	expireDate: DateTime
+	author: User!
+	contributors: [User!]!
+	content: String! @localized
+}
+
+type PostCategory implements Node
+@collection(type: "structure")
+{
+	id: ID!
+	title: String! @localized
+	slug: String! @localized
+}
+
+type PostCursor {
+	cursor: String
+	item: Post!
+}
+
+
+type Query {
+	latestPost(first: Int, after: Cursor): [PostCursor!]!
+}
+
+type Mutation {
+	createPost(data: PostInput): Boolean
+}
+
+type Subscription {
+	postAdded: Post
+}

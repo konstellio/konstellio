@@ -45,6 +45,22 @@
 					]
 				}
 			]
-		}
+		},
+		{
+			"label": "Watch @konstellio/cli",
+			"type": "typescript",
+			"tsconfig": "packages\\konstellio\\cli\\tsconfig.json",
+			"option": "watch",
+			"isBackground": true,
+			"problemMatcher": [
+				{
+					"base": "$tsc-watch",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}/packages/konstellio/cli/"
+					]
+				}
+			]
+		},
 	]
 }

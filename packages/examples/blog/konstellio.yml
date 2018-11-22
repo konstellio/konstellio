@@ -1,0 +1,12 @@
+version: '1'
+
+locales:
+  fr: French
+  en: English
+
+schema:
+  - ./schema.graphql
+  - ./auth.graphql
+
+#import:
+#  - '@konstellio/plugin-user'
