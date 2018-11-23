@@ -31,14 +31,14 @@ type PostCursor {
 }
 
 
-type Query {
+extend type Query {
 	latestPost(first: Int, after: Cursor): [PostCursor!]!
 }
 
-type Mutation {
+extend type Mutation {
 	createPost(data: PostInput): Boolean
 }
 
-type Subscription {
+extend type Subscription {
 	postAdded: Post
 }

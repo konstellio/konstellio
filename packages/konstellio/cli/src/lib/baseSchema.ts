@@ -35,4 +35,16 @@ export const baseSchema = `
 	interface Node {
 		id: ID!
 	}
+
+	type Query {
+		_ImATeaPot: Boolean
+	}
+
+	type Mutation {
+		_ImATeaPot: Boolean
+	}
+
+	type Subscription {
+		_ImATeaPot: Boolean
+	}
 `;

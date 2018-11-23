@@ -46,6 +46,13 @@ export function getNamedTypeNode(type: TypeNode): NamedTypeNode {
 }
 
 export function isSpecifiedScalarType(type: NamedTypeNode): boolean {
+	return type.name.value === 'String'
+		|| type.name.value === 'Int'
+		|| type.name.value === 'Float'
+		|| type.name.value === 'Boolean';
+}
+
+export function isSpecifiedExtendedScalarType(type: NamedTypeNode): boolean {
 	return type.name.value === 'ID'
 		|| type.name.value === 'String'
 		|| type.name.value === 'Int'

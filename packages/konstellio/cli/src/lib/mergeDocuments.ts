@@ -1,4 +1,5 @@
-import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, FieldDefinitionNode, TypeNode, ArgumentNode, ValueNode, DirectiveNode, TypeExtensionNode } from "graphql";
+import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, FieldDefinitionNode, TypeNode, ArgumentNode, ValueNode, DirectiveNode, TypeExtensionNode, visit } from "graphql";
+import { getNamedTypeNode } from "./schemaUtil";
 
 /**
  * Merge multiple DocumentNode into one, collapsing type extension into their type definition
@@ -20,7 +21,7 @@ export function mergeDocuments(documents: DocumentNode[]): DocumentNode {
 		}
 	});
 
-	return {
+	const mergedDocument = {
 		kind: concat.kind,
 		definitions: concat.definitions.reduce((definitions, node) => {
 			if (isTypeDefinitionNode(node)) {
@@ -76,6 +77,23 @@ export function mergeDocuments(documents: DocumentNode[]): DocumentNode {
 			return definitions;
 		}, [] as DefinitionNode[])
 	};
+
+	return visit(mergedDocument, {
+		FieldDefinition: {
+			enter(node) {
+				if (node.name.value === '_ImATeaPot' && getNamedTypeNode(node.type).name.value === 'Boolean') {
+					return null;
+				}
+			}
+		},
+		ObjectTypeDefinition: {
+			leave(node) {
+				if (!node.fields || node.fields.length === 0) {
+					return null;
+				}
+			}
+		}
+	});
 }
 
 function isTypeDefinitionNode(node: any): node is TypeDefinitionNode {
