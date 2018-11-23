@@ -4,7 +4,8 @@ export const baseSchema = `
 	scalar Date
 	scalar DateTime
 
-	directive @indexes(
+	directive @collection(
+		type: String
 		indexes: [DirectiveIndex!]
 	) on OBJECT | ENUM | UNION
 
