@@ -34,30 +34,30 @@ describe('Query', () => {
 		expect(q.field('foo').name).to.equal('foo');
 		expect(q.field('foo').alias).to.equal(undefined);
 		expect(q.field('foo', 'bar').alias).to.equal('bar');
-		expect(q.field('foo').rename('moo').name).to.equal('moo');
-		expect(q.field('foo', 'bar').rename('moo', 'joo').alias).to.equal('joo');
+		expect(q.field<any>('foo').rename('moo').name).to.equal('moo');
+		expect(q.field<any>('foo', 'bar').rename('moo', 'joo').alias).to.equal('joo');
 
-		const a = q.field('foo');
+		const a = q.field<any>('foo');
 		const b = a.rename('moo');
 		expect(a).to.not.equal(b);
 
-		expect(q.sort).to.be.a('function')
+		expect(q.sort).to.be.a('function');
 		expect(q.sort('foo', 'asc')).to.be.an.instanceof(Query.FieldDirection);
 		expect(q.sort('foo', 'asc').field).to.be.an.instanceof(Query.Field);
 		expect(q.sort('foo', 'asc').direction).to.equal('asc');
-		expect(q.sort('foo', 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
-		expect(q.sort('foo', 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
-		expect(q.sort('foo', 'asc').rename('moo', 'joo').field.name).to.equal('moo');
-		expect(q.sort('foo', 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
+		expect(q.sort<any>('foo', 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort<any>('foo', 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort<any>('foo', 'asc').rename('moo', 'joo').field.name).to.equal('moo');
+		expect(q.sort<any>('foo', 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
 		expect(q.sort(q.field('foo', 'bar'), 'asc')).to.be.an.instanceof(Query.FieldDirection);
 		expect(q.sort(q.field('foo', 'bar'), 'asc').field).to.be.an.instanceof(Query.Field);
 		expect(q.sort(q.field('foo', 'bar'), 'asc').direction).to.equal('asc');
-		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
-		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
-		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field.name).to.equal('moo');
-		expect(q.sort(q.field('foo', 'bar'), 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
+		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
+		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field.name).to.equal('moo');
+		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
 
-		const c = q.sort('foo', 'asc');
+		const c = q.sort<any>('foo', 'asc');
 		const d = c.rename('moo');
 		expect(c).to.not.equal(d);
 	});

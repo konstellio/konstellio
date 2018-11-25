@@ -40,11 +40,11 @@ describe('Utils', () => {
 		]);
 		const c = List([{
 			alias: 'foo',
-			on: q.and(q.eq(q.field('foo', 'bar'), 'bar'), q.gt('age', 21)),
+			on: q.and<any>(q.eq(q.field('foo', 'bar'), 'bar'), q.gt('age', 21)),
 			query: q.select('foo', q.field('foo'), q.field('foo', 'bar')).from('test')
 		}]);
 
-		let matches: Field[] = []
+		let matches: Field[] = [];
 		const aa = replaceField(a, new Map([
 			[q.field('foo', 'bar'), q.field('foo2')]
 		]), matches);
