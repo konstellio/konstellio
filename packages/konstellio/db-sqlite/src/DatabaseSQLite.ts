@@ -462,7 +462,7 @@ function collectionToSQL(collection: Collection): string {
 
 function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
-		return `"${field.alias ? `${field.alias}"."` : ''}${field.name}"`;
+		return `"${field.alias ? `${field.alias}"."` : ''}${field.name.toString()}"`;
 	}
 	else if (field instanceof FieldAs) {
 		if (field.field instanceof Function) {
@@ -685,10 +685,10 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 
 		const objects = query.objects;
 		if (objects !== undefined && objects.count() > 0) {
-			sql += ` (${objects.get(0).map<string>((_, key) => `"${key}"`).join(', ')}) `;
+			sql += ` (${Object.keys(objects.get(0)).map<string>(key => `"${key}"`).join(', ')}) `;
 			sql += `VALUES ${objects.map<string>(obj => {
-				return `(${obj!.map<string>(value => {
-					return valueToSQL(value as Value, params, variables);
+				return `(${Object.keys(obj).map<string>(key => {
+					return valueToSQL(obj[key], params, variables);
 				}).join(', ')})`;
 			}).join(', ')}`;
 		} else {
@@ -707,8 +707,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 			throw new Error(`Expected QueryInsert to be from a collection.`);
 		}
 		if (query.object) {
-			sql += ` ${query.object!.map<string>((value, key) => {
-				return `"${key}" = ${valueToSQL(value as Value, params, variables)}`;
+			sql += ` ${Object.keys(query.object).map<string>((key) => {
+				return `"${key}" = ${valueToSQL(query.object[key] as Value, params, variables)}`;
 			}).join(', ')}`;
 		} else {
 			throw new Error(`Expected QueryUpdate to have some data.`);
