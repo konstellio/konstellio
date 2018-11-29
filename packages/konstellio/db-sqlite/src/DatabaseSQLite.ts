@@ -502,11 +502,8 @@ function valueToSQL(field: Value, params: any[], variables?: Variables): string 
 			return '?';
 		}
 	}
-	else if (field) {
-		params.push(field);
-		return '?';
-	}
-	return '';
+	params.push(field);
+	return '?';
 }
 
 function comparisonToSQL(comparison: Comparison, params: any[], variables?: Variables): string {
