@@ -557,6 +557,8 @@ function selectQueryToSQL(query: QuerySelect, database: Database, variables?: Va
 	}
 	if (query.limit) {
 		sql += ` LIMIT ${query.limit!}`;
+	} else {
+		sql += ` LIMIT -1`;
 	}
 	if (query.offset) {
 		sql += ` OFFSET ${query.offset!}`;
@@ -628,6 +630,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;
+		} else {
+			sql += ` LIMIT -1`;
 		}
 		if (query.offset) {
 			sql += ` OFFSET ${query.offset!}`;
@@ -663,6 +667,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;
+		} else {
+			sql += ` LIMIT -1`;
 		}
 		if (query.offset) {
 			sql += ` OFFSET ${query.offset!}`;
