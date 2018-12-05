@@ -8,61 +8,78 @@ import * as Joi from 'joi';
 
 describe('Schema', () => {
 
-	const validPostSchema: Schema = {
+	const validObject: Schema = {
 		handle: 'Post',
-		fields: [{
-			handle: 'id',
-			type: 'string',
-		}, {
-			handle: 'title',
-			type: 'string',
-			localized: true
-		}, {
-			handle: 'slug',
-			type: 'string',
-			localized: true
-		}, {
-			handle: 'content',
-			type: 'string',
-			localized: true
-		}, {
-			handle: 'postDate',
-			type: 'datetime'
-		}, {
-			handle: 'expireDate',
-			type: 'datetime'
-		}],
-		indexes: [{
-			handle: 'primary',
-			type: 'primary',
-			fields: [{ handle: 'id' }]
-		}, {
-			handle: 'postDate',
-			type: 'sparse',
-			fields: [{ handle: 'postDate', direction: 'desc' }]
-		}, {
-			handle: 'slug',
-			type: 'unique',
-			fields: [{ handle: 'slug' }]
-		}]
+		fields: [
+			{ handle: 'id', type: 'string', required: true },
+			{ handle: 'title', type: 'string', localized: true, required: true },
+			{ handle: 'slug', type: 'string', localized: true, required: true },
+			{ handle: 'content', type: 'string', localized: true },
+			{ handle: 'postDate', type: 'datetime', required: true },
+			{ handle: 'expireDate', type: 'datetime' }
+		],
+		indexes: [
+			{ handle: 'primary', type: 'primary', fields: [{ handle: 'id' }] },
+			{ handle: 'postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'desc' }] },
+			{ handle: 'slug', type: 'unique', fields: [{ handle: 'slug' }] }
+		]
+	};
+
+	const validUnion: Schema = {
+		handle: 'Product',
+		objects: [
+			{
+				handle: 'Physical',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'sku', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'price', type: 'float', required: true },
+					{ handle: 'weight', type: 'float' },
+					{ handle: 'width', type: 'float' },
+					{ handle: 'height', type: 'float' },
+					{ handle: 'depth', type: 'float' },
+				]
+			}, {
+				handle: 'Virtual',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'sku', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'price', type: 'float', required: true },
+					{ handle: 'size', type: 'float' }
+				]
+			}
+		],
+		indexes: [
+			{ handle: 'primary', type: 'primary', fields: [{ handle: 'id' }] },
+			{ handle: 'sku', type: 'unique', fields: [{ handle: 'sku' }] },
+			{ handle: 'price', type: 'sparse', fields: [{ handle: 'price' }] },
+		]
 	};
 
 	it('validate schema', async () => {
-		expect(() => validateSchema(validPostSchema)).to.not.throw();
-		expect(validateSchema(validPostSchema)).to.eq(true);
+		expect(() => validateSchema(validObject)).to.not.throw();
+		expect(() => validateSchema(validUnion)).to.not.throw();
+		expect(validateSchema(validObject)).to.eq(true);
+		expect(validateSchema(validUnion)).to.eq(true);
 		expect(() => validateSchema({})).to.not.throw();
 		expect(validateSchema({})).to.eq(false);
 		const errors: any[] = [];
 		expect(validateSchema({}, errors)).to.eq(false);
-		expect(errors.length).to.eq(1);
+		expect(errors.length).to.eq(2);
 	});
 
 	it('create validator from schema', async () => {
-		expect(() => createValidator(validPostSchema, [])).to.not.throw();
-		// expect(createValidator(validPostSchema, [])).to.be.an.instanceof(Joi.Schema);
+		expect(() => createValidator(validObject, [])).to.not.throw();
 
-		console.log(Joi.describe(createValidator(validPostSchema, [])));
-		debugger;
+		const res = createValidator(validObject, []).validate({
+			id: 'my-id',
+			title: 'My title',
+			slug: 'my-title',
+			postDate: new Date()
+		});
+		expect(res.error).to.eq(null);
 	});
 
 });

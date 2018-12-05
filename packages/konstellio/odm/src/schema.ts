@@ -1,8 +1,21 @@
 import * as Joi from 'joi';
 
-export interface Schema {
+export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+
+export type Schema = Object | Union;
+
+export interface ObjectBase {
 	handle: string;
 	fields: Field[];
+}
+
+export interface Object extends ObjectBase {
+	indexes: Indexes[];
+}
+
+export interface Union {
+	handle: string;
+	objects: ObjectBase[];
 	indexes: Indexes[];
 }
 
@@ -19,7 +32,10 @@ export interface Field {
 	type: FieldType;
 	size?: number;
 	required?: boolean;
+	relation?: boolean;
 	localized?: boolean;
+	multiple?: boolean;
+	inlined?: boolean;
 }
 
 export type IndexType = 'primary'
@@ -47,7 +63,10 @@ const fieldValidator = Joi.object().keys({
 	type: fieldTypeValidator.required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
-	localized: Joi.boolean()
+	relation: Joi.boolean(),
+	localized: Joi.boolean(),
+	multiple: Joi.boolean(),
+	inlined: Joi.boolean()
 });
 
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
@@ -61,11 +80,26 @@ const indexValidator = Joi.object().keys({
 	}))
 });
 
-const schemaValidator = Joi.object().keys({
+const objectBaseValidator = Joi.object().keys({
 	handle: Joi.string().required(),
-	fields: Joi.array().items(fieldValidator).required(),
+	fields: Joi.array().items(fieldValidator).required()
+});
+
+const objectValidator = objectBaseValidator.keys({
 	indexes: Joi.array().items(indexValidator).required()
 });
+
+const unionValidator = Joi.object().keys({
+	handle: Joi.string().required(),
+	objects: Joi.array().items(objectBaseValidator).required(),
+	indexes: Joi.array().items(indexValidator).required()
+});
+
+const schemaValidator = Joi.alternatives().try(objectValidator, unionValidator).required();
+
+export function isUnion(schema: any): schema is Union {
+	return typeof schema.objects !== 'undefined';
+}
 
 export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]): schema is Schema {
 	const result = Joi.validate(schema, schemaValidator);
@@ -81,21 +115,27 @@ export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]):
 }
 
 export function createValidator(schema: Schema, locales: string[]): Joi.Schema {
-	return Joi.object().keys(schema.fields.reduce((keys, field) => {
-		if (field.localized && locales.length) {
-			const validation = transformTypeToValidation(field.type);
-			keys[field.handle] = Joi.object().keys(locales.reduce((keys, locale) => {
-				keys[locale] = validation.required();
-				return keys;
-			}, {} as Joi.SchemaMap));
-		} else {
-			keys[field.handle] = transformTypeToValidation(field.type);
-		}
-		if (field.required) {
-			keys[field.handle] = keys[field.handle].required();
-		}
-		return keys;
-	}, {} as { [key: string]: Joi.Schema }));
+	return isUnion(schema)
+		? Joi.alternatives().try(...schema.objects.map(transformObject))
+		: transformObject(schema);
+	
+	function transformObject(schema: ObjectBase): Joi.Schema {
+		return Joi.object().keys(schema.fields.reduce((keys, field) => {
+			if (field.localized && locales.length) {
+				const validation = transformTypeToValidation(field.type);
+				keys[field.handle] = Joi.object().keys(locales.reduce((keys, locale) => {
+					keys[locale] = validation.required();
+					return keys;
+				}, {} as Joi.SchemaMap));
+			} else {
+				keys[field.handle] = transformTypeToValidation(field.type);
+			}
+			if (field.required) {
+				keys[field.handle] = keys[field.handle].required();
+			}
+			return keys;
+		}, {} as { [key: string]: Joi.Schema }));
+	}
 
 	function transformTypeToValidation(type: FieldType): Joi.Schema {
 		switch (type) {

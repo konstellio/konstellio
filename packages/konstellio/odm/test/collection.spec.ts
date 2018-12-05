@@ -1,5 +1,5 @@
 import 'mocha';
-import { use, should } from 'chai';
+import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 
@@ -7,18 +7,27 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Schema, Collection } from '../src/index';
+import { q, ColumnType, IndexType } from '@konstellio/db';
 import { DatabaseSQLite } from '@konstellio/db-sqlite';
-import { RSA_X931_PADDING } from 'constants';
 
 
 describe('Collection', () => {
 
+	const postCatSchema: Schema = {
+		handle: 'PostCategory',
+		fields: [
+			{ handle: 'id', type: 'string' },
+			{ handle: 'title', type: 'string' },
+		],
+		indexes: []
+	};
 	const postSchema: Schema = {
 		handle: 'Post',
 		fields: [
 			{ handle: 'id', type: 'string' },
 			{ handle: 'title', type: 'string', localized: true },
 			{ handle: 'slug', type: 'string', localized: true },
+			{ handle: 'category', type: postCatSchema, localized: true, relation: true, multiple: true },
 			{ handle: 'postDate', type: 'datetime' },
 		],
 		indexes: [
@@ -27,11 +36,60 @@ describe('Collection', () => {
 			{ handle: 'post_postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'desc' }] }
 		]
 	};
+	const productSchema: Schema = {
+		handle: 'Product',
+		objects: [
+			{
+				handle: 'Physical',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: '_type', type: 'string', required: true },
+					{ handle: 'sku', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'price', type: 'float', required: true },
+					{ handle: 'weight', type: 'float' },
+					{ handle: 'width', type: 'float' },
+					{ handle: 'height', type: 'float' },
+					{ handle: 'depth', type: 'float' },
+				]
+			}, {
+				handle: 'Virtual',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: '_type', type: 'string', required: true },
+					{ handle: 'sku', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'price', type: 'float', required: true },
+					{ handle: 'size', type: 'float' }
+				]
+			}
+		],
+		indexes: [
+			{ handle: 'primary', type: 'primary', fields: [{ handle: 'id' }] },
+			{ handle: 'sku', type: 'unique', fields: [{ handle: 'sku' }] },
+			{ handle: 'price', type: 'sparse', fields: [{ handle: 'price' }] },
+		]
+	};
+
+	interface PostCategoryFields {
+		id: string;
+		title: string;
+	}
+
+	interface PostCategoryIndexes {
+		id: string;
+		slug: string;
+	}
+
+	interface PostCategoryInputs {
+		title: string;
+	}
 
 	interface PostFields {
 		id: string;
 		title: string;
 		slug: string;
+		category: string[];
 		postDate: Date;
 	}
 
@@ -39,6 +97,66 @@ describe('Collection', () => {
 		id: string;
 		slug: string;
 		postDate: Date;
+	}
+
+	interface PostInputs {
+		id?: string;
+		title: { fr: string, en: string };
+		slug: { fr: string, en: string };
+		category: { fr: string[], en: string[] };
+		postDate: Date;
+	}
+
+	type ProductFields = ProductPhysicalFields | ProductVirtualFields;
+
+	interface ProductPhysicalFields {
+		id: string;
+		_type: 'physical';
+		sku: string;
+		title: string;
+		price: number;
+		weight?: number;
+		width?: number;
+		height?: number;
+		depth?: number;
+	}
+
+	interface ProductVirtualFields {
+		id: string;
+		_type: 'virtual';
+		sku: string;
+		title: string;
+		price: number;
+		size?: number;
+	}
+
+	interface ProductIndexes {
+		id: string;
+		sku: string;
+		price: number;
+	}
+
+	type ProductInputs = ProductPhysicalInputs | ProductVirtualInputs;
+
+	interface ProductPhysicalInputs {
+		id?: string;
+		_type: 'physical';
+		sku: string;
+		title: { fr: string, en: string };
+		price: number;
+		weight?: number;
+		width?: number;
+		height?: number;
+		depth?: number;
+	}
+
+	interface ProductVirtualInputs {
+		id?: string;
+		_type: 'virtual';
+		sku: string;
+		title: { fr: string, en: string };
+		price: number;
+		size?: number;
 	}
 
 	let db: DatabaseSQLite;
@@ -49,25 +167,266 @@ describe('Collection', () => {
 		const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'konstellio-db-sqlite-'));
 
 		db = new DatabaseSQLite({
-			filename: ':memory:'
-			// filename: join(tmp, 'test.sqlite')
+			// filename: ':memory:'
+			filename: path.join(tmp, 'test.sqlite')
 		});
 
 		db.connect()
 		.then(() => db.transaction())
-		// .then(transaction => {
-		// 	transaction.execute('CREATE TABLE Post (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, postDate TEXT, likes INTEGER)');
-		// 	transaction.execute('CREATE INDEX Bar_Foo_postDate ON Bar_Foo (postDate ASC, likes ASC)');
-		// 	transaction.execute('CREATE INDEX Bar_Foo_title ON Bar_Foo (title ASC)');
-		// 	return transaction.commit();
-		// })
+		.then(transaction => {
+			transaction.execute(q.createCollection('Post').define([
+				q.column('id', ColumnType.Text),
+				q.column('title__fr', ColumnType.Text),
+				q.column('title__en', ColumnType.Text),
+				q.column('slug__fr', ColumnType.Text),
+				q.column('slug__en', ColumnType.Text),
+				q.column('postDate', ColumnType.Text)
+			], [
+				q.index('post_pk', IndexType.Primary, [q.sort('id')]),
+				q.index('post_slug__fr_u', IndexType.Unique, [q.sort('slug__fr')]),
+				q.index('post_slug__en_u', IndexType.Unique, [q.sort('slug__en')]),
+				q.index('post_postDate', IndexType.Index, [q.sort('postDate')])
+			]));
+			transaction.execute(q.insert('Post')
+				.add({
+					id: 'post-a',
+					title__fr: 'Mon titre 1',
+					title__en: 'My title 1',
+					slug__fr: 'mon-titre-1',
+					slug__en: 'my-title-1',
+					postDate: '2018-11-26 17:00:00'
+				})
+				.add({
+					id: 'post-b',
+					title__fr: 'Mon titre 2',
+					title__en: 'My title 2',
+					slug__fr: 'mon-titre-2',
+					slug__en: 'my-title-2',
+					postDate: '2018-11-27 17:00:00'
+				})
+				.add({
+					id: 'post-c',
+					title__fr: 'Mon titre 3',
+					title__en: 'My title 3',
+					slug__fr: 'mon-titre-3',
+					slug__en: 'my-title-3',
+					postDate: '2018-11-28 17:00:00'
+				})
+			);
+			transaction.execute(q.createCollection('PostCategory').define([
+				q.column('id', ColumnType.Text),
+				q.column('title__fr', ColumnType.Text),
+				q.column('title__en', ColumnType.Text)
+			], [
+				q.index('postcategory_pk', IndexType.Primary, [q.sort('id')])
+			]));
+			transaction.execute(q.insert('PostCategory')
+				.add({
+					id: 'cat-a',
+					title__fr: 'Ma catégorie 1',
+					title__en: 'My category 1'
+				})
+				.add({
+					id: 'cat-b',
+					title__fr: 'Ma catégorie 2',
+					title__en: 'My category 2'
+				})
+			);
+			transaction.execute(q.createCollection('Relation').define([
+				q.column('id', ColumnType.Text),
+				q.column('collection', ColumnType.Text),
+				q.column('field', ColumnType.Text),
+				q.column('source', ColumnType.Text),
+				q.column('target', ColumnType.Text),
+				q.column('seq', ColumnType.Int)
+			], [
+				q.index('relation_pk', IndexType.Primary, [q.sort('id')]),
+				q.index('relation_collection', IndexType.Index, [q.sort('collection')]),
+				q.index('relation_field', IndexType.Index, [q.sort('field')]),
+				q.index('relation_source', IndexType.Index, [q.sort('source')])
+			]));
+			transaction.execute(q.insert('Relation')
+				.add({
+					id: 'post-a-cat-a',
+					collection: 'Post',
+					field: 'category__fr',
+					source: 'post-a',
+					target: 'cat-a',
+					seq: 0
+				})
+				.add({
+					id: 'post-b-cat-a',
+					collection: 'Post',
+					field: 'category__fr',
+					source: 'post-b',
+					target: 'cat-a',
+					seq: 0
+				})
+				.add({
+					id: 'post-b-cat-b',
+					collection: 'Post',
+					field: 'category__fr',
+					source: 'post-b',
+					target: 'cat-b',
+					seq: 1
+				})
+			);
+			transaction.execute(q.createCollection('Product').define([
+				q.column('id', ColumnType.Text),
+				q.column('_type', ColumnType.Text),
+				q.column('sku', ColumnType.Text),
+				q.column('title__fr', ColumnType.Text),
+				q.column('title__en', ColumnType.Text),
+				q.column('price', ColumnType.Float),
+				q.column('weight', ColumnType.Float),
+				q.column('width', ColumnType.Float),
+				q.column('height', ColumnType.Float),
+				q.column('depth', ColumnType.Float),
+				q.column('size', ColumnType.Float)
+			], [
+				q.index('product_pk', IndexType.Primary, [q.sort('id')]),
+				q.index('product_sku', IndexType.Unique, [q.sort('sku')]),
+				q.index('product_price', IndexType.Index, [q.sort('price')])
+			]));
+			return transaction.commit();
+		})
 		.then(() => done());
 	});
 
-	// it('initialize', async () => {
-	// 	const Post = new Collection<PostFields, PostIndexes>(db, ['fr', 'en'], postSchema);
+	it('initialize', async () => {
+		expect(() => new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema)).to.not.throw();
+		expect(() => new Collection<ProductFields, ProductIndexes, ProductInputs>(db, ['fr', 'en'], productSchema)).to.not.throw();
+		expect(() => new Collection(db, ['fr', 'en'], postSchema)).to.not.throw();
+		expect(() => new Collection(db, [], postSchema)).to.not.throw();
+	});
 
-	// 	// Post.
+	it('findById', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+		const b = await Post.findById('post-b');
+		expect(b.id).to.eq('post-b');
+		expect(b.title).to.eq('Mon titre 2');
+		expect(b.slug).to.eq('mon-titre-2');
+		expect(b.category).to.eql(['cat-a', 'cat-b']);
+		expect(b.postDate).to.eql(new Date('2018-11-27 17:00:00'));
+
+		expect(Post.findById('non-existing')).to.be.rejected;
+
+		const c = await Post.findById('post-c', { fields: ['id', 'title'], locale: 'en' });
+		expect(c.id).to.eq('post-c');
+		expect(c.title).to.eq('My title 3');
+		expect((c as any).slug).to.eq(undefined);
+
+		const Product = new Collection<ProductFields, ProductIndexes, ProductInputs>(db, ['fr', 'en'], productSchema, ['_type']);
+	});
+
+	it('findByIds', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+		const [b, a] = await Post.findByIds(['post-b', 'post-a'], { fields: ['id', 'title'], locale: 'en'});
+		expect(a.id).to.eq('post-a');
+		expect(a.title).to.eq('My title 1');
+		expect(b.id).to.eq('post-b');
+		expect(b.title).to.eq('My title 2');
+	});
+
+	// it('create', async () => {
+	// 	const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+	// 	const d = await Post.create({
+	// 		title: {
+	// 			fr: 'Mon titre 4',
+	// 			en: 'My title 4'
+	// 		},
+	// 		slug: {
+	// 			fr: 'mon-titre-4',
+	// 			en: 'My-title-4'
+	// 		},
+	// 		category: {
+	// 			fr: ['cat-a'],
+	// 			en: ['cat-a']
+	// 		},
+	// 		postDate: new Date()
+	// 	});
+
+	// 	const dd = await Post.findById(d);
+	// 	debugger;
+
+	// 	const trx = await Post.transaction();
+	// 	Post.create({
+	// 		title: {
+	// 			fr: 'Mon titre 4',
+	// 			en: 'My title 4'
+	// 		},
+	// 		slug: {
+	// 			fr: 'mon-titre-4',
+	// 			en: 'My-title-4'
+	// 		},
+	// 		category: {
+	// 			fr: ['cat-a'],
+	// 			en: ['cat-a']
+	// 		},
+	// 		postDate: new Date()
+	// 	}, trx);
+	// 	debugger;
+	// });
+
+	// it('update', async () => {
+	// 	const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+	// 	const e = await Post.create({
+	// 		title: {
+	// 			fr: 'Mon titre 5',
+	// 			en: 'My title 5'
+	// 		},
+	// 		slug: {
+	// 			fr: 'mon-titre-5',
+	// 			en: 'My-title-5'
+	// 		},
+	// 		category: {
+	// 			fr: [],
+	// 			en: []
+	// 		},
+	// 		postDate: new Date()
+	// 	});
+
+	// 	await Post.replace({
+	// 		id: e,
+	// 		title: {
+	// 			fr: 'Mon titre 6',
+	// 			en: 'My title 6'
+	// 		},
+	// 		slug: {
+	// 			fr: 'mon-titre-6',
+	// 			en: 'My-title-6'
+	// 		},
+	// 		category: {
+	// 			fr: [],
+	// 			en: []
+	// 		},
+	// 		postDate: new Date()
+	// 	});
+
+	// 	const ee = await Post.findById(e);
+	// 	debugger;
+
+	// 	const trx = await Post.transaction();
+	// 	Post.replace({
+	// 		id: e,
+	// 		title: {
+	// 			fr: 'Mon titre 7',
+	// 			en: 'My title 7'
+	// 		},
+	// 		slug: {
+	// 			fr: 'mon-titre-7',
+	// 			en: 'My-title-7'
+	// 		},
+	// 		category: {
+	// 			fr: [],
+	// 			en: []
+	// 		},
+	// 		postDate: new Date()
+	// 	}, trx);
 	// 	debugger;
 	// });
 
