@@ -114,25 +114,27 @@ export class Collection<
 		
 		assert(validateSchema(schema), `Parameter \`schema\` is not a valid Schema.`);
 
+		!this.mandatoryFields.includes('id') && this.mandatoryFields.push('id');
+
 		this.schema = schema;
 		this.schemaFields = isUnion(this.schema)
 			? this.schema.objects.reduce((fields, obj) => { return [...fields, ...obj.fields]; }, [] as SchemaField[])
 			: this.schema.fields;
 		this.fieldTransforms = this.schemaFields.reduce((prev, def) => {
 			if (def.inlined) {
-				return (row: any) => { row[def.handle] = JSON.parse(row[def.handle]); return prev(row); };
+				return (row: any) => { row[def.handle] && (row[def.handle] = JSON.parse(row[def.handle])); return prev(row); };
 			}
 			else if (def.type === 'int') {
-				return (row: any) => { row[def.handle] = parseInt(row[def.handle], 10) || 0; return prev(row); };
+				return (row: any) => { row[def.handle] && (row[def.handle] = parseInt(row[def.handle], 10) || 0); return prev(row); };
 			}
 			else if (def.type === 'float') {
-				return (row: any) => { row[def.handle] = parseFloat(row[def.handle]) || 0; return prev(row); };
+				return (row: any) => { row[def.handle] && (row[def.handle] = parseFloat(row[def.handle]) || 0); return prev(row); };
 			}
 			else if (def.type === 'boolean') {
-				return (row: any) => { row[def.handle] = !!row[def.handle]; return prev(row); };
+				return (row: any) => { row[def.handle] && (row[def.handle] = !!row[def.handle]); return prev(row); };
 			}
 			else if (def.type === 'date' || def.type === 'datetime') {
-				return (row: any) => { row[def.handle] = new Date(row[def.handle]); return prev(row); };
+				return (row: any) => { row[def.handle] && (row[def.handle] = new Date(row[def.handle])); return prev(row); };
 			}
 			return prev;
 		}, (row: any) => row);
@@ -168,44 +170,40 @@ export class Collection<
 		// Setup loader to minimize database bandwidth
 		this.loader = new Dataloader(
 			async (keys) => {
-				if (this.locales.length === 0) {
-					const ids = keys.map(key => key.id);
-					const uids = ids.filter((id, pos, ids) => ids.indexOf(id) === pos);
-					const fields = keys.reduce((fields, key) => [...fields, ...key.fields || []], [] as any[]);
-					const ufields = fields.filter((field, pos, fields) => fields.indexOf(field) === pos);
+				const batched: {
+					[locale: string]: {
+						locale: string;
+						ids: string[];
+						fields: any[];
+					}
+				} = {};
 
-					const results = await this.findMany({
-						fields: ufields,
-						condition: q.in('id', uids)
-					});
+				const defaultLocale = this.locales.length ? this.locales[0] : '';
 
-					return ids.map<any>(id => {
-						const res = results.filter((result: any) => result.id === id);
-						return res.length === 1 ? res[0] : undefined;
-					});
-				} else {
-					const batched = keys.reduce((batched, key) => {
-						const locale = key.locale || this.locales[0];
-
-						batched[locale] = batched[locale] || { fields: [], ids: [] };
-						batched[locale].ids.push(key.id);
-						batched[locale].fields.push(...(key.fields || []));
-
-						return batched;
-					}, {} as { [locale: string]: { fields: any[], ids: string[] } });
-
-					const localeResults = await Promise.all(Object.keys(batched).reduce((promises, locale) => {
-						const { fields, ids } = batched[locale];
-						return [...promises, this.findMany({ locale, fields, condition: q.in('id', ids) })];
-					}, [] as Promise<any>[]));
-
-					return keys.map<any>(key => {
-						const locale = key.locale || this.locales[0];
-						const localeIdx = this.locales.indexOf(locale);
-						const results = localeResults[localeIdx];
-						return results.find((row: any) => row.id === key.id);
-					});
+				for (const key of keys) {
+					const locale = key.locale || defaultLocale;
+					batched[locale] = batched[locale] || { locale, ids: [], fields: [] };
+					batched[locale].ids.push(key.id);
+					batched[locale].fields.push(...(key.fields || []));
 				}
+
+				const results: { [hash: string]: any } = {};
+
+				await Promise.all(Object.keys(batched).reduce((promises, locale) => {
+					const { ids, fields } = batched[locale];
+					return [
+						...promises,
+						this.findMany({ locale, fields, condition: q.in('id', ids) }).then(rows => {
+							for (const row of rows) {
+								results[`${row.id}-${locale}`] = row;
+							}
+						})
+					];
+				}, [] as Promise<void>[]));
+
+				return keys.map<any>(key => {
+					return results[`${key.id}-${key.locale || defaultLocale}`];
+				});
 			},
 			{
 				// cache: true,
@@ -324,12 +322,12 @@ export class Collection<
 
 		if (options.group) {
 			const localizedGroup = replaceField(options.group, fieldMap, fieldUsed);
-			query = query.group(localizedGroup);
+			query = query.group(...localizedGroup);
 		}
 
 		if (options.sort) {
 			const localizedSort = replaceField(options.sort, fieldMap, fieldUsed);
-			query = query.group(localizedSort);
+			query = query.sort(...localizedSort);
 		}
 
 		if (featuresJoin) {

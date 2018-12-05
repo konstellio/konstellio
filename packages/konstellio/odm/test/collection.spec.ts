@@ -330,6 +330,31 @@ describe('Collection', () => {
 		expect(b.title).to.eq('My title 2');
 	});
 
+	it('findOne', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+		const a = await Post.findOne({ fields: ['id'], sort: [q.sort('slug')] });
+		expect(a.id).to.eq('post-a');
+
+		const b = await Post.findOne({ fields: ['id'], condition: q.eq('slug', 'mon-titre-2') });
+		expect(b.id).to.eq('post-b');
+
+		const c = await Post.findOne({ fields: ['id'], sort: [q.sort('slug', 'desc')] });
+		expect(c.id).to.eq('post-c');
+	});
+
+	it('findMany', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+		const [a, b] = await Post.findMany({ fields: ['id'], sort: [q.sort('id')], limit: 2 });
+		expect(a.id).to.eq('post-a');
+		expect(b.id).to.eq('post-b');
+
+		const res = await Post.findMany({ fields: ['id'], condition: q.or(q.eq('id', 'post-a'), q.eq('id', 'post-b')), sort: [q.sort('id')], offset: 1 });
+		expect(res.length).to.eq(1);
+		expect(res[1].id).to.eq('post-b');
+	});
+
 	// it('create', async () => {
 	// 	const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
 
