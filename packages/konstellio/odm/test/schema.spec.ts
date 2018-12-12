@@ -3,10 +3,18 @@ import { use, expect, should } from 'chai';
 use(require("chai-as-promised"));
 should();
 
-import { Schema, validateSchema, createValidator } from '../src/index';
+import { Schema, validateSchema, createValidator, ObjectBase } from '../src/index';
 import * as Joi from 'joi';
 
 describe('Schema', () => {
+
+	const relatedObject: ObjectBase = {
+		handle: 'PostCategory',
+		fields: [
+			{ handle: 'id', type: 'string' },
+			{ handle: 'title', type: 'string' },
+		]
+	};
 
 	const validObject: Schema = {
 		handle: 'Post',
@@ -14,6 +22,7 @@ describe('Schema', () => {
 			{ handle: 'id', type: 'string', required: true },
 			{ handle: 'title', type: 'string', localized: true, required: true },
 			{ handle: 'slug', type: 'string', localized: true, required: true },
+			{ handle: 'category', type: relatedObject, localized: true, relation: true, multiple: true },
 			{ handle: 'content', type: 'string', localized: true },
 			{ handle: 'postDate', type: 'datetime', required: true },
 			{ handle: 'expireDate', type: 'datetime' }
@@ -58,7 +67,187 @@ describe('Schema', () => {
 		]
 	};
 
-	it('validate schema', async () => {
+	it('fails on empty schema', async () => {
+		expect(() => validateSchema({})).to.not.throw();
+		expect(validateSchema({})).to.eq(false);
+		expect(validateSchema({
+			handle: 'emptyobject',
+			fields: [],
+			indexes: []
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'emptyunion',
+			objects: [],
+			indexes: []
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'unionemptyobject',
+			objects: [{ handle: 'emptyobject', fields: [], indexes: [] }],
+			indexes: []
+		})).to.eq(false);
+	});
+
+	it('field type text', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'text' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type int', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'int' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type float', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'float' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type boolean', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'boolean' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type date', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'date' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type datetime', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'datetime' }],
+			indexes: []
+		})).to.eq(true);
+	});
+
+	it('field type subschema', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{
+				handle: 'asubschema',
+				type: {
+					handle: 'subschema',
+					fields: [{ handle: 'subfield', type: 'text' }]
+				}
+			}],
+			indexes: []
+		})).to.eq(true);
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{
+				handle: 'asubschema',
+				type: {
+					handle: 'subschema',
+					fields: [{ handle: 'subfield', type: 'text' }],
+					indexes: []
+				}
+			}],
+			indexes: []
+		})).to.eq(false);
+	});
+
+	it('schema union', async () => {
+		expect(validateSchema({
+			handle: 'union',
+			objects: [{
+				handle: 'A',
+				fields: [{ handle: 'field', type: 'text' }]
+			}],
+			indexes: []
+		})).to.eq(true);
+		expect(validateSchema({
+			handle: 'union',
+			objects: [{
+				handle: 'A',
+				fields: [{ handle: 'field', type: 'text' }]
+			}, {
+				handle: 'B',
+				fields: [{ handle: 'field', type: 'text' }]
+			}],
+			indexes: []
+		})).to.eq(true);
+		expect(validateSchema({
+			handle: 'union',
+			objects: [{
+				handle: 'A',
+				fields: [{ handle: 'field', type: 'text' }]
+			}, {
+				handle: 'B',
+				fields: [{ handle: 'field', type: 'int' }]
+			}],
+			indexes: []
+		})).to.eq(false);
+	});
+
+	it('indexes', async () => {
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'text' }],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [] }]
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'schema',
+			objects: [{
+				handle: 'subschema',
+				fields: [{ handle: 'field', type: 'text' }]
+			}],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [] }]
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'text' }],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [{ handle: 'nonfield' }] }]
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'schema',
+			objects: [{
+				handle: 'subschema',
+				fields: [{ handle: 'field', type: 'text' }]
+			}],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [{ handle: 'nonfield' }] }]
+		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{ handle: 'field', type: 'text' }],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [{ handle: 'field' }] }]
+		})).to.eq(true);
+		expect(validateSchema({
+			handle: 'schema',
+			objects: [{
+				handle: 'subschema',
+				fields: [{ handle: 'field', type: 'text' }]
+			}],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [{ handle: 'field' }] }]
+		})).to.eq(true);
+		expect(validateSchema({
+			handle: 'schema',
+			objects: [{
+				handle: 'subschemaa',
+				fields: [{ handle: 'field', type: 'text' }]
+			}, {
+				handle: 'subschemab',
+				fields: [{ handle: 'otherfield', type: 'text' }]
+			}],
+			indexes: [{ handle: 'index_field', type: 'index', fields: [{ handle: 'otherfield' }] }]
+		})).to.eq(true);
+	});
+
+	it('complexe schema', async () => {
 		expect(() => validateSchema(validObject)).to.not.throw();
 		expect(() => validateSchema(validUnion)).to.not.throw();
 		expect(validateSchema(validObject)).to.eq(true);
