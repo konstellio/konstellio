@@ -482,6 +482,13 @@ function fnToSQL(field: Function, params: any[], variables?: Variables): string 
 	}).join(', ')})`;
 }
 
+function valueToPrimitive(value: unknown): any {
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+	return value;
+}
+
 function valueToSQL(field: Value, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
 		return fieldToSQL(field, params, variables);
@@ -495,14 +502,14 @@ function valueToSQL(field: Value, params: any[], variables?: Variables): string 
 		}
 		const value = variables[field.name];
 		if (isArray(value)) {
-			params.push(...value);
+			params.push(...value.map(valueToPrimitive));
 			return value.map(v => '?').join(', ');
 		} else {
-			params.push(value);
+			params.push(valueToPrimitive(value));
 			return '?';
 		}
 	}
-	params.push(field);
+	params.push(valueToPrimitive(field));
 	return '?';
 }
 
