@@ -10,13 +10,13 @@ export interface ObjectBase {
 }
 
 export interface Object extends ObjectBase {
-	indexes: Indexes[];
+	indexes: Index[];
 }
 
 export interface Union {
 	handle: string;
 	objects: ObjectBase[];
-	indexes: Indexes[];
+	indexes: Index[];
 }
 
 export type FieldType = 'string'
@@ -47,7 +47,7 @@ export interface IndexField {
 	direction?: 'asc' | 'desc';
 }
 
-export interface Indexes {
+export interface Index {
 	handle: string;
 	type: IndexType;
 	fields: IndexField[];
@@ -59,7 +59,7 @@ const fieldTypeValidator = Joi.alternatives().try(
 );
 
 const fieldValidator = Joi.object().keys({
-	handle: Joi.string().required(),
+	handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
 	type: fieldTypeValidator.required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
@@ -72,10 +72,10 @@ const fieldValidator = Joi.object().keys({
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
 
 const indexValidator = Joi.object().keys({
-	handle: Joi.string().required(),
+	handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
 	type: indexTypeValidator.required(),
 	fields: Joi.array().items(Joi.object().keys({
-		handle: Joi.string().required(),
+		handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
 		direction: Joi.string().allow('asc', 'desc')
 	})).min(1)
 });
