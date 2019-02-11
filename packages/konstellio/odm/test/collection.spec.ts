@@ -17,7 +17,7 @@ describe('Collection', () => {
 		handle: 'PostCategory',
 		fields: [
 			{ handle: 'id', type: 'string' },
-			{ handle: 'title', type: 'string' },
+			{ handle: 'title', type: 'string', required: true },
 		],
 		indexes: []
 	};
@@ -25,9 +25,9 @@ describe('Collection', () => {
 		handle: 'Post',
 		fields: [
 			{ handle: 'id', type: 'string' },
-			{ handle: 'title', type: 'string', localized: true },
-			{ handle: 'slug', type: 'string', localized: true },
-			{ handle: 'category', type: postCatSchema, localized: true, relation: true, multiple: true },
+			{ handle: 'title', type: 'string', localized: true, required: true },
+			{ handle: 'slug', type: 'string', localized: true, required: true },
+			{ handle: 'category', type: 'string', localized: true, relation: true, multiple: true, required: true },
 			{ handle: 'postDate', type: 'datetime' },
 		],
 		indexes: [
@@ -42,7 +42,7 @@ describe('Collection', () => {
 			{
 				handle: 'Physical',
 				fields: [
-					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'id', type: 'string' },
 					{ handle: '_type', type: 'string', required: true },
 					{ handle: 'sku', type: 'string', required: true },
 					{ handle: 'title', type: 'string', localized: true, required: true },
@@ -55,7 +55,7 @@ describe('Collection', () => {
 			}, {
 				handle: 'Virtual',
 				fields: [
-					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'id', type: 'string' },
 					{ handle: '_type', type: 'string', required: true },
 					{ handle: 'sku', type: 'string', required: true },
 					{ handle: 'title', type: 'string', localized: true, required: true },
@@ -288,6 +288,27 @@ describe('Collection', () => {
 				q.index('product_sku', IndexType.Unique, [q.sort('sku')]),
 				q.index('product_price', IndexType.Index, [q.sort('price')])
 			]));
+			transaction.execute(q.insert('Product').add({
+				id: 'product-a',
+				_type: 'physical',
+				sku: 'a-sku',
+				title__fr: 'Produit physique A',
+				title__en: 'Physical produit A',
+				price: 10.00,
+				weight: 11,
+				width: 12,
+				height: 13,
+				depth: 14
+			}));
+			transaction.execute(q.insert('Product').add({
+				id: 'product-b',
+				_type: 'virtual',
+				sku: 'b-sku',
+				title__fr: 'Produit virtuel B',
+				title__en: 'Virtual produit A',
+				price: 10.00,
+				size: 11.00
+			}));
 			return transaction.commit();
 		})
 		.then(() => done());
@@ -298,6 +319,7 @@ describe('Collection', () => {
 		expect(() => new Collection<ProductFields, ProductIndexes, ProductInputs>(db, ['fr', 'en'], productSchema)).to.not.throw();
 		expect(() => new Collection(db, ['fr', 'en'], postSchema)).to.not.throw();
 		expect(() => new Collection(db, [], postSchema)).to.not.throw();
+		expect(() => new Collection<ProductFields, ProductIndexes, ProductInputs>(db, ['fr', 'en'], productSchema, ['_type'])).to.not.throw();
 	});
 
 	it('findById', async () => {
@@ -318,6 +340,10 @@ describe('Collection', () => {
 		expect((c as any).slug).to.eq(undefined);
 
 		const Product = new Collection<ProductFields, ProductIndexes, ProductInputs>(db, ['fr', 'en'], productSchema, ['_type']);
+		
+		const d = await Product.findById('product-a');
+		expect(d.id).to.eq('product-a');
+		expect(d._type).to.eq('physical');
 	});
 
 	it('findByIds', async () => {
@@ -352,108 +378,160 @@ describe('Collection', () => {
 
 		const res = await Post.findMany({ fields: ['id'], condition: q.or(q.eq('id', 'post-a'), q.eq('id', 'post-b')), sort: [q.sort('id')], offset: 1 });
 		expect(res.length).to.eq(1);
-		expect(res[1].id).to.eq('post-b');
+		expect(res[0].id).to.eq('post-b');
 	});
 
-	// it('create', async () => {
-	// 	const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+	it('validate', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
 
-	// 	const d = await Post.create({
-	// 		title: {
-	// 			fr: 'Mon titre 4',
-	// 			en: 'My title 4'
-	// 		},
-	// 		slug: {
-	// 			fr: 'mon-titre-4',
-	// 			en: 'My-title-4'
-	// 		},
-	// 		category: {
-	// 			fr: ['cat-a'],
-	// 			en: ['cat-a']
-	// 		},
-	// 		postDate: new Date()
-	// 	});
+		expect(Post.validate({})).to.eq(false);
+		expect(Post.validate({
+			title: {
+				fr: 'Mon titre 4',
+				en: 'My title 4'
+			},
+			slug: {
+				fr: 'mon-titre-4',
+				en: 'My-title-4'
+			},
+			category: {
+				fr: ['cat-a'],
+				en: ['cat-a']
+			},
+			postDate: new Date()
+		})).to.eq(true);
+	});
 
-	// 	const dd = await Post.findById(d);
-	// 	debugger;
+	it('create', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+		const createData = {
+			title: {
+				fr: 'Mon titre 4',
+				en: 'My title 4'
+			},
+			slug: {
+				fr: 'mon-titre-4',
+				en: 'My-title-4'
+			},
+			category: {
+				fr: ['cat-a'],
+				en: ['cat-a']
+			},
+			postDate: new Date()
+		};
 
-	// 	const trx = await Post.transaction();
-	// 	Post.create({
-	// 		title: {
-	// 			fr: 'Mon titre 4',
-	// 			en: 'My title 4'
-	// 		},
-	// 		slug: {
-	// 			fr: 'mon-titre-4',
-	// 			en: 'My-title-4'
-	// 		},
-	// 		category: {
-	// 			fr: ['cat-a'],
-	// 			en: ['cat-a']
-	// 		},
-	// 		postDate: new Date()
-	// 	}, trx);
-	// 	debugger;
-	// });
+		const id = await Post.create(createData);
 
-	// it('update', async () => {
-	// 	const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+		const post = await Post.findById(id);
+		expect(post.id).to.eq(id);
+		expect(post.title).to.eq(createData.title.fr);
+		expect(post.slug).to.eq(createData.slug.fr);
+		expect(post.category).to.eql(createData.category.fr);
+		expect(post.postDate).to.eql(createData.postDate);
 
-	// 	const e = await Post.create({
-	// 		title: {
-	// 			fr: 'Mon titre 5',
-	// 			en: 'My title 5'
-	// 		},
-	// 		slug: {
-	// 			fr: 'mon-titre-5',
-	// 			en: 'My-title-5'
-	// 		},
-	// 		category: {
-	// 			fr: [],
-	// 			en: []
-	// 		},
-	// 		postDate: new Date()
-	// 	});
+		expect(() => async () => {
+			const trx = await Post.transaction();
+			Post.create({
+				title: {
+					fr: 'Mon titre 4',
+					en: 'My title 4'
+				},
+				slug: {
+					fr: 'mon-titre-4',
+					en: 'My-title-4'
+				},
+				category: {
+					fr: ['cat-a'],
+					en: ['cat-a']
+				},
+				postDate: new Date()
+			}, trx);
+		}).to.not.throw();
+	});
 
-	// 	await Post.replace({
-	// 		id: e,
-	// 		title: {
-	// 			fr: 'Mon titre 6',
-	// 			en: 'My title 6'
-	// 		},
-	// 		slug: {
-	// 			fr: 'mon-titre-6',
-	// 			en: 'My-title-6'
-	// 		},
-	// 		category: {
-	// 			fr: [],
-	// 			en: []
-	// 		},
-	// 		postDate: new Date()
-	// 	});
+	it('replace', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+		const createData = {
+			title: {
+				fr: 'Mon titre 5',
+				en: 'My title 5'
+			},
+			slug: {
+				fr: 'mon-titre-5',
+				en: 'My-title-5'
+			},
+			category: {
+				fr: [],
+				en: []
+			},
+			postDate: new Date()
+		};
+		const replaceData = {
+			title: {
+				fr: 'Mon titre 6',
+				en: 'My title 6'
+			},
+			slug: {
+				fr: 'mon-titre-6',
+				en: 'My-title-6'
+			}
+		};
 
-	// 	const ee = await Post.findById(e);
-	// 	debugger;
+		const id = await Post.create(createData);
 
-	// 	const trx = await Post.transaction();
-	// 	Post.replace({
-	// 		id: e,
-	// 		title: {
-	// 			fr: 'Mon titre 7',
-	// 			en: 'My title 7'
-	// 		},
-	// 		slug: {
-	// 			fr: 'mon-titre-7',
-	// 			en: 'My-title-7'
-	// 		},
-	// 		category: {
-	// 			fr: [],
-	// 			en: []
-	// 		},
-	// 		postDate: new Date()
-	// 	}, trx);
-	// 	debugger;
-	// });
+		await Post.replace({
+			id,
+			...createData,
+			...replaceData
+		});
 
+		const post = await Post.findById(id);
+		expect(post.title).to.eq(replaceData.title.fr);
+		expect(post.slug).to.eq(replaceData.slug.fr);
+		expect(post.category).to.eql(createData.category.fr);
+		expect(post.postDate).to.eql(createData.postDate);
+
+		expect(() => async () => {
+			const trx = await Post.transaction();
+			Post.replace({
+				id,
+				title: {
+					fr: 'Mon titre 7',
+					en: 'My title 7'
+				},
+				slug: {
+					fr: 'mon-titre-7',
+					en: 'My-title-7'
+				},
+				category: {
+					fr: [],
+					en: []
+				},
+				postDate: new Date()
+			}, trx);
+		}).to.not.throw();
+	});
+
+	it('delete', async () => {
+		const Post = new Collection<PostFields, PostIndexes, PostInputs>(db, ['fr', 'en'], postSchema);
+
+		const id = await Post.create({
+			title: {
+				fr: 'Mon titre 8',
+				en: 'My title 8'
+			},
+			slug: {
+				fr: 'mon-titre-8',
+				en: 'My-title-8'
+			},
+			category: {
+				fr: ['cat-a'],
+				en: ['cat-a']
+			},
+			postDate: new Date()
+		});
+
+		await Post.delete(id);
+	});
 
 });

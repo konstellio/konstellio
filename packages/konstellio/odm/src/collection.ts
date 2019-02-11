@@ -69,7 +69,7 @@ export interface OptionAggregate<Indexes> {
 }
 export interface OptionAggregateSelect<Columns, Indexes> {
 	locale?: string;
-	fields?: Columns[];
+	fields?: (Field<Columns> | FieldAs<Columns>)[];
 	condition?: BinaryExpression<Indexes>;
 	group?: (Field<Indexes> | Function<Indexes>)[];
 	sort?: FieldDirection<Indexes>[];
@@ -124,6 +124,9 @@ export class Collection<
 			if (def.inlined) {
 				return (row: any) => { row[def.handle] && (row[def.handle] = JSON.parse(row[def.handle])); return prev(row); };
 			}
+			else if (def.multiple) {
+				return (row: any) => { row[def.handle] = row[def.handle] || []; return prev(row); };
+			}
 			else if (def.type === 'int') {
 				return (row: any) => { row[def.handle] && (row[def.handle] = parseInt(row[def.handle], 10) || 0); return prev(row); };
 			}
@@ -140,7 +143,7 @@ export class Collection<
 		}, (row: any) => row);
 		this.collection = q.collection(this.schema.handle);
 		this.deleteQuery = q.delete(this.collection).where(q.eq('id', q.var('id')));
-		this.validator = createValidator(this.schema, locales);
+		this.validator = createValidator(this.schema, locales).required().strict(true);
 
 		// Build a map of each locale renamed localized fields { en: { title: title__en, ... }, fr: { ... } }
 		this.localizedFieldMap = new Map(locales.map(locale => [
@@ -261,13 +264,7 @@ export class Collection<
 
 	async findMany(options?: OptionFindMany<Indexes>): Promise<Columns[]>;
 	async findMany<K extends keyof Columns>(options?: OptionFindManySelect<K, Indexes>): Promise<Pick<Columns, K>[]>;
-	async findMany<K extends keyof Columns>(options?: OptionFindMany<Indexes> | OptionFindManySelect<K, Indexes>): Promise<Columns[] | Pick<Columns, K>[]> {
-		return this.aggregate(options);
-	}
-
-	async aggregate(options?: OptionAggregate<Indexes>): Promise<Columns[]>;
-	async aggregate<K extends keyof Columns>(options?: OptionAggregateSelect<K, Indexes>): Promise<Pick<Columns, K>[]>;
-	async aggregate<K extends keyof Columns>(options: OptionAggregate<Indexes> | OptionAggregateSelect<K, Indexes> = {}): Promise<Columns[] | Pick<Columns, K>[]> {
+	async findMany<K extends keyof Columns>(options: OptionFindMany<Indexes> | OptionFindManySelect<K, Indexes> = {}): Promise<Columns[] | Pick<Columns, K>[]> {
 		const locale = this.locales.length ? (options.locale || this.locales[0]) : undefined;
 		const fieldMap = this.localizedFieldMap.get(locale || '');
 
@@ -318,11 +315,6 @@ export class Collection<
 				fieldUsed
 			);
 			query = query.where(localizedCondition);
-		}
-
-		if (options.group) {
-			const localizedGroup = replaceField(options.group, fieldMap, fieldUsed);
-			query = query.group(...localizedGroup);
 		}
 
 		if (options.sort) {
@@ -384,6 +376,12 @@ export class Collection<
 
 		return result.results.map<any>(row => this.fieldTransforms(row));
 	}
+
+	// async aggregate(options?: OptionAggregate<Indexes>): Promise<Columns[]>;
+	// async aggregate<K extends keyof Columns>(options?: OptionAggregateSelect<K, Indexes>): Promise<any>;
+	// async aggregate<K extends keyof Columns>(options: OptionAggregate<Indexes> | OptionAggregateSelect<K, Indexes> = {}): Promise<Columns[] | any> {
+	// 	return Promise.reject(`Not yet implemented.`);
+	// }
 
 	protected flattenLocalizedFields(data: any): FlatInput {
 		const featuresJoin = this.database.features.join;
@@ -533,9 +531,9 @@ export class Collection<
 		const result = this.validator.validate(data);
 		if (result.error) {
 			errors.push(...result.error.details);
-			return true;
+			return false;
 		}
-		return false;
+		return true;
 	}
 
 }
