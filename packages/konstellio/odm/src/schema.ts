@@ -53,13 +53,15 @@ export interface Index {
 	fields: IndexField[];
 }
 
+export const localizedFieldName = /^(.*)__[a-z]+$/;
+
 const fieldTypeValidator = Joi.alternatives().try(
 	Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
 	Joi.lazy(() => objectBaseValidator)
 );
 
 const fieldValidator = Joi.object().keys({
-	handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
+	handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
 	type: fieldTypeValidator.required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
@@ -72,10 +74,10 @@ const fieldValidator = Joi.object().keys({
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
 
 const indexValidator = Joi.object().keys({
-	handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
+	handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
 	type: indexTypeValidator.required(),
 	fields: Joi.array().items(Joi.object().keys({
-		handle: Joi.string().required().regex(/__[a-z]+$/, { invert: true }),
+		handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
 		direction: Joi.string().allow('asc', 'desc')
 	})).min(1)
 });
