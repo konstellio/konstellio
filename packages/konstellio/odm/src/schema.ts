@@ -53,7 +53,7 @@ export interface Index {
 	fields: IndexField[];
 }
 
-export const localizedFieldName = /^(.*)__[a-z]+$/;
+export const localizedFieldName = /^(.*)__([a-z]+)$/;
 
 const fieldTypeValidator = Joi.alternatives().try(
 	Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),

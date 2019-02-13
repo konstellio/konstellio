@@ -4,7 +4,7 @@ import { use, expect } from 'chai';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { extractSchemaFromDatabase } from '../src/index';
+import { extractSchemaFromDatabase, computeLocaleDiff, computeSchemaDiff, Schema } from '../src/index';
 import { DatabaseSQLite } from '@konstellio/db-sqlite';
 import { q, ColumnType, IndexType } from '@konstellio/db';
 
@@ -43,8 +43,9 @@ describe('Migration', () => {
 			.then(() => done());
 	});
 
-	it('extractSchemaFromDatabase', async () => {
-		expect(await extractSchemaFromDatabase(db)).to.eql([
+	it('extract schema from database', async () => {
+		const [schemas, locales] = await extractSchemaFromDatabase(db);
+		expect(schemas).to.eql([
 			{
 				handle: 'post',
 				fields: [
@@ -58,6 +59,108 @@ describe('Migration', () => {
 					{ handle: 'post_postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'asc' }] },
 					{ handle: 'post_slug_u', type: 'unique', fields: [{ handle: 'slug', direction: 'asc' }] }
 				]
+			}
+		]);
+		expect(locales).to.eql(['fr', 'en']);
+	});
+
+	it('compute locales diff', async () => {
+		expect(computeLocaleDiff(['fr'], ['fr'])).to.eql([]);
+
+		expect(computeLocaleDiff(['fr'], ['fr', 'en'])).to.eql([
+			{ action: 'add_locale', locale: 'en' }
+		]);
+
+		expect(computeLocaleDiff(['fr', 'en'], ['fr'])).to.eql([
+			{ action: 'drop_locale', locale: 'en' }
+		]);
+	});
+
+	it('compute schemas diff', async () => {
+		const source: Schema[] = [
+			{
+				handle: 'Post',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'slug', type: 'string', localized: true, required: true },
+					{ handle: 'content', type: 'string', localized: true },
+					{ handle: 'postDate', type: 'datetime', required: true },
+				],
+				indexes: [
+					{ handle: 'post_id', type: 'primary', fields: [{ handle: 'id' }] },
+					{ handle: 'post_postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'desc' }] },
+					{ handle: 'post_slug', type: 'unique', fields: [{ handle: 'slug' }] }
+				]
+			}
+		];
+		const target: Schema[] = [
+			{
+				handle: 'Post',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'slug', type: 'string', localized: true, required: true },
+					{ handle: 'postDate', type: 'datetime', required: true },
+					{ handle: 'expireDate', type: 'datetime' }
+				],
+				indexes: [
+					{ handle: 'post_id', type: 'primary', fields: [{ handle: 'id' }] },
+					{ handle: 'post_postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'desc' }] },
+					{ handle: 'post_expireDate', type: 'sparse', fields: [{ handle: 'expireDate', direction: 'desc' }] },
+				]
+			},
+			{
+				handle: 'Event',
+				fields: [
+					{ handle: 'id', type: 'string', required: true },
+					{ handle: 'title', type: 'string', localized: true, required: true },
+					{ handle: 'slug', type: 'string', localized: true, required: true },
+					{ handle: 'content', type: 'string', localized: true },
+					{ handle: 'postDate', type: 'datetime', required: true },
+					{ handle: 'expireDate', type: 'datetime' }
+				],
+				indexes: [
+					{ handle: 'event_id', type: 'primary', fields: [{ handle: 'id' }] },
+					{ handle: 'event_postDate', type: 'sparse', fields: [{ handle: 'postDate', direction: 'desc' }] },
+					{ handle: 'event_slug', type: 'unique', fields: [{ handle: 'slug' }] }
+				]
+			}
+		];
+
+		const diffs = [
+			...computeSchemaDiff(source, target, (a, b) => a.type === b.type && a.size === b.size),
+			...computeLocaleDiff(['fr'], ['fr', 'en'])
+		];
+
+		expect(diffs).to.eql([
+			{
+				action: 'add_index',
+				collection: 'Post',
+				index: { handle: 'post_expireDate', type: 'sparse', fields: [{ handle: 'expireDate', direction: 'desc' }] }
+			},
+			{
+				action: 'drop_index',
+				collection: 'Post',
+				index: 'post_slug'
+			},
+			{
+				action: 'add_field',
+				collection: 'Post',
+				field: { handle: 'expireDate', type: 'datetime' }
+			},
+			{
+				action: 'drop_field',
+				collection: 'Post',
+				field: 'content'
+			},
+			{
+				action: 'add_collection',
+				collection: target[1]
+			},
+			{
+				action: 'add_locale',
+				locale: 'en'
 			}
 		]);
 	});
