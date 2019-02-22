@@ -155,3 +155,5 @@ export class MessageQueueMemory extends MessageQueue {
 		return disposable;
 	}
 }
+
+export default MessageQueueMemory;

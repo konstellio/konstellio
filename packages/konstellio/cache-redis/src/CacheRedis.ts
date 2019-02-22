@@ -131,3 +131,5 @@ export class CacheRedis extends Cache {
 		});
 	}
 }
+
+export default CacheRedis;

@@ -128,3 +128,5 @@ export class CacheMemory extends Cache {
 		});
 	}
 }
+
+export default CacheMemory;

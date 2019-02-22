@@ -218,6 +218,8 @@ export class DatabaseSQLite extends Database {
 	}
 }
 
+export default DatabaseSQLite;
+
 export class TransactionSQLite extends Transaction {
 	private static tmpId: number = 0;
 

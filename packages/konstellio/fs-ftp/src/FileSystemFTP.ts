@@ -329,3 +329,5 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 	}
 
 }
+
+export default FileSystemFTP;
