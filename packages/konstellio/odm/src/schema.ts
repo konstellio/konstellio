@@ -13,9 +13,12 @@ export interface Object extends ObjectBase {
 	indexes: Index[];
 }
 
-export interface Union {
+export interface UnionBase {
 	handle: string;
 	objects: ObjectBase[];
+}
+
+export interface Union extends UnionBase {
 	indexes: Index[];
 }
 
@@ -25,17 +28,16 @@ export type FieldType = 'string'
 	| 'boolean'
 	| 'date'
 	| 'datetime'
-	| ObjectBase;
+	| ObjectBase
+	| UnionBase;
 
 export interface Field {
 	handle: string;
 	type: FieldType;
 	size?: number;
 	required?: boolean;
-	relation?: boolean;
 	localized?: boolean;
 	multiple?: boolean;
-	inlined?: boolean;
 }
 
 export type IndexType = 'primary'
@@ -57,7 +59,8 @@ export const localizedFieldName = /^(.*)__([a-z]+)$/;
 
 const fieldTypeValidator = Joi.alternatives().try(
 	Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
-	Joi.lazy(() => objectBaseValidator)
+	Joi.lazy(() => objectBaseValidator),
+	Joi.lazy(() => unionBaseValidator)
 );
 
 const fieldValidator = Joi.object().keys({
@@ -65,10 +68,8 @@ const fieldValidator = Joi.object().keys({
 	type: fieldTypeValidator.required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
-	relation: Joi.boolean(),
 	localized: Joi.boolean(),
-	multiple: Joi.boolean(),
-	inlined: Joi.boolean()
+	multiple: Joi.boolean()
 });
 
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
@@ -91,9 +92,12 @@ const objectValidator = objectBaseValidator.keys({
 	indexes: Joi.array().items(indexValidator).min(0).required()
 });
 
-const unionValidator = Joi.object().keys({
+const unionBaseValidator = Joi.object().keys({
 	handle: Joi.string().required(),
 	objects: Joi.array().items(objectBaseValidator).min(1).required(),
+});
+
+const unionValidator = unionBaseValidator.keys({
 	indexes: Joi.array().items(indexValidator).min(0).required()
 });
 
@@ -112,6 +116,10 @@ export function isObjectBase(schema: any): schema is ObjectBase {
 }
 
 export function isUnion(schema: any): schema is Union {
+	return isUnionBase(schema);
+}
+
+export function isUnionBase(schema: any): schema is UnionBase {
 	return typeof schema.objects !== 'undefined';
 }
 
@@ -177,16 +185,14 @@ export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]):
 	return !hasErrors;
 }
 
-export function createValidator(schema: ObjectBase | Union, locales: string[]): Joi.Schema {
-	return isUnion(schema)
+export function createValidator(schema: ObjectBase | UnionBase, locales: string[]): Joi.Schema {
+	return isUnionBase(schema)
 		? Joi.alternatives().try(...schema.objects.map(transformObject))
 		: transformObject(schema);
 	
 	function transformObject(schema: ObjectBase): Joi.Schema {
 		return Joi.object().keys(schema.fields.reduce((keys, field) => {
-			let validator = field.inlined
-				? Joi.string()
-				: transformTypeToValidation(field.type);
+			let validator = transformTypeToValidation(field.type);
 
 			if (field.multiple) {
 				validator = Joi.array().items(validator).min(0);

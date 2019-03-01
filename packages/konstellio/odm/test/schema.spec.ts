@@ -22,7 +22,7 @@ describe('Schema', () => {
 			{ handle: 'id', type: 'string', required: true },
 			{ handle: 'title', type: 'string', localized: true, required: true },
 			{ handle: 'slug', type: 'string', localized: true, required: true },
-			{ handle: 'category', type: relatedObject, localized: true, relation: true, multiple: true },
+			{ handle: 'category', type: relatedObject, localized: true, multiple: true },
 			{ handle: 'content', type: 'string', localized: true },
 			{ handle: 'postDate', type: 'datetime', required: true },
 			{ handle: 'expireDate', type: 'datetime' }
