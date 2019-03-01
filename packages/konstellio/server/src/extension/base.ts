@@ -5,6 +5,7 @@ export default {
 		scalar Cursor
 		scalar Date
 		scalar DateTime
+		scalar Upload
 
 		directive @collection(
 			type: String

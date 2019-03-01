@@ -140,7 +140,7 @@ export default {
 			}
 		};
 	},
-	routes(app, { secret }) {
+	main(app, { secret }) {
 		app.addHook('preHandler', async (request, response) => {
 			const { context } = request;
 			const { cache, collection: { User, UserGroup } } = context;

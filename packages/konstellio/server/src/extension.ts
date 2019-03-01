@@ -21,11 +21,11 @@ export interface Context {
 
 export type Callable<T, C extends Context = Context> = T
 	| Promise<T>
-	| ((configuration: Configuration, extensions: Extension<C>[]) => T | Promise<T>);
+	| ((configuration: Configuration, context: C, extensions: Extension<C>[]) => T | Promise<T>);
 
 export interface Extension<C extends Context = Context> {
 	typeDefs?: Callable<string | DocumentNode, C>;
 	resolvers?: Callable<IResolvers<any, C>, C>;
 	directives?: Callable<Record<string, typeof SchemaDirectiveVisitor>, C>;
-	routes?: (app: FastifyInstance, configuration: Configuration, extensions: Extension<C>[]) => void | Promise<void>;
+	main?: (app: FastifyInstance, configuration: Configuration, context: C, extensions: Extension<C>[]) => void | Promise<void>;
 }
