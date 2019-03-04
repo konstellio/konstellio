@@ -1,7 +1,7 @@
 import { Configuration, loadConfiguration } from './config';
 import { dirname } from 'path';
 import * as resolve from 'resolve';
-import { Extension, Context, Callable } from './extension';
+import { Extension, Context, Callable, LoadedExtension } from './extension';
 import { parse, DocumentNode, Kind, DefinitionNode, ObjectTypeDefinitionNode, FieldDefinitionNode, TypeNode, UnionTypeDefinitionNode, GraphQLSchema } from 'graphql';
 import { Database } from '@konstellio/db';
 import { FileSystem } from '@konstellio/fs';
@@ -15,25 +15,23 @@ import { IResolvers, SchemaDirectiveVisitor, makeExecutableSchema, transformSche
 import * as fastify from 'fastify';
 import { ApolloServer } from 'apollo-server-fastify';
 
-export async function createServer(
+export async function createServer<
+	C extends Context = Context
+>(
 	conf: string | { basedir: string, configuration: Configuration }
 ) {
 	const basedir = typeof conf === 'string' ? dirname(conf) : conf.basedir;
 	const configuration = typeof conf === 'string' ? await loadConfiguration(conf) : conf.configuration;
 
-	// Create initial context from configuration
-	const context = await loadContext(configuration, basedir);
+	const context = await loadContext<C>(configuration, basedir);
 
-	// Load extension defined in configuration
-	const extensions = await loadExtensions(configuration, basedir);
+	const loadedExtensions = await loadExtensions(configuration, basedir, context);
+	
+	const typeDefs = loadTypeDefs(loadedExtensions);
+	const directives = loadDirectives(loadedExtensions);
+	const resolvers = loadResolvers(loadedExtensions);
 
-	// Load type definition from extensions
-	const typeDefs = await loadTypeDef(configuration, context, extensions);
-
-	// Create collection schema from type definition
-	const collectionSchemas = await loadCollectionSchemas(typeDefs);
-
-	// Create collections object from schemas
+	const collectionSchemas = loadCollectionSchemas(typeDefs);
 	context.collection = collectionSchemas.reduce((collections, schema) => {
 		collections[schema.handle] = new Collection(
 			context.database,
@@ -43,45 +41,29 @@ export async function createServer(
 		return collections;
 	}, {} as Context['collection']);
 
-	const directives = await loadDirectives(configuration, context, extensions);
-
-	// Load GraphQLSchema
-	const graphQLSchema = await loadGraphQLSchema(
-		typeDefs,
-		await loadResolvers(configuration, context, extensions),
-		directives
-	);
-
-	// Load mains function from extensions
-	const mains = extensions.filter(extension => extension.main).map(extension => extension.main!);
-
-	const app = fastify();
-	for (const main of mains) {
-		await main(app, configuration, context, extensions);
-	}
-
+	const app = await loadFastifyInstance(configuration, context, loadedExtensions);
+	
+	const graphQLSchema = await loadGraphQLSchema(typeDefs, resolvers, directives);
 	const apollo = new ApolloServer({
 		schema: graphQLSchema,
-		schemaDirectives: directives, // TODO : Still necessary, isn't baked into graphQLSchema already ?
-		context({  }) {
-			return {
-				...context
-			};
+		schemaDirectives: directives, // TODO : Still needed, isn't baked into graphQLSchema already ?
+		context(req: any) {
+			return req.context;
 		},
 
 		playground: true,
-		tracing: true,
-		cacheControl: true
+		// tracing: true,
+		// cacheControl: true
 	});
 
 	app.register(apollo.createHandler());
 
 	return {
-		app,
-		apollo,
 		configuration,
 		context,
-		graphQLSchema
+		app,
+		graphQLSchema,
+		collectionSchemas
 	};
 }
 
@@ -96,8 +78,12 @@ async function resolveModule(path: string, basedir: string) {
 	});
 }
 
-export async function loadContext(configuration: Configuration, basedir: string): Promise<Context> {
+export async function loadContext<C extends Context = Context>(configuration: Configuration, basedir: string): Promise<C> {
 	const [database, filesystem, cache, mq] = await loadDrivers(configuration, basedir);
+
+	await database.connect();
+	await cache.connect();
+	await mq.connect();
 
 	return {
 		database,
@@ -105,15 +91,27 @@ export async function loadContext(configuration: Configuration, basedir: string)
 		cache,
 		mq,
 		collection: {}
-	};
+	} as C;
 }
 
-export async function loadExtensions(configuration: Configuration, basedir: string): Promise<Extension[]> {
+export async function loadExtensions(configuration: Configuration, basedir: string, context: Context): Promise<LoadedExtension[]> {
 	const serviceResolvers = await Promise.all((configuration.extensions || []).map(path => resolveModule(path, basedir)));
 	const extensions = serviceResolvers.map(path => require(path) as Extension);
 	extensions.unshift(authExtension as any);
 	extensions.unshift(baseExtension as any);
-	return extensions;
+
+	const loadedExtensions: LoadedExtension[] = [];
+
+	for (const extension of extensions) {
+		loadedExtensions.push({
+			typeDefs: extension.typeDefs ? await callCallable(extension.typeDefs!, configuration, context, loadedExtensions) : undefined,
+			resolvers: extension.resolvers ? await callCallable(extension.resolvers!, configuration, context, loadedExtensions) : undefined,
+			directives: extension.directives ? await callCallable(extension.directives!, configuration, context, loadedExtensions) : undefined,
+			main: extension.main
+		});
+	}
+
+	return loadedExtensions;
 }
 
 async function loadDrivers(configuration: Configuration, basedir: string): Promise<[Database, FileSystem, Cache, MessageQueue]> {
@@ -142,13 +140,7 @@ async function callCallable<T>(callable: Callable<T>, configuration: Configurati
 	return callable;
 }
 
-export async function loadTypeDef(configuration: Configuration, context: Context, extensions: Extension[]): Promise<DocumentNode> {
-	const typeDefs = await Promise.all(extensions.filter(extension => extension.typeDefs).map(extension => callCallable(extension.typeDefs!, configuration, context, extensions)));
-	const documents = typeDefs.map(typeDef => typeof typeDef === 'string' ? parse(typeDef) : typeDef);
-	return mergeAST(documents);
-}
-
-export async function loadCollectionSchemas(typeDef: DocumentNode): Promise<Schema[]> {
+export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
 	return typeDef.definitions.reduce((schemas, node) => {
 		if (isCollection(node)) {
 			schemas.push(mapTypeDefinitionToSchema(node));
@@ -259,27 +251,42 @@ export async function loadCollectionSchemas(typeDef: DocumentNode): Promise<Sche
 	}
 }
 
-export async function loadResolvers(configuration: Configuration, context: Context, extensions: Extension[]): Promise<IResolvers> {
-	const resolvers = await Promise.all(extensions.filter(extension => extension.resolvers).map(extension => callCallable(extension.resolvers!, configuration, context, extensions)));
-	return resolvers.reduce((resolvers, resolver) => {
-		return {
-			...resolvers,
-			...resolver
-		};
+export function loadTypeDefs(loadedExtensions: LoadedExtension[]): DocumentNode {
+	const typeDefs = loadedExtensions.reduce((documents, extension) => {
+		if (extension.typeDefs) {
+			documents.push(typeof extension.typeDefs === 'string' ? parse(extension.typeDefs) : extension.typeDefs);
+		}
+		return documents;
+	}, [] as DocumentNode[]);
+	
+	return mergeAST(typeDefs);
+}
+
+export function loadResolvers(loadedExtensions: LoadedExtension[]): IResolvers {
+	return loadedExtensions.reduce((resolvers, extension) => {
+		if (extension.resolvers) {
+			const resolver = extension.resolvers;
+			Object.keys(resolver).forEach(key => {
+				resolvers[key] = Object.assign(resolvers[key] || {}, resolver[key]);
+			});
+		}
+		return resolvers;
 	}, {} as IResolvers);
 }
 
-export async function loadDirectives(configuration: Configuration, context: Context, extensions: Extension[]): Promise<Record<string, typeof SchemaDirectiveVisitor>> {
-	const directives = await Promise.all(extensions.filter(extension => extension.directives).map(extension => callCallable(extension.directives!, configuration, context, extensions)));
-	return directives.reduce((directives, directive) => {
-		return {
-			...directives,
-			...directive
-		};
+export function loadDirectives(loadedExtensions: LoadedExtension[]): Record<string, typeof SchemaDirectiveVisitor> {
+	return loadedExtensions.reduce((directives, extension) => {
+		if (extension.directives) {
+			return {
+				...directives,
+				...extension.directives
+			};
+		}
+		return directives;
 	}, {} as Record<string, typeof SchemaDirectiveVisitor>);
 }
 
-export async function loadGraphQLSchema(typeDefs: DocumentNode, resolvers: IResolvers, directives: Record<string, typeof SchemaDirectiveVisitor>): Promise<GraphQLSchema> {
+export function loadGraphQLSchema(typeDefs: DocumentNode, resolvers: IResolvers, directives: Record<string, typeof SchemaDirectiveVisitor>): GraphQLSchema {
 	const baseSchema = makeExecutableSchema({
 		typeDefs,
 		resolvers,
@@ -306,4 +313,15 @@ export async function loadGraphQLSchema(typeDefs: DocumentNode, resolvers: IReso
 	]);
 
 	return extendedSchema;
+}
+
+export async function loadFastifyInstance(configuration: Configuration, context: Context, loadedExtensions: LoadedExtension[]): Promise<fastify.FastifyInstance> {
+	const app = fastify();
+	
+	const mains = loadedExtensions.filter(extension => extension.main).map(extension => extension.main!);
+	for (const main of mains) {
+		await main({ app, configuration, context, loadedExtensions });
+	}
+
+	return app;
 }

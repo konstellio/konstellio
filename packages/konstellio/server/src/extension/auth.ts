@@ -27,11 +27,11 @@ class PermissionDirective extends SchemaDirectiveVisitor {
 			roles.push(...this.args.roles);
 		}
 
-		field.resolve = async function PermissionDirectiveResolver (obj, args, ctx, info) {
+		field.resolve = async function PermissionDirectiveResolver (obj, args, ctx: AuthContext, info) {
 			let userRoles: string[] = ['auth.loggedout'];
 
-			if (ctx.req && ctx.req.userId) {
-				userRoles = ctx.req.userRoles;
+			if (ctx.userRoles) {
+				userRoles = ctx.userRoles;
 			}
 
 			if (userRoles.indexOf('super') === -1 && roles.filter(role => userRoles.indexOf(role) === -1).length > 0) {
@@ -44,11 +44,11 @@ class PermissionDirective extends SchemaDirectiveVisitor {
 	}
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
 	return hash(password, 10);
 }
 
-async function comparePassword(password: string, hash: string): Promise<boolean> {
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
 	return compare(password, hash);
 }
 
@@ -68,7 +68,7 @@ export default {
 			roles: [String!]
 		) on FIELD_DEFINITION
 		
-		type UserGroup implements Node
+		type UserGroup
 		@collection
 		{
 			id: ID!
@@ -76,10 +76,10 @@ export default {
 			roles: [String!]!
 		}
 		
-		type User implements Node
+		type User
 		@collection(
 			indexes: [
-				{ handle: "User_username", type: "unique", fields: [{ field: "username", direction: "asc" }] }
+				{ handle: "User_username", type: "unique", fields: [{ handle: "username", direction: "asc" }] }
 			]
 		)
 		{
@@ -109,6 +109,13 @@ export default {
 	},
 	resolvers({ secret }) {
 		return {
+			User: {
+				async groups(user, {}, { collection: { UserGroup } }, info) {
+					const selections: any[] = getSelectionsFromInfo(info);
+					const groups = await UserGroup.findByIds(user.groups, { fields: selections });
+					return groups;
+				}
+			},
 			Query: {
 				async me(_, {  }, { userId, collection: { User } }, info) {
 					if (!userId) {
@@ -140,9 +147,15 @@ export default {
 			}
 		};
 	},
-	main(app, { secret }) {
+	main({ app, context, configuration: { secret } }) {
 		app.addHook('preHandler', async (request, response) => {
-			const { context } = request;
+			request.context = {
+				...request.context,
+				userId: undefined,
+				userRoles: undefined,
+				...context
+			} as any;
+
 			const { cache, collection: { User, UserGroup } } = context;
 			const authorization = request.req.headers['authorization'];
 			if (authorization && authorization.substr(0, 6) === 'Bearer') {
@@ -169,8 +182,8 @@ export default {
 						resolve(roles);
 					})));
 
-					context.userId = userId;
-					context.userRoles = groupRoles.reduce((roles, groupRoles) => [...roles, ...groupRoles], []);
+					request.context.userId = userId;
+					request.context.userRoles = groupRoles.reduce((roles, groupRoles) => [...roles, ...groupRoles], []);
 				} catch (err) {}
 			}
 		});

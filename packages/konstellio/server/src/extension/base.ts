@@ -24,7 +24,7 @@ export default {
 		}
 
 		input DirectiveIndexField {
-			field: String!
+			handle: String!
 			direction: DirectiveIndexFieldDirection
 		}
 
