@@ -209,7 +209,7 @@ export class Collection<
 				});
 			},
 			{
-				// cache: true,
+				cache: false, // TODO: Investigate if batching still happens ?
 				cacheKeyFn(key: LoaderInput<Columns>) {
 					return `${key.id}=${key.locale}`;
 				}

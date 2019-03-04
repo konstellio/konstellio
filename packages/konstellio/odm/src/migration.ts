@@ -1,4 +1,4 @@
-import { Database, q, ColumnType, IndexType as DBIndexType } from "@konstellio/db";
+import { Database, q, ColumnType, IndexType as DBIndexType, Index as DBIndex, QueryDropCollection, QueryCreateCollection, QueryAlterCollection, Transaction, Column } from "@konstellio/db";
 import { Schema, Field, Index, IndexField, localizedFieldName, FieldType, IndexType, isUnion, Object, ObjectBase } from "./schema";
 
 function dbFieldTypeToSchemaFieldType(type: ColumnType): FieldType {
@@ -106,19 +106,42 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 		});
 	}
 
+	if (database.features.join) {
+		schemas.push({
+			handle: 'Relation',
+			fields: [
+				{ handle: 'id', type: 'string' },
+				{ handle: 'collection', type: 'string' },
+				{ handle: 'field', type: 'string' },
+				{ handle: 'source', type: 'string' },
+				{ handle: 'target', type: 'string' },
+				{ handle: 'seq', type: 'int' }
+			],
+			indexes: [
+				{ handle: 'Relation_pk', type: 'primary', fields: [{ handle: 'id' }] },
+				{ handle: 'Relation_collection_field_source', type: 'sparse', fields: [
+					{ handle: 'collection' },
+					{ handle: 'field' },
+					{ handle: 'source' },
+					{ handle: 'seq' }
+				] }
+			]
+		});
+	}
+
 	return [schemas, locales];
 }
 
 export type Diff = { action: 'add_collection', collection: Schema }
-	| { action: 'drop_collection', collection: string }
 	| { action: 'rename_collection', collection: string, target: string }
-	| { action: 'add_field', collection: string, field: Field }
+	| { action: 'drop_collection', collection: string }
+	| { action: 'add_field', collection: string, field: Field, copyFrom?: string }
 	| { action: 'drop_field', collection: string, field: string }
-	| { action: 'alter_field', collection: string, field: Field }
+	| { action: 'alter_field', collection: string, field: string, definition: Field }
 	| { action: 'add_index', collection: string, index: Index }
 	| { action: 'alter_index', collection: string, index: Index }
 	| { action: 'drop_index', collection: string, index: string }
-	| { action: 'add_locale', locale: string }
+	| { action: 'add_locale', locale: string, copyFrom?: string }
 	| { action: 'drop_locale', locale: string };
 
 export type FieldComparator = (fieldA: Field, fieldB: Field) => boolean;
@@ -180,7 +203,7 @@ export function computeSchemaDiff(source: Schema[], target: Schema[], comparator
 					// || targetField.inlined !== sourceField.inlined
 					|| !comparator(targetField, sourceField)
 				) {
-					diffs.push({ action: 'alter_field', collection: targetObject.handle, field: targetField });
+					diffs.push({ action: 'alter_field', collection: targetObject.handle, field: targetField.handle, definition: targetField });
 				}
 			}
 
@@ -228,4 +251,179 @@ function reduceUniqueField(fields: Field[], object: ObjectBase): typeof fields {
 		}
 	}
 	return fields;
+}
+
+export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: Diff[]): void {
+	const dropCollections: QueryDropCollection[] = [];
+	const createCollections: QueryCreateCollection[] = [];
+	const alterCollections: Map<string, QueryAlterCollection> = new Map();
+	
+	const sortedDiffs = diffs.sort((a, b) => {
+		if (a.action === 'drop_collection' || a.action === 'drop_field' || a.action === 'drop_index' || a.action === 'drop_locale') {
+			return 1;
+		}
+		return 0;
+	});
+
+	function ensureAlterIsInMap(collection: string) {
+		if (!alterCollections.has(collection)) {
+			alterCollections.set(collection, q.alterCollection(collection));
+		}
+	}
+
+	for (const diff of sortedDiffs) {
+		switch (diff.action) {
+			case 'add_collection':
+				const fields = reduceSchemaFields(diff.collection);
+				const columns = fields.map(mapSchemaFieldToDbColumn);
+				const indexes = diff.collection.indexes.map(mapSchemaIndexToDbIndex);
+				createCollections.push(q.createCollection(diff.collection.handle).define(columns, indexes));
+				break;
+			case 'rename_collection':
+				if (!alterCollections.has(diff.collection)) {
+					alterCollections.set(diff.collection, q.alterCollection(diff.collection));
+				}
+				alterCollections.set(
+					diff.collection,
+					alterCollections.get(diff.collection)!.rename(diff.target)
+				);
+				break;
+			case 'drop_collection':
+				dropCollections.push(q.dropCollection(diff.collection));
+				break;
+			case 'add_locale':
+				for (const schema of schemas) {
+					const fields = reduceSchemaFields(schema);
+					for (const field of fields) {
+						if (field.localized) {
+							ensureAlterIsInMap(schema.handle);
+
+							const newColumn = mapSchemaFieldToDbColumn({ ...field, handle: `${field.handle}__${diff.locale}` });
+							alterCollections.set(
+								schema.handle,
+								alterCollections.get(schema.handle)!.addColumn(newColumn, diff.copyFrom)
+							);
+						}
+					}
+				}
+				break;
+			case 'drop_locale':
+				for (const schema of schemas) {
+					const fields = reduceSchemaFields(schema);
+					for (const field of fields) {
+						if (field.localized) {
+							ensureAlterIsInMap(schema.handle);
+
+							alterCollections.set(
+								schema.handle,
+								alterCollections.get(schema.handle)!.dropColumn(`${field.handle}__${diff.locale}`)
+							);
+						}
+					}
+				}
+				break;
+				break;
+			default:
+				ensureAlterIsInMap(diff.collection);
+
+				switch (diff.action) {
+					case 'add_field':
+						const newColumn = mapSchemaFieldToDbColumn(diff.field);
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!.addColumn(newColumn, diff.copyFrom)
+						);
+						break;
+					case 'alter_field':
+						const alteredColumn = mapSchemaFieldToDbColumn(diff.definition);
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!.alterColumn(diff.field, alteredColumn)
+						);
+						break;
+					case 'drop_field':
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!.dropColumn(diff.field)
+						);
+						break;
+					case 'add_index':
+						const newIndex = mapSchemaIndexToDbIndex(diff.index);
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!.addIndex(newIndex)
+						);
+						break;
+					case 'alter_index':
+						const alteredIndex = mapSchemaIndexToDbIndex(diff.index);
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!
+								.dropIndex(diff.index.handle)
+								.addIndex(alteredIndex)
+						);
+						break;
+					case 'drop_index':
+						alterCollections.set(
+							diff.collection,
+							alterCollections.get(diff.collection)!.dropIndex(diff.index)
+						);
+						break;
+				}
+		}
+	}
+
+	dropCollections.forEach(query => transaction.execute(query));
+	createCollections.forEach(query => transaction.execute(query));
+	alterCollections.forEach(query => transaction.execute(query));
+}
+
+function reduceSchemaFields(schema: Schema): Field[] {
+	return isUnion(schema)
+		? schema.objects.reduce((fields, object) => {
+			for (const field of object.fields) {
+				if (!fields.find(f => f.handle === field.handle)) {
+					fields.push(field);
+				}
+			}
+			return fields;
+		}, [] as Field[])
+		: schema.fields;
+}
+
+function mapSchemaColumnTypeToDbColumnType(type: FieldType): ColumnType {
+	switch (type) {
+		case 'int': return ColumnType.Int;
+		case 'float': return ColumnType.Float;
+		case 'boolean': return ColumnType.Boolean;
+		case 'date': return ColumnType.Date;
+		case 'datetime': return ColumnType.DateTime;
+		case 'string':
+		default:
+			return ColumnType.Text;
+	}
+}
+
+function mapSchemaFieldToDbColumn(field: Field): Column {
+	return q.column(
+		field.handle,
+		mapSchemaColumnTypeToDbColumnType(field.type),
+		field.size
+	);
+}
+
+function mapSchemaIndexTypeToDbIndexType(type: IndexType): DBIndexType {
+	switch (type) {
+		case 'primary': return DBIndexType.Primary;
+		case 'unique': return DBIndexType.Unique;
+		case 'sparse':
+		default:
+			return DBIndexType.Index;
+	}
+}
+
+function mapSchemaIndexToDbIndex(index: Index): DBIndex {
+	const columns = index.fields.map(field => q.sort(field.handle, field.direction));
+	return q.index(index.handle, mapSchemaIndexTypeToDbIndexType(index.type), columns);
+	
 }

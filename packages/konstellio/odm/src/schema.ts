@@ -38,6 +38,8 @@ export interface Field {
 	required?: boolean;
 	localized?: boolean;
 	multiple?: boolean;
+	relation?: boolean;
+	inlined?: boolean;
 }
 
 export type IndexType = 'primary'
