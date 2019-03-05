@@ -152,8 +152,7 @@ export default {
 			request.context = {
 				...request.context,
 				userId: undefined,
-				userRoles: undefined,
-				...context
+				userRoles: undefined
 			} as any;
 
 			const { cache, collection: { User, UserGroup } } = context;
@@ -187,5 +186,10 @@ export default {
 				} catch (err) {}
 			}
 		});
+
+		context.collection.User.on('delete', (id) => context.cache.unset(`auth.userGroups:${id}`));
+		context.collection.User.on('replace', ({ id }) => context.cache.unset(`auth.userGroups:${id}`));
+		context.collection.UserGroup.on('delete', (id) => context.cache.unset(`auth.groupRoles:${id}`));
+		context.collection.UserGroup.on('replace', ({ id }) => context.cache.unset(`auth.groupRoles:${id}`));
 	}
 } as Extension<AuthContext>;
