@@ -464,6 +464,8 @@ export class Collection<
 			if (featuresJoin) {
 				this.addRelationToTransaction(transaction, id!, relations);
 			}
+
+			transaction.once('commit', () => this.emitAsync('create', data));
 		};
 
 		if (transaction) {
@@ -496,6 +498,8 @@ export class Collection<
 			if (featuresJoin) {
 				this.addRelationToTransaction(transaction, id!, relations);
 			}
+
+			transaction.once('commit', () => this.emitAsync('replace', data));
 		};
 
 		if (transaction) {
@@ -516,12 +520,14 @@ export class Collection<
 	delete(id: string, transaction?: Transaction): Promise<void> | void {
 		if (transaction) {
 			transaction.execute(this.deleteQuery, { id });
+			transaction.once('commit', () => this.emitAsync('delete', id));
 			return;
 		} else {
 			return new Promise(async resolve => {
 				const transaction = await this.database.transaction();
 				transaction.execute(this.deleteQuery, { id });
 				await transaction.commit();
+				await this.emitAsync('delete', id);
 				resolve();
 			});
 		}
