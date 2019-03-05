@@ -1,3 +1,4 @@
+import { EventEmitter } from '@konstellio/eventemitter';
 import * as Query from './Query';
 import * as Result from './QueryResult';
 
@@ -29,7 +30,7 @@ export abstract class Database {
 	abstract compareTypes(aType: Query.ColumnType, aSize: number, bType: Query.ColumnType, bSize: number): Compare;
 }
 
-export abstract class Transaction {
+export abstract class Transaction extends EventEmitter {
 	abstract execute(query: string, variables?: (string | number | boolean | Date | null)[]): void;
 	abstract execute(query: Query.QueryInsert, variables?: Query.Variables): void;
 	abstract execute(query: Query.QueryUpdate, variables?: Query.Variables): void;

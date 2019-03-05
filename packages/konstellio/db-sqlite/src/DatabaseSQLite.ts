@@ -424,12 +424,14 @@ export class TransactionSQLite extends Transaction {
 		}));
 		this.statements = [];
 		this.pendingPromises = [];
+		await this.emitAsync('commit');
 		return result;
 	}
 
 	async rollback(): Promise<void> {
 		this.statements = [];
 		this.pendingPromises = [];
+		await this.emitAsync('rollback');
 	}
 }
 
