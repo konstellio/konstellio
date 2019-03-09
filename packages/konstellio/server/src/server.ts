@@ -317,6 +317,12 @@ export function loadGraphQLSchema(typeDefs: DocumentNode, resolvers: IResolvers,
 
 export async function loadFastifyInstance(configuration: Configuration, context: Context, loadedExtensions: LoadedExtension[]): Promise<fastify.FastifyInstance> {
 	const app = fastify();
+
+	app.addHook('preHandler', async (request, response) => {
+		request.context = {
+			...context
+		} as any;
+	});
 	
 	const mains = loadedExtensions.filter(extension => extension.main).map(extension => extension.main!);
 	for (const main of mains) {
