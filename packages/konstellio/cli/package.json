@@ -6,7 +6,7 @@
     "konstellio": "dist/cli.js"
   },
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --require ts-node/register --full-trace test/**/*.spec.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.spec.ts --exit",
@@ -49,10 +49,7 @@
   "dependencies": {
     "commander": "^2.19.0",
     "inquirer": "^6.2.0",
-    "joi": "^14.0.6",
-    "js-yaml": "^3.12.0",
     "mkdirp": "^0.5.1",
-    "resolve": "^1.8.1",
     "rimraf": "^2.6.2"
   }
 }

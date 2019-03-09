@@ -5,7 +5,7 @@
   "main": "dist/FileSystemSFTP.js",
   "types": "dist/FileSystemSFTP.d.ts",
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "cross-env TS_NODE_FILES=true mocha --require ts-node/register --full-trace test/**/*.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",

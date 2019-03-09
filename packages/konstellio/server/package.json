@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
@@ -38,6 +38,7 @@
     "@konstellio/odm": "^0.2.9",
     "@types/bcrypt": "^3.0.0",
     "@types/chai-as-promised": "7.1.0",
+    "@types/graphql": "^14.0.7",
     "@types/jsonwebtoken": "^8.3.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
