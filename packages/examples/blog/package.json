@@ -5,11 +5,23 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "konstellio dev",
-    "generate": "konstellio generate"
+    "compile": "rimraf dist && tsc --pretty",
+    "watch": "konstellio watch",
+    "generate": "konstellio generate",
+    "start": "node dist/server.js"
   },
   "devDependencies": {
-    "@konstellio/cli": "^0.2.9"
+    "@konstellio/cli": "^0.2.9",
+    "typescript": "^3.1.6",
+    "rimraf": "^2.6.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@konstellio/cache-memory": "^0.2.9",
+    "@konstellio/db": "^0.2.9",
+    "@konstellio/db-sqlite": "^0.2.9",
+    "@konstellio/fs-local": "^0.2.9",
+    "@konstellio/mq-memory": "^0.2.9",
+    "@konstellio/odm": "^0.2.9",
+    "@konstellio/server": "^0.2.9"
+  }
 }

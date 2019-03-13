@@ -3,6 +3,7 @@ export {
 	Object,
 	ObjectBase,
 	Union,
+	UnionBase,
 	Field,
 	FieldType,
 	Index,

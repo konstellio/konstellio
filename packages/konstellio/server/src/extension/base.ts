@@ -40,13 +40,13 @@ export default {
 		directive @inlined on FIELD_DEFINITION
 
 		type Query {
-			void: Boolean @hidden
+			_ImATeaPot: Boolean
 		}
 		type Mutation {
-			void: Boolean @hidden
+			_ImATeaPot: Boolean
 		}
 		type Subscription {
-			void: Boolean @hidden
+			_ImATeaPot: Boolean
 		}
 	`,
 	resolvers: {

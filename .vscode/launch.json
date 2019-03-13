@@ -7,9 +7,11 @@
 		{
 			"type": "node",
 			"request": "launch",
-			"name": "Launch examples/blog",
-			"program": "${workspaceFolder}/packages/examples/blog/index.js",
-			"console": "integratedTerminal"
+			"name": "Debug blog",
+			"program": "${workspaceFolder}/packages/examples/blog/dist/server.js",
+			"args": [],
+			"cwd": "${workspaceFolder}/packages/examples/blog",
+			"internalConsoleOptions": "openOnSessionStart"
 		},
 		{
 			"type": "node",

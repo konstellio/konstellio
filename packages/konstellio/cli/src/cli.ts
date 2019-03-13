@@ -1,7 +1,6 @@
 import * as commander from 'commander';
 import * as path from 'path';
-import { parseServiceFromFile } from './lib/parseConfiguration';
-import { generate } from './lib/generate';
+import generate from './lib/generate';
 const { version } = require('../package.json');
 
 commander.version(version);
@@ -15,22 +14,31 @@ commander
 	});
 
 commander
-	.command('dev')
-	.description('Run development service')
+	.command('watch')
+	.description('Watch for changes in configuration or extensions and generate type definition')
 	.action((options) => {
-		console.log('init', options);
+		console.log('watching...', options);
 	});
 
 commander
 	.command('generate')
-	.description('Generate Konstellio service')
+	.description('Generate type definition')
 	.option('-c, --config [config]', 'Configuration file location', './konstellio.yml')
 	.action(async (options) => {
 		try {
-			const configLocation = path.resolve(options.config);
-			const serviceLocation = path.dirname(configLocation);
-			const service = await parseServiceFromFile(configLocation, serviceLocation);
-			await generate(service);
+			await generate(path.resolve(options.config));
+		} catch (err) {
+			console.error('err', err);
+		}
+	});
+
+commander
+	.command('migrate')
+	.description('Run migration wizard')
+	.option('-c, --config [config]', 'Configuration file location', './konstellio.yml')
+	.action(async (options) => {
+		try {
+			console.log('migrating...', options);
 		} catch (err) {
 			console.error('err', err);
 		}

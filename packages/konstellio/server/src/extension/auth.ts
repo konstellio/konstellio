@@ -8,7 +8,7 @@ import { q } from '@konstellio/db';
 import { Collection } from '@konstellio/odm';
 import { getSelectionsFromInfo } from "../util/resolver";
 import { Context, Extension } from "../extension";
-import { User, UserIndexes, UserGroup, UserGroupIndexes } from "./schema";
+import { User, UserIndexes, UserGroup, UserGroupIndexes, UserInputs, UserGroupInputs } from "./schema";
 
 class PermissionDirective extends SchemaDirectiveVisitor {
 	visitFieldDefinition(
@@ -56,8 +56,8 @@ export interface AuthContext extends Context {
 	userId?: string;
 	userRoles?: string[];
 	collection: {
-		User: Collection<User, UserIndexes>,
-		UserGroup: Collection<UserGroup, UserGroupIndexes>,
+		User: Collection<User, UserIndexes, UserInputs>,
+		UserGroup: Collection<UserGroup, UserGroupIndexes, UserGroupInputs>,
 	};
 }
 

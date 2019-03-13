@@ -59,20 +59,30 @@ export interface Index {
 
 export const localizedFieldName = /^(.*)__([a-z]+)$/;
 
-const fieldTypeValidator = Joi.alternatives().try(
-	Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
-	Joi.lazy(() => objectBaseValidator),
-	Joi.lazy(() => unionBaseValidator)
-);
-
-const fieldValidator = Joi.object().keys({
+const fieldValidatorBase = Joi.object().keys({
 	handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
-	type: fieldTypeValidator.required(),
+	type: Joi.alternatives().try(
+		Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
+		Joi.lazy(() => objectBaseValidator),
+		Joi.lazy(() => unionBaseValidator)
+	).required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
 	localized: Joi.boolean(),
-	multiple: Joi.boolean()
+	multiple: Joi.boolean(),
+	relation: Joi.boolean()
 });
+
+const fieldValidator = Joi.alternatives().try(
+	fieldValidatorBase,
+	fieldValidatorBase.keys({
+		relation: Joi.boolean().required().valid(true),
+		type: Joi.alternatives().try(
+			Joi.lazy(() => objectValidator),
+			Joi.lazy(() => unionValidator)
+		).required()
+	})
+);
 
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
 
@@ -110,19 +120,19 @@ export function isSchema(schema: any): schema is Schema {
 }
 
 export function isObject(schema: any): schema is Object {
-	return isObjectBase(schema);
+	return typeof schema.indexes !== 'undefined' && isObjectBase(schema);
 }
 
 export function isObjectBase(schema: any): schema is ObjectBase {
-	return typeof schema.fields !== 'undefined';
+	return typeof schema.handle === 'string' && typeof schema.fields !== 'undefined';
 }
 
 export function isUnion(schema: any): schema is Union {
-	return isUnionBase(schema);
+	return typeof schema.indexes !== 'undefined' && isUnionBase(schema);
 }
 
 export function isUnionBase(schema: any): schema is UnionBase {
-	return typeof schema.objects !== 'undefined';
+	return typeof schema.handle === 'string' && typeof schema.objects !== 'undefined';
 }
 
 export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]): schema is Schema {
@@ -195,6 +205,10 @@ export function createValidator(schema: ObjectBase | UnionBase, locales: string[
 	function transformObject(schema: ObjectBase): Joi.Schema {
 		return Joi.object().keys(schema.fields.reduce((keys, field) => {
 			let validator = transformTypeToValidation(field.type);
+
+			if (field.relation) {
+				validator = Joi.any();
+			}
 
 			if (field.multiple) {
 				validator = Joi.array().items(validator).min(0);

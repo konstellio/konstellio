@@ -7,7 +7,7 @@ import { Database } from '@konstellio/db';
 import { FileSystem } from '@konstellio/fs';
 import { Cache } from '@konstellio/cache';
 import { MessageQueue } from '@konstellio/mq';
-import { Collection, Schema, Object, ObjectBase, Union, Field, FieldType, Index } from '@konstellio/odm';
+import { Collection, Schema, Object, ObjectBase, Union, UnionBase, Field, FieldType, Index } from '@konstellio/odm';
 import { mergeAST, isCollection, isListType, getDefNodeByNamedType, isNonNullType, getArgumentsValues } from './util/ast';
 import baseExtension from './extension/base';
 import authExtension from './extension/auth';
@@ -96,7 +96,7 @@ export async function loadContext<C extends Context = Context>(configuration: Co
 
 export async function loadExtensions(configuration: Configuration, basedir: string, context: Context): Promise<LoadedExtension[]> {
 	const serviceResolvers = await Promise.all((configuration.extensions || []).map(path => resolveModule(path, basedir)));
-	const extensions = serviceResolvers.map(path => require(path) as Extension);
+	const extensions = serviceResolvers.map(path => require(path).default as Extension);
 	extensions.unshift(authExtension as any);
 	extensions.unshift(baseExtension as any);
 
@@ -157,12 +157,7 @@ export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
 		}
 		else if (node.kind === Kind.UNION_TYPE_DEFINITION) {
 			return {
-				handle: node.name.value,
-				objects: (node.types || []).reduce((objects, type) => {
-					const typeNode = getDefNodeByNamedType(typeDef, type.name.value) as ObjectTypeDefinitionNode;
-					objects.push(mapObjectTypeDefinitionToObjectBase(typeNode));
-					return objects;
-				}, [] as ObjectBase[]),
+				...mapUnionTypeDefinitionToUnionBase(node),
 				indexes: mapTypeDefinitionToIndex(node)
 			} as Union;
 		}
@@ -193,6 +188,19 @@ export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
 			}, [] as Field[])
 		};
 	}
+
+	function mapUnionTypeDefinitionToUnionBase(node: UnionTypeDefinitionNode): UnionBase {
+		return {
+			handle: node.name.value,
+			objects: (node.types || []).reduce((objects, node) => {
+				const refNode = getDefNodeByNamedType(typeDef, node.name.value);
+				if (refNode && refNode.kind === Kind.OBJECT_TYPE_DEFINITION) {
+					objects.push(mapObjectTypeDefinitionToObjectBase(refNode));
+				}
+				return objects;
+			}, [] as ObjectBase[])
+		};
+	}
 	
 	function mapFieldDefinitionToField(node: FieldDefinitionNode): Field | undefined {
 		const directives = node.directives || [];
@@ -203,18 +211,21 @@ export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
 		const multiple = isListType(node.type);
 		const required = isNonNullType(node.type);
 		const localized = directives.find(directive => directive.name.value === 'localized') !== undefined;
+
+		const [type, relation] = mapTypeToFieldType(node.type);
 	
 		return {
 			required,
 			localized,
 			multiple,
+			type,
+			relation,
 			handle: node.name.value,
-			type: mapTypeToFieldType(node.type),
 			// size?: number;
 		};
 	}
 	
-	function mapTypeToFieldType(node: TypeNode): FieldType {
+	function mapTypeToFieldType(node: TypeNode): [FieldType, boolean] {
 		if (node.kind === Kind.NON_NULL_TYPE || node.kind === Kind.LIST_TYPE) {
 			return mapTypeToFieldType(node.type);
 		}
@@ -222,32 +233,32 @@ export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
 		switch (node.name.value) {
 			case 'ID':
 			case 'String':
-				return 'string';
+				return ['string', false];
 			case 'Int':
-				return 'int';
+				return ['int', false];
 			case 'Float':
-				return 'float';
+				return ['float', false];
 			case 'Boolean':
-				return 'boolean';
+				return ['boolean', false];
 			case 'Date':
-				return 'date';
+				return ['date', false];
 			case 'DateTime':
-				return 'datetime';
+				return ['datetime', false];
 			default:
 				const refNode = getDefNodeByNamedType(typeDef, node.name.value);
 				if (refNode) {
 					if (refNode.kind === Kind.ENUM_TYPE_DEFINITION) {
-						return 'string';
+						return ['string', false];
 					}
-					else if (isCollection(refNode)) {
-						return 'string';
+					else if (refNode.kind === Kind.OBJECT_TYPE_DEFINITION) {
+						return [mapObjectTypeDefinitionToObjectBase(refNode), isCollection(refNode)];
 					}
-					else if (refNode.kind === Kind.OBJECT_TYPE_DEFINITION || refNode.kind === Kind.UNION_TYPE_DEFINITION) {
-						return mapTypeDefinitionToSchema(refNode);
+					else if (refNode.kind === Kind.UNION_TYPE_DEFINITION) {
+						return [mapUnionTypeDefinitionToUnionBase(refNode), isCollection(refNode)];
 					}
 				}
 		}
-		return 'string';
+		return ['string', false];
 	}
 }
 

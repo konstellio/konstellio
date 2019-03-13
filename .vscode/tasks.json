@@ -4,20 +4,9 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Watch @konstellio/server*",
-			"isBackground": true,
-			"dependsOn": [
-				"Watch @konstellio/server",
-				"Watch @konstellio/plugin-user"
-			],
-			"problemMatcher": [
-				"$tsc-watch"
-			]
-		},
-		{
-			"label": "Watch @konstellio/server",
+			"label": "Watch blog",
 			"type": "typescript",
-			"tsconfig": "packages\\konstellio\\server\\tsconfig.json",
+			"tsconfig": "packages\\konstellio\\blog\\tsconfig.json",
 			"option": "watch",
 			"isBackground": true,
 			"problemMatcher": [
@@ -25,23 +14,7 @@
 					"base": "$tsc-watch",
 					"fileLocation": [
 						"relative",
-						"${workspaceFolder}/packages/konstellio/server/"
-					]
-				}
-			]
-		},
-		{
-			"label": "Watch @konstellio/plugin-user",
-			"type": "typescript",
-			"tsconfig": "packages\\konstellio\\plugin-user\\tsconfig.json",
-			"option": "watch",
-			"isBackground": true,
-			"problemMatcher": [
-				{
-					"base": "$tsc-watch",
-					"fileLocation": [
-						"relative",
-						"${workspaceFolder}/packages/konstellio/plugin-user/"
+						"${workspaceFolder}/packages/examples/blog/"
 					]
 				}
 			]

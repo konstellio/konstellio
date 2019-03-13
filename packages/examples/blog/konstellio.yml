@@ -1,12 +1,16 @@
-version: '1'
+secret: '1234'
 
 locales:
-  fr: French
+  fr: Français
   en: English
 
-schema:
-  - ./schema.graphql
-  - ./auth.graphql
+extensions:
+  - ./dist/blog.js
 
-#import:
-#  - '@konstellio/plugin-user'
+database:
+  driver: '@konstellio/db-sqlite'
+  filename: ./db.sqlite
+
+filesystem:
+  driver: '@konstellio/fs-local'
+  rootDirectory: ./storage

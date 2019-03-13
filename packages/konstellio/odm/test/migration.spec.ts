@@ -72,7 +72,7 @@ describe('Migration', () => {
 				],
 				indexes: [
 					{ handle: 'Relation_pk', type: 'primary', fields: [{ handle: 'id' }] },
-					{ handle: 'Relation_collection_field_source', type: 'primary', fields: [
+					{ handle: 'Relation_collection_field_source', type: 'sparse', fields: [
 						{ handle: 'collection' },
 						{ handle: 'field' },
 						{ handle: 'source' },
@@ -217,7 +217,7 @@ describe('Migration', () => {
 
 		expect(transaction.queries.map(q => q.toString())).to.eql([
 			"CREATE COLLECTION Event ( id TEXT, title TEXT, slug TEXT, content TEXT, postDate DATETIME, expireDate DATETIME )  INDEXES ( PRIMARY event_id (id ASC), INDEX event_postDate (postDate DESC), UNIQUE event_slug (slug ASC) ),",
-			"ALTER COLLECTION Post ( ADDIDX INDEX post_expireDate (expireDate DESC), ADDCOL expireDate DATETIME, ADDCOL title__en TEXT, ADDCOL slug__en TEXT, DROPCOL content, DROPIDX post_slug ),",
+			"ALTER COLLECTION Post ( ADDIDX INDEX post_expireDate (expireDate DESC), DROPIDX post_slug, ADDCOL expireDate DATETIME, DROPCOL content, ADDCOL title__en TEXT, ADDCOL slug__en TEXT ),",
 			"ALTER COLLECTION Event ( ADDCOL title__en TEXT, ADDCOL slug__en TEXT, ADDCOL content__en TEXT ),"
 		]);
 	});

@@ -27,7 +27,7 @@ describe('Collection', () => {
 			{ handle: 'id', type: 'string' },
 			{ handle: 'title', type: 'string', localized: true, required: true },
 			{ handle: 'slug', type: 'string', localized: true, required: true },
-			{ handle: 'category', type: 'string', localized: true, relation: true, multiple: true, required: true },
+			{ handle: 'category', type: postCatSchema, localized: true, relation: true, multiple: true, required: true },
 			{ handle: 'postDate', type: 'datetime' },
 		],
 		indexes: [

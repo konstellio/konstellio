@@ -2,8 +2,7 @@
 // Please don't change this file manually but run `konstellio generate` to update it.
 // For more information, please read the docs: https://konstell.io/docs/cli/
 
-export type ID = any;
-export type DateTime = Date;
+import { ID, Cursor, DateTime } from '../extension';
 
 export interface UserGroup {
 	id: ID;
@@ -13,6 +12,12 @@ export interface UserGroup {
 
 export interface UserGroupIndexes {
 	id: ID;
+}
+
+export interface UserGroupInputs {
+	id?: ID;
+	name: string;
+	roles: string[];
 }
 
 export interface User {
@@ -25,4 +30,11 @@ export interface User {
 export interface UserIndexes {
 	id: ID;
 	username: string;
+}
+
+export interface UserInputs {
+	id?: ID;
+	username: string;
+	password: string;
+	groups: ID[];
 }

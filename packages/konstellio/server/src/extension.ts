@@ -9,6 +9,10 @@ import { MessageQueue } from '@konstellio/mq';
 import { Collection } from '@konstellio/odm';
 import { Configuration } from './config';
 
+export type ID = any;
+export type Cursor = any;
+export type DateTime = Date;
+
 export interface Context {
 	database: Database;
 	filesystem: FileSystem;

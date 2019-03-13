@@ -159,6 +159,19 @@ describe('Schema', () => {
 			}],
 			indexes: []
 		})).to.eq(false);
+		expect(validateSchema({
+			handle: 'schema',
+			fields: [{
+				handle: 'asubschema',
+				type: {
+					handle: 'subschema',
+					fields: [{ handle: 'subfield', type: 'text' }],
+					indexes: []
+				},
+				relation: true
+			}],
+			indexes: []
+		})).to.eq(true);
 	});
 
 	it('schema union', async () => {
