@@ -218,6 +218,8 @@ export class DatabaseSQLite extends Database {
 	}
 }
 
+export default DatabaseSQLite;
+
 export class TransactionSQLite extends Transaction {
 	private static tmpId: number = 0;
 
@@ -422,12 +424,14 @@ export class TransactionSQLite extends Transaction {
 		}));
 		this.statements = [];
 		this.pendingPromises = [];
+		await this.emitAsync('commit');
 		return result;
 	}
 
 	async rollback(): Promise<void> {
 		this.statements = [];
 		this.pendingPromises = [];
+		await this.emitAsync('rollback');
 	}
 }
 
@@ -462,7 +466,7 @@ function collectionToSQL(collection: Collection): string {
 
 function fieldToSQL(field: Field | FieldAs | FieldDirection, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
-		return `"${field.alias ? `${field.alias}"."` : ''}${field.name}"`;
+		return `"${field.alias ? `${field.alias}"."` : ''}${field.name.toString()}"`;
 	}
 	else if (field instanceof FieldAs) {
 		if (field.field instanceof Function) {
@@ -482,6 +486,13 @@ function fnToSQL(field: Function, params: any[], variables?: Variables): string 
 	}).join(', ')})`;
 }
 
+function valueToPrimitive(value: unknown): any {
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+	return value;
+}
+
 function valueToSQL(field: Value, params: any[], variables?: Variables): string {
 	if (field instanceof Field) {
 		return fieldToSQL(field, params, variables);
@@ -495,18 +506,15 @@ function valueToSQL(field: Value, params: any[], variables?: Variables): string 
 		}
 		const value = variables[field.name];
 		if (isArray(value)) {
-			params.push(...value);
+			params.push(...value.map(valueToPrimitive));
 			return value.map(v => '?').join(', ');
 		} else {
-			params.push(value);
+			params.push(valueToPrimitive(value));
 			return '?';
 		}
 	}
-	else if (field) {
-		params.push(field);
-		return '?';
-	}
-	return '';
+	params.push(valueToPrimitive(field));
+	return '?';
 }
 
 function comparisonToSQL(comparison: Comparison, params: any[], variables?: Variables): string {
@@ -560,6 +568,8 @@ function selectQueryToSQL(query: QuerySelect, database: Database, variables?: Va
 	}
 	if (query.limit) {
 		sql += ` LIMIT ${query.limit!}`;
+	} else {
+		sql += ` LIMIT -1`;
 	}
 	if (query.offset) {
 		sql += ` OFFSET ${query.offset!}`;
@@ -631,6 +641,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;
+		} else {
+			sql += ` LIMIT -1`;
 		}
 		if (query.offset) {
 			sql += ` OFFSET ${query.offset!}`;
@@ -666,6 +678,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 		}
 		if (query.limit) {
 			sql += ` LIMIT ${query.limit!}`;
+		} else {
+			sql += ` LIMIT -1`;
 		}
 		if (query.offset) {
 			sql += ` OFFSET ${query.offset!}`;
@@ -685,10 +699,10 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 
 		const objects = query.objects;
 		if (objects !== undefined && objects.count() > 0) {
-			sql += ` (${objects.get(0).map<string>((_, key) => `"${key}"`).join(', ')}) `;
+			sql += ` (${Object.keys(objects.get(0)).map<string>(key => `"${key}"`).join(', ')}) `;
 			sql += `VALUES ${objects.map<string>(obj => {
-				return `(${obj!.map<string>(value => {
-					return valueToSQL(value as Value, params, variables);
+				return `(${Object.keys(obj).map<string>(key => {
+					return valueToSQL(obj[key], params, variables);
 				}).join(', ')})`;
 			}).join(', ')}`;
 		} else {
@@ -707,8 +721,8 @@ export function convertQueryToSQL(query: Query, database: Database, variables?: 
 			throw new Error(`Expected QueryInsert to be from a collection.`);
 		}
 		if (query.object) {
-			sql += ` ${query.object!.map<string>((value, key) => {
-				return `"${key}" = ${valueToSQL(value as Value, params, variables)}`;
+			sql += ` ${Object.keys(query.object).map<string>((key) => {
+				return `"${key}" = ${valueToSQL(query.object[key] as Value, params, variables)}`;
 			}).join(', ')}`;
 		} else {
 			throw new Error(`Expected QueryUpdate to have some data.`);

@@ -358,3 +358,5 @@ export class FileSystemSFTP extends FileSystem {
 	}
 
 }
+
+export default FileSystemSFTP;

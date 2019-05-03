@@ -1,11 +1,11 @@
 {
   "name": "@konstellio/mq-amqp",
-  "version": "0.2.3",
+  "version": "0.2.9",
   "description": "",
   "main": "dist/MessageQueueAMQP.js",
   "types": "dist/MessageQueueAMQP.d.ts",
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
@@ -32,9 +32,9 @@
     "amqplib": "^0.5.2"
   },
   "devDependencies": {
-    "@konstellio/disposable": "^0.2.3",
-    "@konstellio/eventemitter": "^0.2.3",
-    "@konstellio/mq": "^0.2.3",
+    "@konstellio/disposable": "^0.2.9",
+    "@konstellio/eventemitter": "^0.2.9",
+    "@konstellio/mq": "^0.2.9",
     "@types/amqplib": "^0.5.8",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
@@ -50,7 +50,7 @@
     "tslint": "^5.11.0",
     "tslint-config-airbnb": "^5.9.2",
     "tslint-config-prettier": "^1.14.0",
-    "typescript": "^3.0.1"
+    "typescript": "^3.1.6"
   },
   "dependencies": {
     "uuid": "^3.3.2"

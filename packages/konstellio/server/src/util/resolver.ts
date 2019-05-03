@@ -4,8 +4,11 @@ import { GraphQLResolveInfo, SelectionSetNode, Kind } from "graphql";
  * Extract field selections from resolver's info
  */
 export function getSelectionsFromInfo(info: GraphQLResolveInfo): string[] {
-	return info.operation.selectionSet.selections.reduce((selections, selection) => {
-		if (selection.kind === Kind.FIELD && selection.selectionSet) {
+	return info.fieldNodes[0].selectionSet!.selections.reduce((selections, selection) => {
+		if (selection.kind === Kind.FIELD) {
+			selections.push(selection.name.value);
+		}
+		else if (selection.kind === Kind.INLINE_FRAGMENT) {
 			selections.push(...getSelectionsFromSet(selection.selectionSet));
 		}
 		return selections;

@@ -1,0 +1,16 @@
+secret: '1234'
+
+locales:
+  fr: Français
+  en: English
+
+extensions:
+  - ./dist/blog.js
+
+database:
+  driver: '@konstellio/db-sqlite'
+  filename: ./db.sqlite
+
+filesystem:
+  driver: '@konstellio/fs-local'
+  rootDirectory: ./storage

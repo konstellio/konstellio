@@ -191,3 +191,5 @@ export class FileSystemLocal extends FileSystem {
 	}
 
 }
+
+export default FileSystemLocal;

@@ -1,299 +1,344 @@
-import { Cache } from '@konstellio/cache';
+import { Configuration, loadConfiguration } from './config';
+import { dirname } from 'path';
+import * as resolve from 'resolve';
+import { Extension, Context, Callable, LoadedExtension } from './extension';
+import { parse, DocumentNode, Kind, DefinitionNode, ObjectTypeDefinitionNode, FieldDefinitionNode, TypeNode, UnionTypeDefinitionNode, GraphQLSchema } from 'graphql';
 import { Database } from '@konstellio/db';
 import { FileSystem } from '@konstellio/fs';
+import { Cache } from '@konstellio/cache';
 import { MessageQueue } from '@konstellio/mq';
-import { IDisposableAsync } from '@konstellio/disposable';
-import * as assert from 'assert';
+import { Collection, Schema, Object, ObjectBase, Union, UnionBase, Field, FieldType, Index } from '@konstellio/odm';
+import { mergeAST, isCollection, isListType, getDefNodeByNamedType, isNonNullType, getArgumentsValues } from './util/ast';
+import baseExtension from './extension/base';
+import authExtension from './extension/auth';
+import { IResolvers, SchemaDirectiveVisitor, makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
 import * as fastify from 'fastify';
-import { runHttpQuery } from 'apollo-server-core';
-import { Plugin } from './plugin';
-import CorePlugin from './plugins/core';
-import { parse } from 'graphql';
-import { mergeAST } from './utilities/ast';
-import { ReadStream, WriteStream } from 'tty';
-import { createSchemaFromDefinitions, createSchemaFromDatabase, computeSchemaDiff, promptSchemaDiffs, executeSchemaDiff } from './utilities/migration';
-import { createTypeExtensionsFromDefinitions, createInputTypeFromDefinitions, createTypeExtensionsFromDatabaseDriver, createCollections } from './collection';
-import { makeExecutableSchema, transformSchema, ReplaceFieldWithFragment } from 'graphql-tools';
-import { AddressInfo } from 'net';
+import { ApolloServer } from 'apollo-server-fastify';
 
-export enum ServerListenMode {
-	All = ~(~0 << 2),
-	Graphql = 1 << 0,
-	Websocket = 2 << 0,
-	Worker = 3 << 1
-}
+export async function createServer<
+	C extends Context = Context
+>(
+	conf: string | { basedir: string, configuration: Configuration }
+) {
+	const basedir = typeof conf === 'string' ? dirname(conf) : conf.basedir;
+	const configuration = typeof conf === 'string' ? await loadConfiguration(conf) : conf.configuration;
 
-export interface ServerListenOptions {
-	skipMigration?: boolean;
-	mode?: ServerListenMode;
-}
+	const context = await loadContext<C>(configuration, basedir);
 
-export interface ServerListenStatus {
-	mode: ServerListenMode;
-	family?: string;
-	address?: string;
-	port?: number;
-}
+	const loadedExtensions = await loadExtensions(configuration, basedir, context);
+	
+	const typeDefs = loadTypeDefs(loadedExtensions);
+	const directives = loadDirectives(loadedExtensions);
+	const resolvers = loadResolvers(loadedExtensions);
 
-export interface ServerConfig {
-	locales: Locales;
-	fs: FileSystem;
-	db: Database;
-	cache: Cache;
-	mq: MessageQueue;
-	http?: {
-		host?: string
-		port?: number
-	};
-	plugins?: string[];
-}
+	const collectionSchemas = loadCollectionSchemas(typeDefs);
+	context.collection = collectionSchemas.reduce((collections, schema) => {
+		collections[schema.handle] = new Collection(
+			context.database,
+			configuration.locales ? Object.values(configuration.locales) : [],
+			schema
+		);
+		return collections;
+	}, {} as Context['collection']);
 
-export type Locales = {
-	[code: string]: string
-};
+	const app = await loadFastifyInstance(configuration, context, loadedExtensions);
+	
+	const graphQLSchema = await loadGraphQLSchema(typeDefs, resolvers, directives);
+	const apollo = new ApolloServer({
+		schema: graphQLSchema,
+		schemaDirectives: directives, // TODO : Still needed, isn't baked into graphQLSchema already ?
+		context(req: any) {
+			return req.context;
+		},
 
-export interface HTTPConfig {
-	host?: string;
-	port?: number;
-	http2?: boolean;
-	https?: {
-		key: string
-		cert: string
+		playground: true,
+		// tracing: true,
+		// cacheControl: true
+	});
+
+	app.register(apollo.createHandler());
+
+	return {
+		configuration,
+		context,
+		app,
+		graphQLSchema,
+		collectionSchemas
 	};
 }
 
-export async function createServer(config: ServerConfig): Promise<Server> {
-	return new Server(config);
+async function resolveModule(path: string, basedir: string) {
+	return new Promise<string>((res, rej) => {
+		resolve(path, { basedir }, (err, path) => {
+			if (err) {
+				return rej(err);
+			}
+			return res(path);
+		});
+	});
 }
 
-export class Server implements IDisposableAsync {
+export async function loadContext<C extends Context = Context>(configuration: Configuration, basedir: string): Promise<C> {
+	const [database, filesystem, cache, mq] = await loadDrivers(configuration, basedir);
 
-	private disposed: boolean;
-	private plugins: Plugin[];
-	private server: fastify.FastifyInstance | undefined;
+	await database.connect();
+	await cache.connect();
+	await mq.connect();
 
-	protected fs: FileSystem;
-	protected db: Database;
-	protected cache: Cache;
-	protected mq: MessageQueue;
+	return {
+		database,
+		filesystem,
+		cache,
+		mq,
+		collection: {}
+	} as C;
+}
 
-	constructor(
-		public readonly config: ServerConfig
-	) {
-		this.disposed = false;
-		this.plugins = [];
+export async function loadExtensions(configuration: Configuration, basedir: string, context: Context): Promise<LoadedExtension[]> {
+	const serviceResolvers = await Promise.all((configuration.extensions || []).map(path => resolveModule(path, basedir)));
+	const extensions = serviceResolvers.map(path => require(path).default as Extension);
+	extensions.unshift(authExtension as any);
+	extensions.unshift(baseExtension as any);
 
-		this.fs = config.fs;
-		this.db = config.db;
-		this.cache = config.cache;
-		this.mq = config.mq;
+	const loadedExtensions: LoadedExtension[] = [];
+
+	for (const extension of extensions) {
+		loadedExtensions.push({
+			typeDefs: extension.typeDefs ? await callCallable(extension.typeDefs!, configuration, context, loadedExtensions) : undefined,
+			resolvers: extension.resolvers ? await callCallable(extension.resolvers!, configuration, context, loadedExtensions) : undefined,
+			directives: extension.directives ? await callCallable(extension.directives!, configuration, context, loadedExtensions) : undefined,
+			main: extension.main
+		});
 	}
 
-	async disposeAsync(): Promise<void> {
-		if (this.disposed) {
+	return loadedExtensions;
+}
+
+async function loadDrivers(configuration: Configuration, basedir: string): Promise<[Database, FileSystem, Cache, MessageQueue]> {
+	return Promise.all([
+		loadDriver<Database>(configuration.database, basedir),
+		loadDriver<FileSystem>(configuration.filesystem, basedir),
+		loadDriver<Cache>(configuration.cache, basedir),
+		loadDriver<MessageQueue>(configuration.mq, basedir)
+	]);
+}
+
+async function loadDriver<T>(configuration: Configuration['database'] | Configuration['filesystem'] | Configuration['cache'] | Configuration['mq'], basedir: string): Promise<T> {
+	const { driver, ...opts } = configuration;
+	const resolved = await resolveModule(driver, basedir);
+	const driverConstructor: (new(opts: any) => T) = require(resolved).default;
+	return new driverConstructor(opts);
+}
+
+async function callCallable<T>(callable: Callable<T>, configuration: Configuration, context: Context, extensions: Extension[]): Promise<T> {
+	if (typeof callable === 'function') {
+		callable = Promise.resolve((callable as any)(configuration, context, extensions));
+	}
+	if (callable instanceof Promise) {
+		return Promise.resolve(callable);
+	}
+	return callable;
+}
+
+export function loadCollectionSchemas(typeDef: DocumentNode): Schema[] {
+	return typeDef.definitions.reduce((schemas, node) => {
+		if (isCollection(node)) {
+			schemas.push(mapTypeDefinitionToSchema(node));
+		}
+		return schemas;
+	}, [] as Schema[]);
+
+	function mapTypeDefinitionToSchema(node: DefinitionNode): Schema {
+		if (node.kind === Kind.OBJECT_TYPE_DEFINITION) {
+			return {
+				...mapObjectTypeDefinitionToObjectBase(node),
+				indexes: mapTypeDefinitionToIndex(node)
+			} as Object;
+		}
+		else if (node.kind === Kind.UNION_TYPE_DEFINITION) {
+			return {
+				...mapUnionTypeDefinitionToUnionBase(node),
+				indexes: mapTypeDefinitionToIndex(node)
+			} as Union;
+		}
+		else {
+			throw new TypeError(`Specified node ${node.kind} is not supported.`);
+		}
+	}
+
+	function mapTypeDefinitionToIndex(node: ObjectTypeDefinitionNode | UnionTypeDefinitionNode): Index[] {
+		return (node.directives || []).reduce((indexes, directive) => {
+			if (directive.name.value === 'collection') {
+				const args = getArgumentsValues(directive.arguments);
+				indexes.push(...(args.indexes || [] as Index[]));
+			}
+			return indexes;
+		}, [] as Index[]);
+	}
+	
+	function mapObjectTypeDefinitionToObjectBase(node: ObjectTypeDefinitionNode): ObjectBase {
+		return {
+			handle: node.name.value,
+			fields: (node.fields || []).reduce((fields, node) => {
+				const field = mapFieldDefinitionToField(node);
+				if (field) {
+					fields.push(field);
+				}
+				return fields;
+			}, [] as Field[])
+		};
+	}
+
+	function mapUnionTypeDefinitionToUnionBase(node: UnionTypeDefinitionNode): UnionBase {
+		return {
+			handle: node.name.value,
+			objects: (node.types || []).reduce((objects, node) => {
+				const refNode = getDefNodeByNamedType(typeDef, node.name.value);
+				if (refNode && refNode.kind === Kind.OBJECT_TYPE_DEFINITION) {
+					objects.push(mapObjectTypeDefinitionToObjectBase(refNode));
+				}
+				return objects;
+			}, [] as ObjectBase[])
+		};
+	}
+	
+	function mapFieldDefinitionToField(node: FieldDefinitionNode): Field | undefined {
+		const directives = node.directives || [];
+		const computed = directives.find(directive => directive.name.value === 'computed') !== undefined;
+		if (computed) {
 			return;
 		}
+		const multiple = isListType(node.type);
+		const required = isNonNullType(node.type);
+		const localized = directives.find(directive => directive.name.value === 'localized') !== undefined;
 
-		// FIXME: Expose missing disposeAsync;
-
-		// await this.db.disposeAsync();
-		await this.fs.disposeAsync();
-		await this.cache.disposeAsync();
-		// await this.mq.disposeAsync();
+		const [type, relation] = mapTypeToFieldType(node.type);
+	
+		return {
+			required,
+			localized,
+			multiple,
+			type,
+			relation,
+			handle: node.name.value,
+			// size?: number;
+		};
 	}
-
-	isDisposed(): boolean {
-		return this.disposed;
-	}
-
-	register(plugin: Plugin) {
-		assert(plugin.identifier, 'Plugin needs an identifier');
-		this.plugins.push(plugin);
-	}
-
-	async listen({ skipMigration, mode }: ServerListenOptions = {}): Promise<ServerListenStatus> {
-		if (this.isDisposed()) {
-			throw new Error(`Can not call Server.listen on a disposed server.`);
+	
+	function mapTypeToFieldType(node: TypeNode): [FieldType, boolean] {
+		if (node.kind === Kind.NON_NULL_TYPE || node.kind === Kind.LIST_TYPE) {
+			return mapTypeToFieldType(node.type);
 		}
-
-		skipMigration = !!skipMigration;
-		mode = mode || ServerListenMode.All;
-		const status: ServerListenStatus = { mode };
-
-		await this.db.connect();
-		await this.cache.connect();
-		await this.mq.connect();		
-
-		// Reorder plugin to respect their dependencies
-		const pluginOrder = [CorePlugin as Plugin].concat(reorderPluginOnDependencies(this.plugins));
-
-		// Gather plugins type definition
-		const typeDefs = await Promise.all(pluginOrder.map(async (plugin) => {
-			return plugin.getTypeDef ? plugin.getTypeDef(this) : '';
-		}));
-
-		// Parse type definition to AST
-		const ASTs = typeDefs.map(typeDef => parse(typeDef));
-
-		// Let plugin extend AST by providing an other layer of type definition
-		const typeDefExtensions: string[] = [
-			createTypeExtensionsFromDatabaseDriver(this.db, this.config.locales)
-		];
-		for (const ast of ASTs) {
-			const extended = await Promise.all(pluginOrder.reduce((typeDefs, plugin) => {
-				if (plugin.getTypeExtension) {
-					typeDefs.push(Promise.resolve(plugin.getTypeExtension(this, ast)));
+	
+		switch (node.name.value) {
+			case 'ID':
+			case 'String':
+				return ['string', false];
+			case 'Int':
+				return ['int', false];
+			case 'Float':
+				return ['float', false];
+			case 'Boolean':
+				return ['boolean', false];
+			case 'Date':
+				return ['date', false];
+			case 'DateTime':
+				return ['datetime', false];
+			default:
+				const refNode = getDefNodeByNamedType(typeDef, node.name.value);
+				if (refNode) {
+					if (refNode.kind === Kind.ENUM_TYPE_DEFINITION) {
+						return ['string', false];
+					}
+					else if (refNode.kind === Kind.OBJECT_TYPE_DEFINITION) {
+						return [mapObjectTypeDefinitionToObjectBase(refNode), isCollection(refNode)];
+					}
+					else if (refNode.kind === Kind.UNION_TYPE_DEFINITION) {
+						return [mapUnionTypeDefinitionToUnionBase(refNode), isCollection(refNode)];
+					}
 				}
-				return typeDefs;
-			}, [
-				Promise.resolve(createTypeExtensionsFromDefinitions(ast, this.config.locales))
-			] as Promise<string>[]));
-
-			const typeDefExtension = extended.join(`\n`).trim();
-			if (typeDefExtension) {
-				typeDefExtensions.push(typeDefExtension);
-			}
 		}
-		ASTs.push(...typeDefExtensions.map(typeDef => parse(typeDef)));
+		return ['string', false];
+	}
+}
 
-		// Merge every AST
-		const mergedAST = mergeAST(ASTs);
-
-		const astSchema = await createSchemaFromDefinitions(mergedAST, this.config.locales, this.db.features.join);
-		
-		// Do migration
-		if (!skipMigration) {
-			const dbSchema = await createSchemaFromDatabase(this.db, this.config.locales);
-			const schemaDiffs = await promptSchemaDiffs(
-				process.stdin as ReadStream,
-				process.stdout as WriteStream,
-				computeSchemaDiff(dbSchema, astSchema, this.db.compareTypes),
-				this.db.compareTypes
-			);
-
-			if (schemaDiffs.length > 0) {
-				await executeSchemaDiff(schemaDiffs, this.db);
-			}
+export function loadTypeDefs(loadedExtensions: LoadedExtension[]): DocumentNode {
+	const typeDefs = loadedExtensions.reduce((documents, extension) => {
+		if (extension.typeDefs) {
+			documents.push(typeof extension.typeDefs === 'string' ? parse(extension.typeDefs) : extension.typeDefs);
 		}
+		return documents;
+	}, [] as DocumentNode[]);
+	
+	return mergeAST(typeDefs);
+}
 
-		// TODO: Create collections with mergedAST
-		const collections = createCollections(this.db, astSchema, mergedAST, this.config.locales);
-		debugger;
-
-		// Create input type from definitions
-		const inputTypeDefinitions = createInputTypeFromDefinitions(mergedAST, this.config.locales);
-
-		// Gather plugins resolvers
-		const resolvers = await Promise.all(pluginOrder.map(async (plugin) => {
-			return plugin.getResolvers ? plugin.getResolvers(this) : {};
-		}));
-
-		// Merge every resolvers
-		const mergedResolvers = resolvers.reduce((resolvers, resolver) => {
+export function loadResolvers(loadedExtensions: LoadedExtension[]): IResolvers {
+	return loadedExtensions.reduce((resolvers, extension) => {
+		if (extension.resolvers) {
+			const resolver = extension.resolvers;
 			Object.keys(resolver).forEach(key => {
 				resolvers[key] = Object.assign(resolvers[key] || {}, resolver[key]);
 			});
-			return resolvers;
-		}, {});
-
-		// Create fragment from resolvers
-		const fragments = Object.keys(mergedResolvers).reduce((fragments, typeName) => {
-			const type: any = mergedResolvers[typeName];
-			return Object.keys(type).reduce((fragments, fieldName) => {
-				const field = type[fieldName];
-				if (typeof field === 'object' && typeof field.resolve === 'function' && typeof field.fragment === 'string') {
-					fragments.push({ field: fieldName, fragment: field.fragment });
-				}
-				return fragments;
-			}, fragments);
-		}, [] as { field: string, fragment: string }[]);
-
-		// Create schema
-		const baseSchema = makeExecutableSchema({
-			typeDefs: [mergedAST, inputTypeDefinitions] as any,
-			resolvers: mergedResolvers,
-			resolverValidationOptions: {
-				allowResolversNotInSchema: true,
-				requireResolversForResolveType: false
-			}
-		});
-
-		// Emulate mergeSchemas resolver's fragment
-		const extendedSchema = transformSchema(baseSchema, [
-			new ReplaceFieldWithFragment(baseSchema, fragments)
-		]);
-		
-		if (mode & ServerListenMode.Graphql) {
-			const app = fastify();
-			app.get('/', async (_, res) => {
-				res.send({
-					mode,
-					plugins: this.plugins
-				});
-			});
-
-			// TODO: Auth => https://github.com/fastify/fastify-cookie/blob/master/plugin.js
-			// TODO: Create a websocker server => https://github.com/fastify/fastify-websocket/blob/master/index.js
-
-			app.route({
-				method: ['GET', 'POST'],
-				url: '/graphql',
-				async handler(req, res) {
-					// TODO: Build schema for this request & cache it
-					try {
-						const result = await runHttpQuery([req, res], {
-							method: 'POST',
-							options: {
-								schema: extendedSchema as any
-							},
-							query: req.body || req.query
-						});
-						// res.header('Content-Length', Buffer.byteLength(result, 'utf8').toString()); // FIXME: Required ?
-						res.send(JSON.parse(result));
-					} catch (error) {
-						if (error.name === 'HttpQueryError') {
-							for (const key in error.headers) {
-								res.header(key, error.headers[key]);
-							}
-							// res.code(error.statusCode); // FIXME: Required ?
-							res.send(JSON.parse(error.message));
-						}
-					}
-				}
-			});
-
-			await new Promise((resolve, reject) => {
-				app.listen(
-					this.config.http && this.config.http.port || 8080,
-					this.config.http && this.config.http.host || '127.0.0.1',
-					(err) => {
-						if (err) return reject(err);
-						const addr = app.server.address() as AddressInfo;
-						status.family = addr.family;
-						status.address = addr.address;
-						status.port = addr.port;
-						resolve();
-					}
-				);
-			});
-
-			this.server = app;
 		}
-
-		return status;
-	}
+		return resolvers;
+	}, {} as IResolvers);
 }
 
-function reorderPluginOnDependencies(plugins: Plugin[]): Plugin[] {
-	return plugins.sort((a, b) => {
-		const aONb = (a.dependencies || []).indexOf(b.identifier) > -1;
-		const bONa = (b.dependencies || []).indexOf(a.identifier) > -1;
-		if (aONb) {
-			if (bONa) {
-				throw new Error(`Detected circular plugin dependency between ${a.identifier} and ${b.identifier}`);
-			}
-			return 1;
+export function loadDirectives(loadedExtensions: LoadedExtension[]): Record<string, typeof SchemaDirectiveVisitor> {
+	return loadedExtensions.reduce((directives, extension) => {
+		if (extension.directives) {
+			return {
+				...directives,
+				...extension.directives
+			};
 		}
-		return bONa ? -1 : 0;
+		return directives;
+	}, {} as Record<string, typeof SchemaDirectiveVisitor>);
+}
+
+export function loadGraphQLSchema(typeDefs: DocumentNode, resolvers: IResolvers, directives: Record<string, typeof SchemaDirectiveVisitor>): GraphQLSchema {
+	const baseSchema = makeExecutableSchema({
+		typeDefs,
+		resolvers,
+		schemaDirectives: directives,
+		resolverValidationOptions: {
+			allowResolversNotInSchema: true,
+			requireResolversForResolveType: false
+		}
 	});
+
+	const fragments = Object.keys(resolvers).reduce((fragments, typeName) => {
+		const type: any = resolvers[typeName];
+		return Object.keys(type).reduce((fragments, fieldName) => {
+			const field = type[fieldName];
+			if (typeof field === 'object' && typeof field.resolve === 'function' && typeof field.fragment === 'string') {
+				fragments.push({ field: fieldName, fragment: field.fragment });
+			}
+			return fragments;
+		}, fragments);
+	}, [] as { field: string, fragment: string }[]);
+
+	const extendedSchema = transformSchema(baseSchema, [
+		new ReplaceFieldWithFragment(baseSchema, fragments)
+	]);
+
+	return extendedSchema;
+}
+
+export async function loadFastifyInstance(configuration: Configuration, context: Context, loadedExtensions: LoadedExtension[]): Promise<fastify.FastifyInstance> {
+	const app = fastify();
+
+	app.addHook('preHandler', async (request, response) => {
+		request.context = {
+			...context
+		} as any;
+	});
+	
+	const mains = loadedExtensions.filter(extension => extension.main).map(extension => extension.main!);
+	for (const main of mains) {
+		await main({ app, configuration, context, loadedExtensions });
+	}
+
+	return app;
 }

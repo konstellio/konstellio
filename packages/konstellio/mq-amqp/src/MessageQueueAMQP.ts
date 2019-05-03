@@ -238,3 +238,5 @@ export class MessageQueueAMQP extends MessageQueue {
 		return disposable;
 	}
 }
+
+export default MessageQueueAMQP;

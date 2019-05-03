@@ -2,30 +2,35 @@ import * as assert from 'assert';
 import { Map, List } from 'immutable';
 import { isArray } from 'util';
 
+function isKeyOf<T = any>(value: any): value is keyof T {
+	return typeof value === 'string';
+}
+
+// tslint:disable:class-name
 export class q {
 
-	public static select(...fields: (string | Field)[]) {
-		return new QuerySelect().select(...fields);
+	public static select<F = any, I = any>(...fields: (keyof F | Field<F>)[]) {
+		return new QuerySelect<F, I>().select(...fields);
 	}
 
-	public static aggregate(...fields: (Field | FieldAs)[]) {
-		return new QueryAggregate(List(fields));
+	public static aggregate<F = any, I = any>(...fields: (keyof F | Field<F> | FieldAs<F>)[]) {
+		return new QueryAggregate<F, I>().select(...fields);
 	}
 
-	public static union(...selects: QuerySelect[]) {
-		return new QueryUnion(List(selects));
+	public static union<F = any, I = any>(...selects: QuerySelect<F, I>[]) {
+		return new QueryUnion<F, I>(List(selects));
 	}
 
-	public static insert(name: string | Collection) {
-		return new QueryInsert().into(name);
+	public static insert<F = any>(name: string | Collection) {
+		return new QueryInsert<F>().into(name);
 	}
 
-	public static update(name: string | Collection) {
-		return new QueryUpdate().from(name);
+	public static update<F = any, I = any>(name: string | Collection) {
+		return new QueryUpdate<F, I>().from(name);
 	}
 
-	public static delete(name: string | Collection) {
-		return new QueryDelete().from(name);
+	public static delete<I = any>(name: string | Collection) {
+		return new QueryDelete<I>().from(name);
 	}
 
 	public static showCollection() {
@@ -68,118 +73,118 @@ export class q {
 		return new Variable(name);
 	}
 
-	public static field(name: string, alias?: string) {
-		return new Field(name, alias);
+	public static field<F = any>(name: keyof F, alias?: string) {
+		return new Field<F>(name, alias);
 	}
 
-	public static sort(field: string | Field, direction: Direction = 'asc') {
-		return new FieldDirection(typeof field === 'string' ? new Field(field) : field, direction);
+	public static sort<I = any>(field: keyof I | Field<I>, direction: Direction = 'asc') {
+		return new FieldDirection<I>(isKeyOf(field) ? new Field(field) : field, direction);
 	}
 
-	public static as(field: string | Field | Function, alias: string) {
-		return new FieldAs(typeof field === 'string' ? new Field(field) : field, alias);
+	public static as<F = any>(field: keyof F | Field<F> | Function<F>, alias: string) {
+		return new FieldAs<F>(isKeyOf(field) ? new Field(field) : field, alias);
 	}
 
-	public static count(field: string | Field) {
-		return new FunctionCount(List([typeof field === 'string' ? new Field(field) : field]));
+	public static count<F = any>(field: keyof F | Field<F>) {
+		return new FunctionCount<F>(List([isKeyOf(field) ? new Field(field) : field]));
 	}
 
-	public static avg(...args: Value[]) {
-		return new FunctionAvg(List<Value>(args));
+	public static avg<F = any>(...args: Value<F>[]) {
+		return new FunctionAvg<F>(List<Value<F>>(args));
 	}
 
-	public static sum(...args: Value[]) {
-		return new FunctionSum(List<Value>(args));
+	public static sum<F = any>(...args: Value<F>[]) {
+		return new FunctionSum<F>(List<Value<F>>(args));
 	}
 
-	public static sub(...args: Value[]) {
-		return new FunctionSub(List<Value>(args));
+	public static sub<F = any>(...args: Value<F>[]) {
+		return new FunctionSub<F>(List<Value<F>>(args));
 	}
 
-	public static max(...args: Value[]) {
-		return new FunctionMax(List<Value>(args));
+	public static max<F = any>(...args: Value<F>[]) {
+		return new FunctionMax<F>(List<Value<F>>(args));
 	}
 
-	public static min(...args: Value[]) {
-		return new FunctionMin(List<Value>(args));
+	public static min<F = any>(...args: Value<F>[]) {
+		return new FunctionMin<F>(List<Value<F>>(args));
 	}
 
-	public static concat(...args: Value[]) {
-		return new FunctionConcat(List<Value>(args));
+	public static concat<F = any>(...args: Value<F>[]) {
+		return new FunctionConcat<F>(List<Value<F>>(args));
 	}
 
-	public static eq(field: string | Field | Function, value: Value) {
+	public static eq<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static ne(field: string | Field | Function, value: Value) {
+	public static ne<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonNotEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonNotEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static gt(field: string | Field | Function, value: Value) {
+	public static gt<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonGreaterThan(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonGreaterThan<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static gte(field: string | Field | Function, value: Value) {
+	public static gte<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonGreaterThanOrEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonGreaterThanOrEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static lt(field: string | Field | Function, value: Value) {
+	public static lt<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonLesserThan(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonLesserThan<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static lte(field: string | Field | Function, value: Value) {
+	public static lte<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonLesserThanOrEqual(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonLesserThanOrEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static in(field: string | Field | Function, values: Value | Value[]) {
+	public static in<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, values: F[K] | Value<F> | Value<F>[]) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		// assert(isArray(values) && values.length > 0);
 
-		return new ComparisonIn(typeof field === 'string' ? new Field(field) : field, List(isArray(values) ? values : [values]));
+		return new ComparisonIn<F>(isKeyOf(field) ? new Field(field) : field, List(isArray(values) ? values : [values as Value]));
 	}
 
-	public static beginsWith(field: string | Field | Function, value: string) {
+	public static beginsWith<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K]) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
-		return new ComparisonBeginsWith(typeof field === 'string' ? new Field(field) : field, List([value]));
+		return new ComparisonBeginsWith<F>(isKeyOf(field) ? new Field(field) : field, List([value as any]));
 	}
 
-	public static and(...operands: BinaryExpression[]) {
+	public static and<I = any>(...operands: BinaryExpression<I>[]) {
 		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
-		return new Binary("and", List(operands));
+		return new Binary<I>("and", List(operands));
 	}
 
-	public static or(...operands: BinaryExpression[]) {
+	public static or<I = any>(...operands: BinaryExpression<I>[]) {
 		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
-		return new Binary("or", List(operands));
+		return new Binary<I>("or", List(operands));
 	}
 
-	public static xor(...operands: BinaryExpression[]) {
+	public static xor<I = any>(...operands: BinaryExpression<I>[]) {
 		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
 
-		return new Binary("xor", List(operands));
+		return new Binary<I>("xor", List(operands));
 	}
 }
 
@@ -203,8 +208,8 @@ export class Collection {
 		return this.name === collection.name && this.namespace === collection.namespace;
 	}
 
-	public toString() {
-		return `${this.namespace ? this.namespace + '__' : ''}${this.name}`;
+	public toString(): string {
+		return `${this.namespace ? `${this.namespace}__` : ''}${this.name}`;
 	}
 }
 
@@ -256,7 +261,7 @@ export class Column {
 		return this.name === column.name && this.type === column.type && this.size === column.size && this.defaultValue === column.defaultValue && this.autoIncrement === column.autoIncrement;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement ? ' AUTOINCREMENT' : ''}`;
 	}
 }
@@ -278,7 +283,7 @@ export class Index {
 		assert(columns instanceof List);
 	}
 
-	public add(...columns: FieldDirection[]) {
+	public add(...columns: FieldDirection[]): Index {
 		assert(columns.length > 0);
 		assert(columns.filter(column => !(column instanceof FieldDirection)).length === 0);
 
@@ -289,13 +294,13 @@ export class Index {
 		return this.name === index.name && this.type === index.type && this.columns === index.columns;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `${this.type.toString().toLocaleUpperCase()} ${this.name} (${this.columns.map(c => c ? c.toString() : '').join(', ')})`;
 	}
 }
 
 export type Primitive = string | number | boolean | Date | null;
-export type Value = Variable | Field | Function | Primitive;
+export type Value<T = any> = Variable | Field<T> | Function<T> | Primitive;
 export type Variables = { [key: string]: Primitive | Primitive[] };
 
 export class Variable {
@@ -307,24 +312,24 @@ export class Variable {
 		return this.name === variable.name;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `VAR(${this.name})`;
 	}
 }
 
-export class Field {
+export class Field<T = any> {
 
-	constructor(public readonly name: string, public readonly alias?: string) {
+	constructor(public readonly name: keyof T, public readonly alias?: string) {
 		assert(typeof name === 'string');
 		assert(alias === undefined || typeof alias === 'string');
 	}
 
-	public rename(name: string, alias?: string) {
+	public rename(name: keyof T, alias?: string): Field<T> {
 		assert(typeof name === 'string');
 		assert(alias === undefined || typeof alias === 'string');
 
 		if (name !== this.name || alias !== this.alias) {
-			return new Field(name, alias || this.alias);
+			return new Field<T>(name, alias || this.alias);
 		}
 		return this;
 	}
@@ -333,20 +338,20 @@ export class Field {
 		return this.name === field.name && this.alias === field.alias;
 	}
 
-	public toString() {
-		return `${this.alias ? this.alias + '.' : ''}${this.name}`;
+	public toString(): string {
+		return `${this.alias ? `${this.alias}.` : ''}${this.name}`;
 	}
 }
 
 export type Direction = 'asc' | 'desc';
 
-export class FieldDirection {
-	constructor(public readonly field: Field, public readonly direction: Direction = 'asc') {
+export class FieldDirection<T = any> {
+	constructor(public readonly field: Field<T>, public readonly direction: Direction = 'asc') {
 		assert(field instanceof Field);
 		assert(direction === 'asc' || direction === 'desc');
 	}
 
-	public sort(direction: Direction) {
+	public sort(direction: Direction): FieldDirection<T> {
 		assert(direction === 'asc' || direction === 'desc');
 
 		if (direction !== this.direction) {
@@ -355,9 +360,9 @@ export class FieldDirection {
 		return this;
 	}
 
-	public rename(name: Field): FieldDirection;
-	public rename(name: string, alias?: string): FieldDirection;
-	public rename(name: string | Field, alias?: string): FieldDirection {
+	public rename(name: Field<T>): FieldDirection<T>;
+	public rename(name: keyof T, alias?: string): FieldDirection<T>;
+	public rename(name: keyof T | Field<T>, alias?: string): FieldDirection<T> {
 		assert(typeof name === 'string' || name instanceof Field);
 		assert(alias === undefined || typeof alias === 'string');
 
@@ -375,24 +380,24 @@ export class FieldDirection {
 		return this.field === field.field && this.direction === field.direction;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `${this.field.toString()} ${this.direction.toUpperCase()}`;
 	}
 }
 
-export abstract class Function {
+export abstract class Function<T = any> {
 	constructor(
 		public readonly fn: string,
-		public readonly args: List<Value> = List()
+		public readonly args: List<Value<T>> = List()
 	) {
 		assert(typeof fn === 'string');
 		assert(args instanceof List);
 	}
 
-	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+	public replaceArgument(replacer: (arg: Value<T>) => undefined | Value<T>) {
 		assert(typeof replacer === 'function');
 		
-		let args = List<Value>();
+		let args = List<Value<T>>();
 		let changed = false;
 
 		this.args.forEach(arg => {
@@ -421,55 +426,55 @@ export abstract class Function {
 	}
 }
 
-export class FunctionCount extends Function {
-	constructor(args: List<Value>) {
+export class FunctionCount<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('count', args);
 	}
 }
 
-export class FunctionAvg extends Function {
-	constructor(args: List<Value>) {
+export class FunctionAvg<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('avg', args);
 	}
 }
 
-export class FunctionSum extends Function {
-	constructor(args: List<Value>) {
+export class FunctionSum<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('sum', args);
 	}
 }
 
-export class FunctionSub extends Function {
-	constructor(args: List<Value>) {
+export class FunctionSub<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('sub', args);
 	}
 }
 
-export class FunctionMax extends Function {
-	constructor(args: List<Value>) {
+export class FunctionMax<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('max', args);
 	}
 }
 
-export class FunctionMin extends Function {
-	constructor(args: List<Value>) {
+export class FunctionMin<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('min', args);
 	}
 }
 
-export class FunctionConcat extends Function {
-	constructor(args: List<Value>) {
+export class FunctionConcat<T = any> extends Function<T> {
+	constructor(args: List<Value<T>>) {
 		super('concat', args);
 	}
 }
 
-export class FieldAs {
-	constructor(public readonly field: Field | Function, public readonly alias: string) {
+export class FieldAs<T = any> {
+	constructor(public readonly field: Field<T> | Function<T>, public readonly alias: string) {
 		assert(field instanceof Field || field instanceof Function);
 		assert(typeof alias === 'string');
 	}
 
-	public set(field: Field | Function, alias: string): FieldAs {
+	public set(field: Field<T> | Function<T>, alias: string): FieldAs<T> {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(typeof alias === 'string');
 
@@ -479,31 +484,31 @@ export class FieldAs {
 		return this;
 	}
 
-	public equal(field: FieldAs): boolean {
+	public equal(field: FieldAs<T>): boolean {
 		return this.field === field.field && this.alias === field.alias;
 	}
 
-	public toString() {
+	public toString(): string {
 		return `${this.field.toString()} AS ${this.alias}`;
 	}
 }
 
 export type ComparisonOperator = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'beginsWith' | 'in';
 
-export abstract class Comparison {
+export abstract class Comparison<T = any> {
 	constructor(
-		public readonly field: Field | Function,
+		public readonly field: Field<T> | Function<T>,
 		public readonly operator: ComparisonOperator,
-		public readonly args: List<Value> = List()
+		public readonly args: List<Value<T>> = List()
 	) {
 		assert(field instanceof Field || field instanceof Function);
 		assert(operator === '=' || operator === '!=' || operator === '>' || operator === '>=' || operator === '<' || operator === '<=' || operator === 'beginsWith' || operator === 'in');
 		assert(args instanceof List);
 	}
 
-	public rename(name: Field | Function): Comparison;
-	public rename(name: string, alias?: string): Comparison;
-	public rename(name: string | Field | Function, alias?: string): Comparison {
+	public rename(name: Field<T> | Function<T>): Comparison<T>;
+	public rename(name: keyof T, alias?: string): Comparison<T>;
+	public rename(name: keyof T | Field<T> | Function<T>, alias?: string): Comparison<T> {
 		assert(typeof name === 'string' || name instanceof Field);
 		assert(alias === undefined || typeof alias === 'string');
 
@@ -534,10 +539,10 @@ export abstract class Comparison {
 		return this;
 	}
 
-	public replaceArgument(replacer: (arg: Value) => undefined | Value) {
+	public replaceArgument(replacer: (arg: Value<T>) => undefined | Value<T>) {
 		assert(typeof replacer === 'function');
 
-		let args = List<Value>();
+		let args = List<Value<T>>();
 		let changed = false;
 
 		this.args.forEach(arg => {
@@ -557,7 +562,7 @@ export abstract class Comparison {
 		return this;
 	}
 
-	public equal(comparison: Comparison): boolean {
+	public equal(comparison: Comparison<T>): boolean {
 		return this.field === comparison.field && this.operator === comparison.operator && this.args === comparison.args;
 	}
 
@@ -566,61 +571,61 @@ export abstract class Comparison {
 	}
 }
 
-export class ComparisonEqual extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonEqual<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '=', args);
 	}
 }
 
-export class ComparisonNotEqual extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonNotEqual<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '!=', args);
 	}
 }
 
-export class ComparisonGreaterThan extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonGreaterThan<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '>', args);
 	}
 }
 
-export class ComparisonGreaterThanOrEqual extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonGreaterThanOrEqual<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '>=', args);
 	}
 }
 
-export class ComparisonLesserThan extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonLesserThan<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '<', args);
 	}
 }
 
-export class ComparisonLesserThanOrEqual extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonLesserThanOrEqual<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, '<=', args);
 	}
 }
 
-export class ComparisonBeginsWith extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonBeginsWith<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, 'beginsWith', args);
 	}
 }
 
-export class ComparisonIn extends Comparison {
-	constructor(field: Field | Function, args: List<Value>) {
+export class ComparisonIn<T = any> extends Comparison<T> {
+	constructor(field: Field<T> | Function<T>, args: List<Value<T>>) {
 		super(field, 'in', args);
 	}
 }
 
 export type BinaryOperator = 'and' | 'or' | 'xor';
-export type BinaryExpression = Binary | Comparison;
+export type BinaryExpression<T = any> = Binary<T> | Comparison<T>;
 
-export class Binary {
+export class Binary<T = any> {
 	constructor(
 		public readonly operator: BinaryOperator,
-		public readonly operands: List<BinaryExpression> = List()
+		public readonly operands: List<BinaryExpression<T>> = List()
 	) {
 		assert(operator === 'and' || operator === 'or' || operator === 'xor');
 		assert(operands instanceof List);
@@ -630,22 +635,22 @@ export class Binary {
 		return this.operands.filter(op => op instanceof Binary).count() === 0;
 	}
 
-	public add(expr: BinaryExpression) {
+	public add(expr: BinaryExpression<T>): Binary<T> {
 		assert(expr instanceof Binary || expr instanceof Comparison);
 
 		return new Binary(this.operator, this.operands.push(expr));
 	}
 
-	public remove(expr: BinaryExpression) {
+	public remove(expr: BinaryExpression<T>): Binary<T> {
 		assert(expr instanceof Binary || expr instanceof Comparison);
 
 		if (this.operands.contains(expr)) {
-			return new Binary(this.operator, this.operands.filter(op => op !== expr).toList());
+			return new Binary<T>(this.operator, this.operands.filter(op => op !== expr).toList());
 		}
 		return this;
 	}
 
-	public replace(search: BinaryExpression, replace: BinaryExpression, deep: boolean = false) {
+	public replace(search: BinaryExpression<T>, replace: BinaryExpression<T>, deep: boolean = false): Binary<T> {
 		assert(search instanceof Binary || search instanceof Comparison);
 		assert(replace instanceof Binary || replace instanceof Comparison);
 		assert(typeof deep === 'boolean');
@@ -658,11 +663,11 @@ export class Binary {
 		}, deep);
 	}
 
-	public visit(visiter: (op: BinaryExpression) => undefined | BinaryExpression, deep: boolean = false) {
+	public visit(visiter: (op: BinaryExpression<T>) => undefined | BinaryExpression<T>, deep: boolean = false): Binary<T> {
 		assert(typeof visiter === 'function');
 		assert(typeof deep === 'boolean');
 
-		let operands = List<BinaryExpression>();
+		let operands = List<BinaryExpression<T>>();
 		let changed = false;
 
 		this.operands.forEach(arg => {
@@ -685,12 +690,12 @@ export class Binary {
 		});
 
 		if (changed) {
-			return new Binary(this.operator, operands);
+			return new Binary<T>(this.operator, operands);
 		}
 		return this;
 	}
 
-	public equal(binary: Binary): boolean {
+	public equal(binary: Binary<T>): boolean {
 		return this.operator === binary.operator && this.operands === binary.operands;
 	}
 
@@ -701,33 +706,33 @@ export class Binary {
 
 export class Query {}
 
-export type Join = {
+export type Join<F = any, I = any> = {
 	alias: string
 	on: BinaryExpression
-	query: QuerySelect
+	query: QuerySelect<F, I>
 };
 
-export class QuerySelect extends Query {
+export class QuerySelect<F = any, I = any> extends Query {
 	// @ts-ignore
 	private type: 'select';
 
 	constructor(
-		public readonly fields?: List<Field | FieldAs>,
+		public readonly fields?: List<Field<F> | FieldAs<F>>,
 		public readonly collection?: Collection,
 		public readonly joins?: List<Join>,
-		public readonly conditions?: Binary,
-		public readonly sorts?: List<FieldDirection>,
+		public readonly conditions?: Binary<I>,
+		public readonly sorts?: List<FieldDirection<I>>,
 		public readonly limit?: number,
 		public readonly offset = 0
 	) {
 		super();
 	}
 
-	public select(...fields: (string | Field | FieldAs)[]) {
-		return new QuerySelect(List(fields.map<Field | FieldAs>(field => typeof field === 'string' ? new Field(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
+	public select(...fields: (keyof F | Field<F> | FieldAs<F>)[]): QuerySelect<F, I> {
+		return new QuerySelect<F, I>(List(fields.map<Field<F> | FieldAs<F>>(field => isKeyOf(field) ? new Field<F>(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 	}
 
-	public from(name: string | Collection) {
+	public from(name: string | Collection): QuerySelect<F, I> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -740,20 +745,20 @@ export class QuerySelect extends Query {
 		return this;
 	}
 
-	public join(alias: string, query: QuerySelect, on: BinaryExpression) {
+	public join(alias: string, query: QuerySelect<F, I>, on: BinaryExpression<I>): QuerySelect<F, I> {
 		const join: Join = { alias, query, on };
 		return new QuerySelect(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.sorts, this.limit, this.offset);
 	}
 
-	public where(condition: BinaryExpression) {
+	public where(condition: BinaryExpression<I>): QuerySelect<F, I> {
 		return new QuerySelect(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.sorts, this.limit, this.offset);
 	}
 
-	public sort(...fields: FieldDirection[]) {
+	public sort(...fields: FieldDirection<I>[]): QuerySelect<F, I> {
 		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, List(fields), this.limit, this.offset);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }) {
+	public range({ limit, offset }: { limit?: number, offset?: number }): QuerySelect<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
 			return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
 		}
@@ -806,28 +811,28 @@ export class QuerySelect extends Query {
 	}
 }
 
-export class QueryAggregate extends Query {
+export class QueryAggregate<F = any, I = any> extends Query {
 	// @ts-ignore
 	private type: 'aggregate';
 
 	constructor(
-		public readonly fields?: List<Field | FieldAs>,
+		public readonly fields?: List<Field<F> | FieldAs<F>>,
 		public readonly collection?: Collection,
 		public readonly joins?: List<Join>,
-		public readonly conditions?: Binary,
-		public readonly groups?: List<Field | Function>,
-		public readonly sorts?: List<FieldDirection>,
+		public readonly conditions?: Binary<I>,
+		public readonly groups?: List<Field<I> | Function<I>>,
+		public readonly sorts?: List<FieldDirection<I>>,
 		public readonly limit?: number,
 		public readonly offset = 0
 	) {
 		super();
 	}
 
-	public select(...fields: (Field | FieldAs)[]) {
-		return new QueryAggregate(List(fields), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
+	public select(...fields: (keyof F | Field<F> | FieldAs<F>)[]): QueryAggregate<F, I> {
+		return new QueryAggregate(List(fields.map<Field<F> | FieldAs<F>>(field => isKeyOf(field) ? new Field<F>(field) : field)), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
-	public from(name: string | Collection) {
+	public from(name: string | Collection): QueryAggregate<F, I> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -840,24 +845,24 @@ export class QueryAggregate extends Query {
 		return this;
 	}
 
-	public join(alias: string, query: QuerySelect, on: BinaryExpression) {
+	public join(alias: string, query: QuerySelect<F, I>, on: BinaryExpression<I>): QueryAggregate<F, I> {
 		const join: Join = { alias, query, on };
 		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List([join]), this.conditions, this.groups, this.sorts, this.limit, this.offset);
 	}
 
-	public where(condition: BinaryExpression) {
+	public where(condition: BinaryExpression<I>): QueryAggregate<F, I> {
 		return new QueryAggregate(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.groups, this.sorts, this.limit, this.offset);
 	}
 
-	public group(...groups: (Field | Function)[]) {
+	public group(...groups: (Field<I> | Function<I>)[]): QueryAggregate<F, I> {
 		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, List(groups), this.sorts, this.limit, this.offset);
 	}
 
-	public sort(...fields: FieldDirection[]) {
+	public sort(...fields: FieldDirection<I>[]): QueryAggregate<F, I> {
 		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, List(fields), this.limit, this.offset);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }) {
+	public range({ limit, offset }: { limit?: number, offset?: number }): QueryAggregate<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
 			return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
 		}
@@ -914,28 +919,28 @@ export class QueryAggregate extends Query {
 	}
 }
 
-export class QueryUnion extends Query {
+export class QueryUnion<F = any, I = any> extends Query {
 	// @ts-ignore
 	private type: 'union';
 
 	constructor(
-		public readonly selects?: List<QuerySelect>,
-		public readonly sorts?: List<FieldDirection>,
+		public readonly selects?: List<QuerySelect<F, I>>,
+		public readonly sorts?: List<FieldDirection<I>>,
 		public readonly limit?: number,
 		public readonly offset = 0
 	) {
 		super();
 	}
 
-	public add(select: QuerySelect) {
+	public add(select: QuerySelect<F, I>): QueryUnion<F, I> {
 		return new QueryUnion(this.selects ? this.selects.push(select) : List([select]), this.sorts, this.limit, this.offset);
 	}
 
-	public sort(...fields: FieldDirection[]) {
+	public sort(...fields: FieldDirection<I>[]): QueryUnion<F, I> {
 		return new QueryUnion(this.selects, List(fields), this.limit, this.offset);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }) {
+	public range({ limit, offset }: { limit?: number, offset?: number }): QueryUnion<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
 			return new QueryUnion(this.selects, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
 		}
@@ -968,25 +973,24 @@ export class QueryUnion extends Query {
 	}
 }
 
-export type Object = Map<string, Value>;
+export type Object<T = any> = Map<string, Value<T>>;
 
-export class QueryInsert extends Query {
+export class QueryInsert<T = any> extends Query {
 	// @ts-ignore
 	private type: 'insert';
 
 	constructor(
-		public readonly objects?: List<Object>,
+		public readonly objects?: List<T>,
 		public readonly collection?: Collection
 	) {
 		super();
 	}
 
-	public add(object: Object | { [field: string]: Value }) {
-		const map = Map<string, Value>(object);
-		return new QueryInsert(this.objects ? this.objects.push(map) : List([map]), this.collection);
+	public add(object: T): QueryInsert<T> {
+		return new QueryInsert(this.objects ? this.objects.push(object) : List([object]), this.collection);
 	}
 
-	public into(name: string | Collection) {
+	public into(name: string | Collection): QueryInsert<T> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1011,11 +1015,12 @@ export class QueryInsert extends Query {
 		}
 
 		if (this.objects && this.objects.count() > 0) {
-			const keys = Array.from<string>(this.objects.get(0).keys() as any);
+			const keys = Object.keys(this.objects.get(0));
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
 			query += `${newline}${indent}VALUES ${this.objects.map<string>(obj => {
 				return `(${keys.map(key => {
-					const value = obj!.get(key);
+					// @ts-ignore
+					const value = obj![key];
 					if (typeof value === 'string') {
 						return `"${value}"`;
 					}
@@ -1028,19 +1033,19 @@ export class QueryInsert extends Query {
 	}
 }
 
-export class QueryUpdate extends Query {
+export class QueryUpdate<T = any, I = any> extends Query {
 	// @ts-ignore
 	private type: 'update';
 
 	constructor(
-		public readonly object?: Object,
+		public readonly object?: T,
 		public readonly collection?: Collection,
-		public readonly conditions?: Binary
+		public readonly conditions?: Binary<I>
 	) {
 		super();
 	}
 
-	public from(name: string | Collection) {
+	public from(name: string | Collection): QueryUpdate<T> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1053,12 +1058,11 @@ export class QueryUpdate extends Query {
 		return this;
 	}
 
-	public set(object: Object | { [field: string]: Value }) {
-		const map: Object = Map<string, Value>(object);
-		return new QueryUpdate(map, this.collection, this.conditions);
+	public set(object: T): QueryUpdate<T> {
+		return new QueryUpdate(object, this.collection, this.conditions);
 	}
 
-	public where(condition: BinaryExpression) {
+	public where(condition: BinaryExpression<I>): QueryUpdate<T> {
 		return new QueryUpdate(this.object, this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
 	}
 
@@ -1077,7 +1081,8 @@ export class QueryUpdate extends Query {
 			const keys = Object.keys(this.object);
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
 			query += `${newline}${indent}VALUES (${keys.map<string>(key => {
-				const value = this.object!.get(key);
+				// @ts-ignore
+				const value = this.object![key];
 				if (typeof value === 'string') {
 					return `"${value}"`;
 				}
@@ -1093,18 +1098,18 @@ export class QueryUpdate extends Query {
 	}
 }
 
-export class QueryDelete extends Query {
+export class QueryDelete<I = any> extends Query {
 	// @ts-ignore
 	private type: 'delete';
 
 	constructor(
 		public readonly collection?: Collection,
-		public readonly conditions?: Binary
+		public readonly conditions?: Binary<I>
 	) {
 		super();
 	}
 
-	public from(name: string | Collection) {
+	public from(name: string | Collection): QueryDelete<I> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1117,7 +1122,7 @@ export class QueryDelete extends Query {
 		return this;
 	}
 
-	public where(condition: BinaryExpression) {
+	public where(condition: BinaryExpression<I>): QueryDelete<I> {
 		return new QueryDelete(this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
 	}
 
@@ -1164,7 +1169,7 @@ export class QueryCollectionExists extends Query {
 		super();
 	}
 
-	public rename(name: string | Collection) {
+	public rename(name: string | Collection): QueryCollectionExists {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1201,7 +1206,7 @@ export class QueryDescribeCollection extends Query {
 		super();
 	}
 
-	public rename(name: string | Collection) {
+	public rename(name: string | Collection): QueryDescribeCollection {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1240,7 +1245,7 @@ export class QueryCreateCollection extends Query {
 		super();
 	}
 
-	public rename(name: string | Collection) {
+	public rename(name: string | Collection): QueryCreateCollection {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1253,7 +1258,7 @@ export class QueryCreateCollection extends Query {
 		return this;
 	}
 
-	public define(columns: Column[], indexes: Index[]) {
+	public define(columns: Column[], indexes: Index[]): QueryCreateCollection {
 		return new QueryCreateCollection(this.collection, List(columns), List(indexes));
 	}
 
@@ -1324,7 +1329,7 @@ export class QueryAlterCollection extends Query {
 		super();
 	}
 
-	public rename(name: string | Collection) {
+	public rename(name: string | Collection): QueryAlterCollection {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
@@ -1337,27 +1342,27 @@ export class QueryAlterCollection extends Query {
 		return this;
 	}
 
-	public addColumn(column: Column, copyColumn?: string) {
+	public addColumn(column: Column, copyColumn?: string): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
 		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ column, copyColumn, type: 'addColumn' }));
 	}
 
-	public alterColumn(oldColumn: string, newColumn: Column) {
+	public alterColumn(oldColumn: string, newColumn: Column): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
 		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ oldColumn, newColumn, type: 'alterColumn' }));
 	}
 
-	public dropColumn(column: string) {
+	public dropColumn(column: string): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
 		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ column, type: 'dropColumn' }));
 	}
 
-	public addIndex(index: Index) {
+	public addIndex(index: Index): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
 		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ index, type: 'addIndex' }));
 	}
 
-	public dropIndex(index: string) {
+	public dropIndex(index: string): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
 		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ index, type: 'dropIndex' }));
 	}
@@ -1418,7 +1423,7 @@ export class QueryDropCollection extends Query {
 		super();
 	}
 
-	public rename(name: string | Collection) {
+	public rename(name: string | Collection): QueryDropCollection {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {

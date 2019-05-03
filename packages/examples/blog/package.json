@@ -1,14 +1,27 @@
 {
   "private": true,
   "name": "blog",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "main": "index.js",
   "license": "MIT",
+  "scripts": {
+    "compile": "rimraf dist && tsc --pretty",
+    "watch": "konstellio watch",
+    "generate": "konstellio generate",
+    "start": "node dist/server.js"
+  },
+  "devDependencies": {
+    "@konstellio/cli": "^0.2.9",
+    "typescript": "^3.1.6",
+    "rimraf": "^2.6.2"
+  },
   "dependencies": {
-    "@konstellio/cache-memory": "^0.2.3",
-    "@konstellio/db-sqlite": "^0.2.3",
-    "@konstellio/fs-local": "^0.2.8",
-    "@konstellio/mq-memory": "^0.2.3",
-    "@konstellio/server": "^0.2.8"
+    "@konstellio/cache-memory": "^0.2.9",
+    "@konstellio/db": "^0.2.9",
+    "@konstellio/db-sqlite": "^0.2.9",
+    "@konstellio/fs-local": "^0.2.9",
+    "@konstellio/mq-memory": "^0.2.9",
+    "@konstellio/odm": "^0.2.9",
+    "@konstellio/server": "^0.2.9"
   }
 }

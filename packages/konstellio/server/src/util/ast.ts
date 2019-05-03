@@ -1,4 +1,25 @@
-import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, FieldDefinitionNode, TypeNode, ArgumentNode, ValueNode } from "graphql";
+import { DocumentNode, concatAST, DefinitionNode, Kind, TypeDefinitionNode, FieldDefinitionNode, TypeNode, ArgumentNode, ValueNode, DirectiveNode } from "graphql";
+
+function mergeDirectives(directives: ReadonlyArray<DirectiveNode>): ReadonlyArray<DirectiveNode> {
+	let indexesDirective: DirectiveNode | undefined;
+	return directives.reduce((directives, directive) => {
+		if (directive.name.value === 'collection') {
+			if (!indexesDirective) {
+				indexesDirective = directive;
+				directives.push(directive);
+			} else {
+				const prevIndexes = (indexesDirective.arguments || []).find(arg => arg.name.value === 'indexes');
+				const nextIndexes = (directive.arguments || []).find(arg => arg.name.value === 'indexes');
+				if (prevIndexes && nextIndexes) {
+					(prevIndexes.value as any).values.push(...(nextIndexes.value as any).values);
+				}
+			}
+		} else {
+			directives.push(directive);
+		}
+		return directives;
+	}, [] as DirectiveNode[]);
+}
 
 /**
  * Merge multiple DocumentNode into one, collapsing type extension into their type definition
@@ -30,28 +51,28 @@ export function mergeAST(documents: DocumentNode[]): DocumentNode {
 						definitions.push({
 							...node,
 							interfaces: (node.interfaces || []).concat(extensions.reduce((interfaces, ext) => { interfaces.push(...ext.interfaces); return interfaces; }, [])),
-							directives: (node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, [])),
+							directives: mergeDirectives((node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, []))),
 							fields: (node.fields || []).concat(extensions.reduce((fields, ext) => { fields.push(...ext.fields); return fields; }, [])),
 						});
 					}
 					else if (node.kind === Kind.INPUT_OBJECT_TYPE_DEFINITION) {
 						definitions.push({
 							...node,
-							directives: (node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, [])),
+							directives: mergeDirectives((node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, []))),
 							fields: (node.fields || []).concat(extensions.reduce((fields, ext) => { fields.push(...ext.fields); return fields; }, [])),
 						});
 					}
 					else if (node.kind === Kind.ENUM_TYPE_DEFINITION) {
 						definitions.push({
 							...node,
-							directives: (node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, [])),
+							directives: mergeDirectives((node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, []))),
 							values: (node.values || []).concat(extensions.reduce((values, ext) => { values.push(...ext.values); return values; }, [])),
 						});
 					}
 					else if (node.kind === Kind.UNION_TYPE_DEFINITION) {
 						definitions.push({
 							...node,
-							directives: (node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, [])),
+							directives: mergeDirectives((node.directives || []).concat(extensions.reduce((directives, ext) => { directives.push(...ext.directives); return directives; }, []))),
 							types: (node.types || []).concat(extensions.reduce((types, ext) => { types.push(...ext.types); return types; }, [])),
 						});
 					}
@@ -68,6 +89,9 @@ export function mergeAST(documents: DocumentNode[]): DocumentNode {
 				}
 			}
 			else if (isTypeExtensionNode(node) && !nodeDefMap.has((node as any).name.value)) {
+				definitions.push(node);
+			}
+			else if (node.kind === Kind.DIRECTIVE_DEFINITION) {
 				definitions.push(node);
 			}
 			return definitions;

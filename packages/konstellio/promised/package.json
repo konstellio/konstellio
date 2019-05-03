@@ -1,11 +1,11 @@
 {
   "name": "@konstellio/promised",
-  "version": "0.2.3",
+  "version": "0.2.9",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "rimraf dist && tsc --pretty",
     "test": "mocha --require ts-node/register --full-trace test/**/*.spec.ts --exit",
     "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.spec.ts --exit",
@@ -29,7 +29,7 @@
     "@konstellio/disposable": "^0.2.0"
   },
   "devDependencies": {
-    "@konstellio/disposable": "^0.2.3",
+    "@konstellio/disposable": "^0.2.9",
     "@types/chai-as-promised": "7.1.0",
     "@types/mocha": "^5.2.5",
     "@types/node": "^10.5.7",
@@ -42,6 +42,6 @@
     "tslint": "^5.11.0",
     "tslint-config-airbnb": "^5.9.2",
     "tslint-config-prettier": "^1.14.0",
-    "typescript": "^3.0.1"
+    "typescript": "^3.1.6"
   }
 }

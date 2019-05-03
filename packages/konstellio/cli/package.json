@@ -1,0 +1,57 @@
+{
+  "name": "@konstellio/cli",
+  "version": "0.2.9",
+  "description": "",
+  "bin": {
+    "konstellio": "dist/cli.js"
+  },
+  "scripts": {
+    "prepublishOnly": "npm run compile",
+    "compile": "rimraf dist && tsc --pretty",
+    "test": "mocha --require ts-node/register --full-trace test/**/*.spec.ts --exit",
+    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.spec.ts --exit",
+    "lint": "tslint --project ./tsconfig.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/konstellio/konstellio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/konstellio/konstellio/issues"
+  },
+  "homepage": "https://github.com/konstellio/konstellio#readme",
+  "devDependencies": {
+    "@types/chai-as-promised": "7.1.0",
+    "@types/graphql": "^14.0.7",
+    "@types/mkdirp": "^0.5.2",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.5.7",
+    "@types/resolve": "^0.0.8",
+    "@types/rimraf": "^2.0.2",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "istanbul": "^1.1.0-alpha.1",
+    "mocha": "^5.2.0",
+    "rimraf": "^2.6.2",
+    "ts-node": "^7.0.0",
+    "tslint": "^5.11.0",
+    "tslint-config-airbnb": "^5.9.2",
+    "tslint-config-prettier": "^1.14.0",
+    "typescript": "^3.1.6"
+  },
+  "dependencies": {
+    "@konstellio/odm": "^0.2.9",
+    "@konstellio/server": "^0.2.9",
+    "commander": "^2.19.0",
+    "graphql": "^14.1.1",
+    "inquirer": "^6.2.0",
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.6.2"
+  }
+}

@@ -311,6 +311,8 @@ export class FileSystemSSH extends FileSystem {
 	}
 }
 
+export default FileSystemSSH;
+
 function parseStat(stat: string): Stats {
 	let size: number = 0;
 	let atime: number = 0;
