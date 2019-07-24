@@ -349,10 +349,12 @@ export class TransactionSQLite extends Transaction {
 			);
 
 			this.execute(create);
-			this.statements.push({
-				sql: `INSERT INTO ${tmpTable} (${insertColumns.map(col => `"${col.target}"`).join(', ')}) SELECT ${insertColumns.map(col => `"${col.source}"`).join(', ')} FROM ${collectionToSQL(collection)}`,
-				params: []
-			});
+			if (insertColumns.length > 0) {
+				this.statements.push({
+					sql: `INSERT INTO ${tmpTable} (${insertColumns.map(col => `"${col.target}"`).join(', ')}) SELECT ${insertColumns.map(col => `"${col.source}"`).join(', ')} FROM ${collectionToSQL(collection)}`,
+					params: []
+				});
+			}
 			this.statements.push({
 				sql: `DROP TABLE ${collectionToSQL(collection)}`,
 				params: []
@@ -408,6 +410,7 @@ export class TransactionSQLite extends Transaction {
 			this.statements.forEach(stmt => {
 				driver.run(stmt.sql, stmt.params, (err) => {
 					if (err) {
+						console.log(stmt.sql, this.statements);
 						errors.push(err);
 					}
 				});
@@ -590,7 +593,7 @@ function indexToSQL(collection: Collection, index: Index): string {
 	if (index.type === IndexType.Unique) {
 		def += `UNIQUE `;
 	}
-	def += `INDEX ${index.name} ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? fieldToSQL(col, []) : '').join(', ')})`;
+	def += `INDEX "${index.name}" ON ${collectionToSQL(collection)} (${cols.map<string>(col => col !== undefined ? fieldToSQL(col, []) : '').join(', ')})`;
 
 	return def;
 }

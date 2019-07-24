@@ -54,14 +54,16 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 						fields.push({
 							handle,
 							type: dbFieldTypeToSchemaFieldType(column.type),
-							size: column.size
+							size: column.size,
+							localized: true
 						});
 					}
 				} else {
 					fields.push({
 						handle: column.name,
 						type: dbFieldTypeToSchemaFieldType(column.type),
-						size: column.size
+						size: column.size,
+						localized: false
 					});
 				}
 				return fields;
@@ -106,6 +108,14 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 		});
 	}
 
+	schemas.push(...await extractDatabaseMandatorySchema(database));
+
+	return [schemas, locales];
+}
+
+export async function extractDatabaseMandatorySchema(database: Database): Promise<Schema[]> {
+	const schemas: Schema[] = [];
+
 	if (database.features.join) {
 		schemas.push({
 			handle: 'Relation',
@@ -129,7 +139,7 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 		});
 	}
 
-	return [schemas, locales];
+	return schemas;
 }
 
 export type Diff = { action: 'add_collection', collection: Schema }

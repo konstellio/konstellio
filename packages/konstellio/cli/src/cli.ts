@@ -1,6 +1,7 @@
 import * as commander from 'commander';
 import * as path from 'path';
 import generate from './lib/generate';
+import migrate from './lib/migrate';
 const { version } = require('../package.json');
 
 commander.version(version);
@@ -30,6 +31,7 @@ commander
 		} catch (err) {
 			console.error('err', err);
 		}
+		process.exit();
 	});
 
 commander
@@ -38,10 +40,11 @@ commander
 	.option('-c, --config [config]', 'Configuration file location', './konstellio.yml')
 	.action(async (options) => {
 		try {
-			console.log('migrating...', options);
+			await migrate(path.resolve(options.config));
 		} catch (err) {
 			console.error('err', err);
 		}
+		process.exit();
 	});
 
 commander.parse(process.argv);
