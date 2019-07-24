@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/fs-ssh",
-	"version": "0.2.9",
+	"version": "0.3.0",
 	"description": "",
 	"main": "dist/FileSystemSSH.js",
 	"types": "dist/FileSystemSSH.d.ts",
@@ -34,10 +34,10 @@
 		"ssh2": "^0.6.1"
 	},
 	"devDependencies": {
-		"@konstellio/disposable": "^0.2.9",
-		"@konstellio/eventemitter": "^0.2.9",
-		"@konstellio/fs": "^0.2.9",
-		"@konstellio/promised": "^0.2.9",
+		"@konstellio/disposable": "^0.3.0",
+		"@konstellio/eventemitter": "^0.3.0",
+		"@konstellio/fs": "^0.3.0",
+		"@konstellio/promised": "^0.3.0",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "^5.2.5",
 		"@types/node": "^10.5.7",

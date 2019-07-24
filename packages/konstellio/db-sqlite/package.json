@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/db-sqlite",
-	"version": "0.2.9",
+	"version": "0.3.0",
 	"description": "",
 	"main": "dist/DatabaseSQLite.js",
 	"types": "dist/DatabaseSQLite.d.ts",
@@ -32,7 +32,7 @@
 		"sqlite3": "^4.0.2"
 	},
 	"devDependencies": {
-		"@konstellio/db": "^0.2.9",
+		"@konstellio/db": "^0.3.0",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "^5.2.5",
 		"@types/node": "^10.5.7",
@@ -51,7 +51,7 @@
 		"typescript": "^3.1.6"
 	},
 	"dependencies": {
-		"@konstellio/promised": "^0.2.9",
+		"@konstellio/promised": "^0.3.0",
 		"immutable": "^3.8.2"
 	}
 }
