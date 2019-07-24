@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/cli",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "",
 	"bin": {
 		"konstellio": "dist/cli.js"
@@ -48,8 +48,8 @@
 		"typescript": "^3.1.6"
 	},
 	"dependencies": {
-		"@konstellio/odm": "^0.3.1",
-		"@konstellio/server": "^0.3.1",
+		"@konstellio/odm": "^0.3.2",
+		"@konstellio/server": "^0.3.2",
 		"commander": "^2.19.0",
 		"inquirer": "^6.2.0",
 		"mkdirp": "^0.5.1",
