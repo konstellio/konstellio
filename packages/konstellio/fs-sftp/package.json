@@ -5,7 +5,7 @@
 	"main": "dist/FileSystemSFTP.js",
 	"types": "dist/FileSystemSFTP.d.ts",
 	"scripts": {
-		"prepublishOnly": "npm run prettier && npm run compile",
+		"prepublishOnly": "npm run compile",
 		"compile": "rimraf dist && tsc --pretty",
 		"prettier": "prettier --write {src,test}/**/*.ts",
 		"test": "cross-env TS_NODE_FILES=true mocha --require ts-node/register --full-trace test/**/*.ts --exit",

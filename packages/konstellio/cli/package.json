@@ -6,7 +6,7 @@
 		"konstellio": "dist/cli.js"
 	},
 	"scripts": {
-		"prepublishOnly": "npm run prettier && npm run compile",
+		"prepublishOnly": "npm run compile",
 		"compile": "rimraf dist && tsc --pretty",
 		"prettier": "prettier --write {src,test}/**/*.ts",
 		"test": "mocha --require ts-node/register --full-trace test/**/*.spec.ts --exit",

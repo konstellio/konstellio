@@ -5,7 +5,7 @@
 	"main": "dist/CacheRedis.js",
 	"types": "dist/CacheRedis.d.ts",
 	"scripts": {
-		"prepublishOnly": "npm run prettier && npm run compile",
+		"prepublishOnly": "npm run compile",
 		"compile": "rimraf dist && tsc --pretty",
 		"prettier": "prettier --write {src,test}/**/*.ts",
 		"test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
