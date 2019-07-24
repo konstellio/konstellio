@@ -1,1 +1,1 @@
-declare module "node-sftp-server";
+declare module 'node-sftp-server';

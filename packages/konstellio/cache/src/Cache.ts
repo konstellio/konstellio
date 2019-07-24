@@ -1,9 +1,8 @@
-import { IDisposableAsync } from '@konstellio/disposable';
+import { IDisposable } from '@konstellio/disposable';
 
 export type Serializable = string | number | boolean | Date | null;
 
-export abstract class Cache implements IDisposableAsync {
-
+export abstract class Cache implements IDisposable {
 	abstract connect(): Promise<this>;
 	abstract disconnect(): Promise<void>;
 	abstract get(key: string): Promise<Serializable>;
@@ -14,6 +13,5 @@ export abstract class Cache implements IDisposableAsync {
 	abstract decrement(key: string, amount?: number, ttl?: number): Promise<void>;
 	abstract expire(key: string, ttl: number): Promise<void>;
 	abstract isDisposed(): boolean;
-	abstract disposeAsync(): Promise<void>;
-
+	abstract dispose(): Promise<void>;
 }

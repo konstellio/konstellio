@@ -22,14 +22,7 @@ export interface Union extends UnionBase {
 	indexes: Index[];
 }
 
-export type FieldType = 'string'
-	| 'int'
-	| 'float'
-	| 'boolean'
-	| 'date'
-	| 'datetime'
-	| ObjectBase
-	| UnionBase;
+export type FieldType = 'string' | 'int' | 'float' | 'boolean' | 'date' | 'datetime' | ObjectBase | UnionBase;
 
 export interface Field {
 	handle: string;
@@ -42,9 +35,7 @@ export interface Field {
 	inlined?: boolean;
 }
 
-export type IndexType = 'primary'
-	| 'unique'
-	| 'sparse';
+export type IndexType = 'primary' | 'unique' | 'sparse';
 
 export interface IndexField {
 	handle: string;
@@ -60,60 +51,87 @@ export interface Index {
 export const localizedFieldName = /^(.*)__([a-z]+)$/;
 
 const fieldValidatorBase = Joi.object().keys({
-	handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
-	type: Joi.alternatives().try(
-		Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
-		Joi.lazy(() => objectBaseValidator),
-		Joi.lazy(() => unionBaseValidator)
-	).required(),
+	handle: Joi.string()
+		.required()
+		.regex(localizedFieldName, { invert: true }),
+	type: Joi.alternatives()
+		.try(
+			Joi.string().allow('text', 'int', 'float', 'boolean', 'date', 'datetime'),
+			Joi.lazy(() => objectBaseValidator),
+			Joi.lazy(() => unionBaseValidator)
+		)
+		.required(),
 	size: Joi.number().min(1),
 	required: Joi.boolean(),
 	localized: Joi.boolean(),
 	multiple: Joi.boolean(),
-	relation: Joi.boolean()
+	relation: Joi.boolean(),
 });
 
 const fieldValidator = Joi.alternatives().try(
 	fieldValidatorBase,
 	fieldValidatorBase.keys({
-		relation: Joi.boolean().required().valid(true),
-		type: Joi.alternatives().try(
-			Joi.lazy(() => objectValidator),
-			Joi.lazy(() => unionValidator)
-		).required()
+		relation: Joi.boolean()
+			.required()
+			.valid(true),
+		type: Joi.alternatives()
+			.try(Joi.lazy(() => objectValidator), Joi.lazy(() => unionValidator))
+			.required(),
 	})
 );
 
 const indexTypeValidator = Joi.string().allow('primary', 'unique', 'sparse');
 
 const indexValidator = Joi.object().keys({
-	handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
+	handle: Joi.string()
+		.required()
+		.regex(localizedFieldName, { invert: true }),
 	type: indexTypeValidator.required(),
-	fields: Joi.array().items(Joi.object().keys({
-		handle: Joi.string().required().regex(localizedFieldName, { invert: true }),
-		direction: Joi.string().allow('asc', 'desc')
-	})).min(1)
+	fields: Joi.array()
+		.items(
+			Joi.object().keys({
+				handle: Joi.string()
+					.required()
+					.regex(localizedFieldName, { invert: true }),
+				direction: Joi.string().allow('asc', 'desc'),
+			})
+		)
+		.min(1),
 });
 
 const objectBaseValidator = Joi.object().keys({
 	handle: Joi.string().required(),
-	fields: Joi.array().items(fieldValidator).min(1).required()
+	fields: Joi.array()
+		.items(fieldValidator)
+		.min(1)
+		.required(),
 });
 
 const objectValidator = objectBaseValidator.keys({
-	indexes: Joi.array().items(indexValidator).min(0).required()
+	indexes: Joi.array()
+		.items(indexValidator)
+		.min(0)
+		.required(),
 });
 
 const unionBaseValidator = Joi.object().keys({
 	handle: Joi.string().required(),
-	objects: Joi.array().items(objectBaseValidator).min(1).required(),
+	objects: Joi.array()
+		.items(objectBaseValidator)
+		.min(1)
+		.required(),
 });
 
 const unionValidator = unionBaseValidator.keys({
-	indexes: Joi.array().items(indexValidator).min(0).required()
+	indexes: Joi.array()
+		.items(indexValidator)
+		.min(0)
+		.required(),
 });
 
-const schemaValidator = Joi.alternatives().try(objectValidator, unionValidator).required();
+const schemaValidator = Joi.alternatives()
+	.try(objectValidator, unionValidator)
+	.required();
 
 export function isSchema(schema: any): schema is Schema {
 	return isObject(schema) || isUnion(schema);
@@ -157,9 +175,11 @@ export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]):
 						hasErrors = true;
 						if (errors) {
 							errors.push({
-								message: `"objects.${a}.fields.${b}.handle" is previously defined as type ${prevType}${prevSize ? `(${prevSize})` : ''}`,
+								message: `"objects.${a}.fields.${b}.handle" is previously defined as type ${prevType}${
+									prevSize ? `(${prevSize})` : ''
+								}`,
 								type: 'any.ref',
-								path: ['objects', a, 'fields', b, handle]
+								path: ['objects', a, 'fields', b, handle],
 							} as Joi.ValidationErrorItem);
 						}
 					}
@@ -172,11 +192,14 @@ export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]):
 
 	if (isSchema(schema)) {
 		const fields = isUnion(schema)
-			? schema.objects.reduce((fields, obj) => {
-				return [...fields, ...obj.fields.map(field => field.handle)];
-			}, [] as string[])
+			? schema.objects.reduce(
+					(fields, obj) => {
+						return [...fields, ...obj.fields.map(field => field.handle)];
+					},
+					[] as string[]
+			  )
 			: schema.fields.map(field => field.handle);
-		
+
 		for (let a = 0, aa = schema.indexes.length; a < aa; ++a) {
 			for (let b = 0, bb = schema.indexes[a].fields.length; b < bb; ++b) {
 				const { handle } = schema.indexes[a].fields[b];
@@ -186,7 +209,7 @@ export function validateSchema(schema: any, errors?: Joi.ValidationErrorItem[]):
 						errors.push({
 							message: `"indexes.${a}.fields.${b}.handle" is not defined as a field`,
 							type: 'any.ref',
-							path: ['indexes', a, 'fields', b, 'handle']
+							path: ['indexes', a, 'fields', b, 'handle'],
 						} as Joi.ValidationErrorItem);
 					}
 				}
@@ -201,48 +224,65 @@ export function createValidator(schema: ObjectBase | UnionBase, locales: string[
 	return isUnionBase(schema)
 		? Joi.alternatives().try(...schema.objects.map(transformObject))
 		: transformObject(schema);
-	
+
 	function transformObject(schema: ObjectBase): Joi.Schema {
-		return Joi.object().keys(schema.fields.reduce((keys, field) => {
-			let validator = transformTypeToValidation(field.type);
+		return Joi.object().keys(
+			schema.fields.reduce(
+				(keys, field) => {
+					let validator = transformTypeToValidation(field.type);
 
-			if (field.relation) {
-				validator = Joi.any();
-			}
+					if (field.relation) {
+						validator = Joi.any();
+					}
 
-			if (field.multiple) {
-				validator = Joi.array().items(validator).min(0);
-			}
+					if (field.multiple) {
+						validator = Joi.array()
+							.items(validator)
+							.min(0);
+					}
 
-			if (field.required) {
-				validator = validator.required();
-			}
-			
-			if (field.localized && locales.length) {
-				keys[field.handle] = Joi.object().keys(locales.reduce((keys, locale) => {
-					keys[locale] = validator.required();
+					if (field.required) {
+						validator = validator.required();
+					}
+
+					if (field.localized && locales.length) {
+						keys[field.handle] = Joi.object().keys(
+							locales.reduce(
+								(keys, locale) => {
+									keys[locale] = validator.required();
+									return keys;
+								},
+								{} as Joi.SchemaMap
+							)
+						);
+
+						if (field.required) {
+							keys[field.handle] = keys[field.handle].required();
+						}
+					} else {
+						keys[field.handle] = validator;
+					}
+
 					return keys;
-				}, {} as Joi.SchemaMap));
-
-				if (field.required) {
-					keys[field.handle] = keys[field.handle].required();
-				}
-			} else {
-				keys[field.handle] = validator;
-			}
-
-			return keys;
-		}, {} as { [key: string]: Joi.Schema }));
+				},
+				{} as { [key: string]: Joi.Schema }
+			)
+		);
 	}
 
 	function transformTypeToValidation(type: FieldType): Joi.Schema {
 		switch (type) {
-			case 'string': return Joi.string();
-			case 'int': return Joi.number().precision(0);
-			case 'float': return Joi.number();
-			case 'boolean': return Joi.boolean();
+			case 'string':
+				return Joi.string();
+			case 'int':
+				return Joi.number().precision(0);
+			case 'float':
+				return Joi.number();
+			case 'boolean':
+				return Joi.boolean();
 			case 'date':
-			case 'datetime': return Joi.date();
+			case 'datetime':
+				return Joi.date();
 			default:
 				return createValidator(type, locales);
 		}

@@ -1,17 +1,30 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { Pool } from '../src/Pool';
 import { Readable, Writable } from 'stream';
 
 describe('Pool', () => {
-
 	it('instanciate', async () => {
-
-		const a = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
-		const b = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
-		const c = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
+		const a = {
+			count: 0,
+			inc() {
+				this.count = (this.count || 0) + 1;
+			},
+		};
+		const b = {
+			count: 0,
+			inc() {
+				this.count = (this.count || 0) + 1;
+			},
+		};
+		const c = {
+			count: 0,
+			inc() {
+				this.count = (this.count || 0) + 1;
+			},
+		};
 
 		const g = new Pool([a, b, c]);
 
@@ -30,7 +43,12 @@ describe('Pool', () => {
 	});
 
 	it('defer', async () => {
-		const a = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
+		const a = {
+			count: 0,
+			inc() {
+				this.count = (this.count || 0) + 1;
+			},
+		};
 		// const b = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
 		// const c = { count: 0, inc() { this.count = (this.count || 0) + 1; } };
 
@@ -80,7 +98,6 @@ describe('Pool', () => {
 	// 	});
 
 	// });
-
 });
 
 async function wait(time = 0) {

@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { FileSystemLocal } from '../src/FileSystemLocal';
 import { tmpdir } from 'os';
@@ -10,7 +10,6 @@ import { Stats, OperationNotSupported } from '@konstellio/fs';
 import { Readable, Writable } from 'stream';
 
 describe('Local', () => {
-
 	const tmp = mkdtempSync(join(tmpdir(), 'konstellio-local-'));
 	const fs = new FileSystemLocal(tmp);
 
@@ -20,18 +19,14 @@ describe('Local', () => {
 		writeFileSync(join(tmp, 'Griffin/Lois.txt'), 'Lois Pewterachmidt');
 		writeFileSync(join(tmp, 'Griffin/Stewie.txt'), 'Stewie Griffin');
 	});
-	
+
 	it('can stat a directory', async () => {
 		const stats = await fs.stat('Griffin');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read a directory', async () => {
 		const children = await fs.readDirectory('Griffin');
-		expect(children).to.deep.equal([
-			'Lois.txt',
-			'Peter.txt',
-			'Stewie.txt'
-		]);
+		expect(children).to.deep.equal(['Lois.txt', 'Peter.txt', 'Stewie.txt']);
 	}).timeout(10000);
 	it('can stat a file', async () => {
 		const stats = await fs.stat('Griffin/Peter.txt');
@@ -55,7 +50,7 @@ describe('Local', () => {
 		const writeStream = await fs.createWriteStream('Griffin/Christ.txt');
 		expect(writeStream).to.be.an.instanceof(Writable);
 
-		await new Promise<void>((resolve) => {
+		await new Promise<void>(resolve => {
 			writeStream.end(Buffer.from('Christ Griffin'), 'utf8', () => {
 				return resolve();
 			});
@@ -86,10 +81,8 @@ describe('Local', () => {
 
 			const exists = await fs.exists('Griffin/Lois.txt');
 			expect(exists).to.equal(true);
-		}
-		catch (err) {
+		} catch (err) {
 			expect(err).to.be.an.instanceof(OperationNotSupported);
 		}
 	});
-
 });

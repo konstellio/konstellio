@@ -1,4 +1,11 @@
-import { loadConfiguration, loadContext, loadExtensions, loadTypeDefs, loadCollectionSchemas, Configuration } from '@konstellio/server';
+import {
+	loadConfiguration,
+	loadContext,
+	loadExtensions,
+	loadTypeDefs,
+	loadCollectionSchemas,
+	Configuration,
+} from '@konstellio/server';
 import { Schema, isUnion, Object, ObjectBase, FieldType, Union } from '@konstellio/odm';
 import { dirname, join, relative } from 'path';
 import { print as printTypeDefs } from 'graphql';
@@ -13,7 +20,7 @@ const writeFileAsync = promisify(writeFile);
 const mkDirAsync = promisify(mkdirp);
 const rmTreeAsync = promisify(rimraf);
 
-export default async function (configurationLocation: string) {
+export default async function(configurationLocation: string) {
 	const configuration = await loadConfiguration(configurationLocation);
 	const basedir = dirname(configurationLocation);
 	const destination = join(basedir, configuration.generate.destination);
@@ -25,13 +32,10 @@ export default async function (configurationLocation: string) {
 	const extensions = await loadExtensions(configuration, basedir, context);
 	const typeDefs = loadTypeDefs(extensions);
 
-	await writeFileAsync(
-		join(destination, 'schema.graphql'),
-		header.replace(/\/\/ /g, '# ') + printTypeDefs(typeDefs)
-	);
+	await writeFileAsync(join(destination, 'schema.graphql'), header.replace(/\/\/ /g, '# ') + printTypeDefs(typeDefs));
 
 	const collectionSchemas = loadCollectionSchemas(typeDefs);
-	
+
 	await writeFileAsync(
 		join(destination, 'types.d.ts'),
 		[
@@ -44,7 +48,7 @@ export default async function (configurationLocation: string) {
 			`import MessageQueue from '${configuration.mq.driver}';\n`,
 			`\n`,
 			printCollectionSchemas(collectionSchemas, configuration.locales),
-			printContext(collectionSchemas)
+			printContext(collectionSchemas),
 		].join('')
 	);
 
@@ -56,8 +60,11 @@ export default async function (configurationLocation: string) {
 			`import { createServer } from '@konstellio/server';\n`,
 			`import { Context } from './types.d';\n\n`,
 			`export default function () {\n`,
-			`\treturn createServer<Context>(join(__dirname, '${relative(join(destination, 'createServer.ts'), configurationLocation).replace(/\\/g, '/')}'));\n`,
-			`}\n`
+			`\treturn createServer<Context>(join(__dirname, '${relative(
+				join(destination, 'createServer.ts'),
+				configurationLocation
+			).replace(/\\/g, '/')}'));\n`,
+			`}\n`,
 		].join('')
 	);
 }
@@ -68,7 +75,7 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 	const outputed: string[] = [];
 
 	let schema: ObjectBase | Object | UnionBase | Union | undefined;
-	while (schema = toOutput.shift()) {
+	while ((schema = toOutput.shift())) {
 		if (outputed.includes(schema.handle)) {
 			continue;
 		}
@@ -77,8 +84,7 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 		if (isUnionBase(schema)) {
 			out += printUnionBase(schema);
 			toOutput.unshift(...schema.objects);
-		}
-		else if (isObjectBase(schema)) {
+		} else if (isObjectBase(schema)) {
 			out += printObjectBase(schema);
 		}
 
@@ -128,11 +134,10 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 			}
 			if (field.handle === 'id' && type === 'String') {
 				type = 'ID';
-			}
-			else if (field.relation) {
+			} else if (field.relation) {
 				type = 'ID';
 			}
-			out += `\t${field.handle}${field.required?'':'?'}: ${type}${field.multiple?'[]':''};\n`;
+			out += `\t${field.handle}${field.required ? '' : '?'}: ${type}${field.multiple ? '[]' : ''};\n`;
 		}
 		out += `}\n\n`;
 
@@ -143,26 +148,32 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 		let out = `export interface ${obj.handle}Indexes {\n`;
 		out += `\tid: ID;\n`;
 
-		const indexedFields = obj.indexes.reduce((fields, index) => {
-			for (const field of index.fields) {
-				if (!fields.includes(field.handle)) {
-					fields.push(field.handle);
-				}
-			}
-			return fields;
-		}, [] as string[]);
-
-		const fields = isUnion(obj)
-			? obj.objects.reduce((fields, obj) => {
-				for (const field of obj.fields) {
-					if (indexedFields.includes(field.handle)) {
-						if (!fields.find(f => f.handle === field.handle)) {
-							fields.push(field);
-						}
+		const indexedFields = obj.indexes.reduce(
+			(fields, index) => {
+				for (const field of index.fields) {
+					if (!fields.includes(field.handle)) {
+						fields.push(field.handle);
 					}
 				}
 				return fields;
-			}, [] as Field[])
+			},
+			[] as string[]
+		);
+
+		const fields = isUnion(obj)
+			? obj.objects.reduce(
+					(fields, obj) => {
+						for (const field of obj.fields) {
+							if (indexedFields.includes(field.handle)) {
+								if (!fields.find(f => f.handle === field.handle)) {
+									fields.push(field);
+								}
+							}
+						}
+						return fields;
+					},
+					[] as Field[]
+			  )
 			: obj.fields.filter(f => indexedFields.includes(f.handle));
 
 		for (const field of fields) {
@@ -190,7 +201,7 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 					type = field.type.handle;
 					break;
 			}
-			out += `\t${field.handle}${field.required?'':'?'}: ${type}${field.multiple?'[]':''};\n`;
+			out += `\t${field.handle}${field.required ? '' : '?'}: ${type}${field.multiple ? '[]' : ''};\n`;
 		}
 
 		out += `}\n\n`;
@@ -200,57 +211,61 @@ export function printCollectionSchemas(schemas: Schema[], locales: Configuration
 	function printInputs(obj: Union | Object): string {
 		let out = `export interface ${obj.handle}Inputs {\n`;
 		out += `\tid?: ID;\n`;
-		
+
 		const fields = isUnion(obj)
-			? obj.objects.reduce((fields, obj) => {
-				for (const field of obj.fields) {
-					if (!fields.find(f => f.handle === field.handle)) {
-						fields.push(field);
-					}
-				}
-				return fields;
-			}, [] as Field[])
+			? obj.objects.reduce(
+					(fields, obj) => {
+						for (const field of obj.fields) {
+							if (!fields.find(f => f.handle === field.handle)) {
+								fields.push(field);
+							}
+						}
+						return fields;
+					},
+					[] as Field[]
+			  )
 			: obj.fields;
 
-			for (const field of fields) {
-				let type = '';
-				switch (field.type) {
-					case 'string':
-						type = 'String';
-						break;
-					case 'int':
-						type = 'Int';
-						break;
-					case 'float':
-						type = 'Float';
-						break;
-					case 'boolean':
-						type = 'Boolean';
-						break;
-					case 'date':
-						type = 'Date';
-						break;
-					case 'datetime':
-						type = 'DateTime';
-						break;
-					default:
-						type = field.type.handle;
-						break;
-				}
-				if (field.handle === 'id' && type === 'String') {
-					continue;
-				}
-				else if (field.relation) {
-					type = 'ID';
-				}
-
-				if (field.localized) {
-					type = Object.keys(locales || {}).map(locale => `\t\t${locale}: ${type}${field.multiple?'[]':''};`).join(`\n`);
-					out += `\t${field.handle}${field.required?'':'?'}: {\n${type}\n\t};\n`;
-				} else {
-					out += `\t${field.handle}${field.required?'':'?'}: ${type}${field.multiple?'[]':''};\n`;
-				}
+		for (const field of fields) {
+			let type = '';
+			switch (field.type) {
+				case 'string':
+					type = 'String';
+					break;
+				case 'int':
+					type = 'Int';
+					break;
+				case 'float':
+					type = 'Float';
+					break;
+				case 'boolean':
+					type = 'Boolean';
+					break;
+				case 'date':
+					type = 'Date';
+					break;
+				case 'datetime':
+					type = 'DateTime';
+					break;
+				default:
+					type = field.type.handle;
+					break;
 			}
+			if (field.handle === 'id' && type === 'String') {
+				continue;
+			} else if (field.relation) {
+				type = 'ID';
+			}
+
+			if (field.localized) {
+				type = Object.keys(locales || {})
+					.map(locale => `\t\t${locale}: ${type}${field.multiple ? '[]' : ''};`)
+					.join(`\n`);
+				out += `\t${field.handle}${field.required ? '' : '?'}: {\n${type}\n\t};\n`;
+			} else {
+				out += `\t${field.handle}${field.required ? '' : '?'}: ${type}${field.multiple ? '[]' : ''};\n`;
+			}
+		}
 
 		out += `}\n\n`;
 		return out;

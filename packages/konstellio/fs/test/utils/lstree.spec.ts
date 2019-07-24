@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
@@ -9,7 +9,6 @@ import { join } from 'path';
 import { lstree } from '../../src';
 
 describe('lstree', () => {
-
 	const tmpA = mkdtempSync(join(tmpdir(), 'konstellio-'));
 	const fsA = new FileSystemLocal(tmpA);
 
@@ -59,5 +58,4 @@ describe('lstree', () => {
 		expect(entries[7][1].isFile).to.equal(true);
 		expect(entries[7][1].size).to.equal(1);
 	});
-
 });

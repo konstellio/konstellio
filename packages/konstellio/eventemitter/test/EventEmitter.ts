@@ -1,15 +1,16 @@
 import 'mocha';
 import { expect, use, should, AssertionError } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
-process.on('unhandledRejection', () => { }); // and then Node deprecation warning goes away !
+process.on('unhandledRejection', () => {}); // and then Node deprecation warning goes away !
 
 import { EventEmitter, isEventEmitterInterface } from '../src/EventEmitter';
 
 describe('EventEmitter', () => {
-
 	it('has a constructor', () => {
-		expect(() => { new EventEmitter(); }).to.not.throw(Error);
+		expect(() => {
+			new EventEmitter();
+		}).to.not.throw(Error);
 	});
 
 	it('can check for IEventEmitter', () => {
@@ -17,24 +18,32 @@ describe('EventEmitter', () => {
 		expect(isEventEmitterInterface(new EventEmitter())).to.equal(true);
 	});
 
-	it('can add handler', () => {
+	it('can add handler', async () => {
 		const event = new EventEmitter();
 
-		expect(() => { event.on('t1', () => {  }); }).to.not.throw(Error);
-		expect(() => { event.once('t1', () => {  }); }).to.not.throw(Error);
-		expect(() => { event.many('t1', 1, () => {  }); }).to.not.throw(Error);
-		expect(() => { event.dispose(); event.on('t1', () => {  }); }).to.throw(Error);
+		expect(() => {
+			event.on('t1', () => {});
+		}).to.not.throw(Error);
+		expect(() => {
+			event.once('t1', () => {});
+		}).to.not.throw(Error);
+		expect(() => {
+			event.many('t1', 1, () => {});
+		}).to.not.throw(Error);
+		await event.dispose();
+		expect(() => {
+			event.on('t1', () => {});
+		}).to.throw(Error);
 	});
 
 	it('can remove handler', () => {
 		// const event = new EventEmitter();
 	});
 
-	it('can emit event', () => {
-
+	it('can emit event', async () => {
 		const event = new EventEmitter();
 		let toDecrease = 12;
-		
+
 		event.on('t1', (d1, d2) => {
 			toDecrease--;
 			expect(d1).to.equal('a');
@@ -53,20 +62,35 @@ describe('EventEmitter', () => {
 			toDecrease--;
 		});
 
-		expect(() => { event.emit('t1'); }).to.throw(AssertionError);
+		expect(() => {
+			event.emit('t1');
+		}).to.throw(AssertionError);
 		expect(toDecrease).to.equal(11);
-		expect(() => { event.emit('t1', 'a', 'b'); }).to.not.throw(Error);
+		expect(() => {
+			event.emit('t1', 'a', 'b');
+		}).to.not.throw(Error);
 		expect(toDecrease).to.equal(10);
-		expect(() => { event.emit('t2', 'c', 'd'); }).to.not.throw(Error);
+		expect(() => {
+			event.emit('t2', 'c', 'd');
+		}).to.not.throw(Error);
 		expect(toDecrease).to.equal(7);
-		expect(() => { event.emit('t[23]', 'c', 'd'); }).to.not.throw(Error);
+		expect(() => {
+			event.emit('t[23]', 'c', 'd');
+		}).to.not.throw(Error);
 		expect(toDecrease).to.equal(4);
-		expect(() => { event.emit('t2', 'c', 'd'); }).to.not.throw(Error);
+		expect(() => {
+			event.emit('t2', 'c', 'd');
+		}).to.not.throw(Error);
 		expect(toDecrease).to.equal(2);
-		expect(() => { event.emit('t2', 'c', 'd'); }).to.not.throw(Error);
+		expect(() => {
+			event.emit('t2', 'c', 'd');
+		}).to.not.throw(Error);
 		expect(toDecrease).to.equal(1);
 
-		expect(() => { event.dispose(); event.emit('t1', 'a', 'b'); }).to.throw(Error);
+		await event.dispose();
+		expect(() => {
+			event.emit('t1', 'a', 'b');
+		}).to.throw(Error);
 		expect(toDecrease).to.equal(1);
 	});
 
@@ -74,7 +98,7 @@ describe('EventEmitter', () => {
 	let toDecrease = 12;
 
 	event.on('t1', () => {
-		return new Promise((resolve) => {
+		return new Promise(resolve => {
 			setTimeout(() => {
 				toDecrease--;
 				resolve(toDecrease);
@@ -82,7 +106,7 @@ describe('EventEmitter', () => {
 		});
 	});
 	event.on('t2', (d1, d2) => {
-		return new Promise((resolve) => {
+		return new Promise(resolve => {
 			setTimeout(() => {
 				toDecrease--;
 				expect(d1).to.equal('c');
@@ -96,12 +120,10 @@ describe('EventEmitter', () => {
 		return Promise.all([
 			(<any>event.emitAsync('t1')).should.be.fulfilled.and.eventually.be.deep.equal([11]),
 			(<any>event.emitAsync('t2', 'c', 'd')).should.be.fulfilled.and.eventually.be.deep.equal([10]),
-			(<any>new Promise(resolve => {
-				event.dispose();
+			(<any>new Promise(async resolve => {
+				await event.dispose();
 				resolve(event.emitAsync('t1'));
-			})).should.be.rejectedWith(Error)
+			})).should.be.rejectedWith(Error),
 		]);
 	});
-
-
 });

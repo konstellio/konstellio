@@ -4,7 +4,7 @@ import * as Result from './QueryResult';
 
 export enum Compare {
 	Different = 0 << 0,
-	Castable = 1 << 1
+	Castable = 1 << 1,
 }
 
 export interface Features {
@@ -19,7 +19,10 @@ export abstract class Database {
 
 	abstract execute(query: string, variables?: (string | number | boolean | Date | null)[]): Promise<any>;
 	abstract execute<T>(query: Query.QuerySelect, variables?: Query.Variables): Promise<Result.QuerySelectResult<T>>;
-	abstract execute<T>(query: Query.QueryAggregate, variables?: Query.Variables): Promise<Result.QueryAggregateResult<T>>;
+	abstract execute<T>(
+		query: Query.QueryAggregate,
+		variables?: Query.Variables
+	): Promise<Result.QueryAggregateResult<T>>;
 	abstract execute<T>(query: Query.QueryUnion, variables?: Query.Variables): Promise<Result.QuerySelectResult<T>>;
 	abstract execute(query: Query.QueryShowCollection): Promise<Result.QueryShowCollectionResult>;
 	abstract execute(query: Query.QueryDescribeCollection): Promise<Result.QueryDescribeCollectionResult>;

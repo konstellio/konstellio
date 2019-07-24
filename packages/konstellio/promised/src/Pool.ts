@@ -1,7 +1,7 @@
-import { Deferred } from "./Deferred";
+import { Deferred } from './Deferred';
 import { IDisposable } from '@konstellio/disposable';
-import { TypedTransformOptions, TypedTransform, TypedTransformCallback } from "./Stream";
-import { Transform } from "stream";
+import { TypedTransformOptions, TypedTransform, TypedTransformCallback } from './Stream';
+import { Transform } from 'stream';
 
 export class Pool<T = any> implements IDisposable {
 	private disposed: boolean;
@@ -17,7 +17,7 @@ export class Pool<T = any> implements IDisposable {
 	get size() {
 		return this.pool.length;
 	}
-	
+
 	isDisposed() {
 		return this.disposed;
 	}
@@ -53,7 +53,11 @@ export class Pool<T = any> implements IDisposable {
 
 	transform<I = any, R = any>(
 		opts: PoolTransformOptions,
-		transform: (chunk: I, consumer: T, push: (chunk: I, encoding?: string) => void) => undefined | R | Promise<undefined | R>
+		transform: (
+			chunk: I,
+			consumer: T,
+			push: (chunk: I, encoding?: string) => void
+		) => undefined | R | Promise<undefined | R>
 	): TypedTransform<I> {
 		const pool = this; // tslint:disable-line
 		const workers: Promise<void>[] = [];
@@ -65,14 +69,16 @@ export class Pool<T = any> implements IDisposable {
 				const worker = new Promise(async (resolve, reject) => {
 					await transform(chunk, consumer, transformer.push.bind(transformer));
 					resolve();
-				}).catch(err => { }).then(() => pool.release(consumer));
+				})
+					.catch(err => {})
+					.then(() => pool.release(consumer));
 				workers.push(worker);
 				done();
 			},
 			async flush(done: TypedTransformCallback<I>) {
 				await Promise.all(workers);
 				done();
-			}
+			},
 		}) as TypedTransform<I>;
 	}
 }

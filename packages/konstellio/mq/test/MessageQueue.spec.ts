@@ -1,13 +1,11 @@
 import 'mocha';
 import { use, should, expect } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { MessageQueueMemory } from './MessageQueueMemory';
 
 describe('MessageQueue', () => {
-	
 	it('subscribeIterator', async () => {
-
 		const mq = new MessageQueueMemory();
 
 		let i = 0;
@@ -29,5 +27,4 @@ describe('MessageQueue', () => {
 		expect(c.value.counter).to.equal(3);
 		expect(c.done).to.equal(false);
 	});
-
 });

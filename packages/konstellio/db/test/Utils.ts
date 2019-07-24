@@ -5,7 +5,6 @@ import { simplifyBinaryTree, decomposeBinaryTree, replaceField } from '../src/Ut
 import { List } from 'immutable';
 
 describe('Utils', () => {
-
 	it('simplifyBinaryTree', async () => {
 		const a = q.and(q.and(q.eq('foo', 'bar'), q.gt('age', 21)), q.eq('gender', 'male'));
 		expect(a.toString()).to.equal('((foo = bar AND age > 21) AND gender = male)');
@@ -27,27 +26,18 @@ describe('Utils', () => {
 	});
 
 	it('renameField', async () => {
-
-		const a = List([
-			q.field('foo'),
-			q.field('foo', 'bar'),
-			q.field('moo')
+		const a = List([q.field('foo'), q.field('foo', 'bar'), q.field('moo')]);
+		const b = List([q.sort('foo'), q.sort(q.field('foo', 'bar')), q.sort('moo')]);
+		const c = List([
+			{
+				alias: 'foo',
+				on: q.and<any>(q.eq(q.field('foo', 'bar'), 'bar'), q.gt('age', 21)),
+				query: q.select('foo', q.field('foo'), q.field('foo', 'bar')).from('test'),
+			},
 		]);
-		const b = List([
-			q.sort('foo'),
-			q.sort(q.field('foo', 'bar')),
-			q.sort('moo')
-		]);
-		const c = List([{
-			alias: 'foo',
-			on: q.and<any>(q.eq(q.field('foo', 'bar'), 'bar'), q.gt('age', 21)),
-			query: q.select('foo', q.field('foo'), q.field('foo', 'bar')).from('test')
-		}]);
 
 		let matches: Field[] = [];
-		const aa = replaceField(a, new Map([
-			[q.field('foo', 'bar'), q.field('foo2')]
-		]), matches);
+		const aa = replaceField(a, new Map([[q.field('foo', 'bar'), q.field('foo2')]]), matches);
 		expect(matches.length).to.equal(1);
 		expect(matches[0].name).to.equal('foo');
 		expect(matches[0].alias).to.equal('bar');
@@ -60,9 +50,7 @@ describe('Utils', () => {
 		expect(aa.get(2).name).to.equal('moo');
 		expect(aa.get(2).alias).to.equal(undefined);
 
-		const bb = replaceField(b, new Map([
-			[q.field('foo', 'bar'), q.field('foo2')]
-		]));
+		const bb = replaceField(b, new Map([[q.field('foo', 'bar'), q.field('foo2')]]));
 		expect(bb).to.not.equal(b);
 		expect(replaceField(b, new Map())).to.equal(b);
 		expect(bb.get(0).direction).to.equal('asc');
@@ -76,9 +64,7 @@ describe('Utils', () => {
 		expect(bb.get(2).field.alias).to.equal(undefined);
 
 		matches = [];
-		const cc = replaceField(c, new Map([
-			[q.field('foo', 'bar'), q.field('foo2')]
-		]), matches);
+		const cc = replaceField(c, new Map([[q.field('foo', 'bar'), q.field('foo2')]]), matches);
 		expect(matches.length).to.equal(1);
 		expect(matches[0].name).to.equal('foo');
 		expect(matches[0].alias).to.equal('bar');
@@ -86,7 +72,5 @@ describe('Utils', () => {
 		expect(replaceField(c, new Map())).to.equal(c);
 		expect(cc.get(0).alias).to.equal('foo');
 		expect(cc.get(0).on.toString()).to.equal('(foo2 = bar AND age > 21)');
-
 	});
-
 });

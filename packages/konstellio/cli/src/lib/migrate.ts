@@ -1,10 +1,22 @@
-import { loadConfiguration, loadContext, loadExtensions, loadTypeDefs, loadCollectionSchemas } from "@konstellio/server";
-import { dirname, join } from "path";
-import { extractSchemaFromDatabase, computeSchemaDiff, computeLocaleDiff, extractDatabaseMandatorySchema, Diff, executeDiff } from "@konstellio/odm";
+import {
+	loadConfiguration,
+	loadContext,
+	loadExtensions,
+	loadTypeDefs,
+	loadCollectionSchemas,
+} from '@konstellio/server';
+import { dirname, join } from 'path';
+import {
+	extractSchemaFromDatabase,
+	computeSchemaDiff,
+	computeLocaleDiff,
+	extractDatabaseMandatorySchema,
+	Diff,
+	executeDiff,
+} from '@konstellio/odm';
 import * as inquirer from 'inquirer';
 
-
-export default async function (configurationLocation: string) {
+export default async function(configurationLocation: string) {
 	const configuration = await loadConfiguration(configurationLocation);
 	const basedir = dirname(configurationLocation);
 	const context = await loadContext(configuration, basedir);
@@ -12,7 +24,7 @@ export default async function (configurationLocation: string) {
 	const typeDefs = loadTypeDefs(extensions);
 
 	const typeDefsSchemas = loadCollectionSchemas(typeDefs);
-	typeDefsSchemas.push(...await extractDatabaseMandatorySchema(context.database));
+	typeDefsSchemas.push(...(await extractDatabaseMandatorySchema(context.database)));
 
 	const [dbSchemas, dbLocales] = await extractSchemaFromDatabase(context.database);
 
@@ -22,7 +34,7 @@ export default async function (configurationLocation: string) {
 	const diffs = [
 		// ...computeSchemaDiff(dbSchemas, typeDefsSchemas, (a, b) => a.type === b.type && a.size === b.size),
 		...computeSchemaDiff(dbSchemas, typeDefsSchemas, (a, b) => a.type === b.type),
-		...computeLocaleDiff(dbLocales, Object.keys(configuration.locales || {}))
+		...computeLocaleDiff(dbLocales, Object.keys(configuration.locales || {})),
 	];
 
 	const confirmedDiffs = await promptSchemaDiff(diffs);
@@ -36,7 +48,12 @@ export default async function (configurationLocation: string) {
 
 async function promptSchemaDiff(diffs: Diff[]): Promise<Diff[]> {
 	const sortedDiffs = diffs.sort((a, b) => {
-		if (a.action === 'drop_collection' || a.action === 'drop_field' || a.action === 'drop_index' || a.action === 'drop_locale') {
+		if (
+			a.action === 'drop_collection' ||
+			a.action === 'drop_field' ||
+			a.action === 'drop_index' ||
+			a.action === 'drop_locale'
+		) {
 			return -1;
 		}
 		return 0;

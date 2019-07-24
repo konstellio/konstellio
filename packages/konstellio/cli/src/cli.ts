@@ -10,14 +10,14 @@ commander
 	.command('init')
 	.description('Initialize Konstellio service')
 	.option('-l, --location [location]', 'Project location')
-	.action((options) => {
+	.action(options => {
 		console.log('init', options);
 	});
 
 commander
 	.command('watch')
 	.description('Watch for changes in configuration or extensions and generate type definition')
-	.action((options) => {
+	.action(options => {
 		console.log('watching...', options);
 	});
 
@@ -25,7 +25,7 @@ commander
 	.command('generate')
 	.description('Generate type definition')
 	.option('-c, --config [config]', 'Configuration file location', './konstellio.yml')
-	.action(async (options) => {
+	.action(async options => {
 		try {
 			await generate(path.resolve(options.config));
 		} catch (err) {
@@ -38,7 +38,7 @@ commander
 	.command('migrate')
 	.description('Run migration wizard')
 	.option('-c, --config [config]', 'Configuration file location', './konstellio.yml')
-	.action(async (options) => {
+	.action(async options => {
 		try {
 			await migrate(path.resolve(options.config));
 		} catch (err) {

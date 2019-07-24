@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, should, expect } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { CacheRedis } from '../src/CacheRedis';
 
@@ -9,7 +9,6 @@ function wait(ttl = 0): Promise<void> {
 }
 
 describe('Redis', () => {
-
 	const cache = new CacheRedis('redis://localhost');
 
 	before(done => {
@@ -17,7 +16,10 @@ describe('Redis', () => {
 	});
 
 	after(done => {
-		cache.disconnect().then(() => done()).catch(done);
+		cache
+			.disconnect()
+			.then(() => done())
+			.catch(done);
 	});
 
 	it('get/set/has/unset', async () => {
@@ -74,5 +76,4 @@ describe('Redis', () => {
 		expect(await cache.has('g')).to.equal(false);
 		expect(await cache.get('g')).to.equal(null);
 	}).timeout(7000);
-
 });

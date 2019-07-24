@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { FileSystemFTP } from '../src/FileSystemFTP';
 import { FtpSrv } from 'ftp-srv';
@@ -11,9 +11,8 @@ import { Stats, OperationNotSupported } from '@konstellio/fs';
 import { Readable, Writable } from 'stream';
 
 describe('FTP', () => {
-
 	let ftpd: FtpSrv;
-	
+
 	before(() => {
 		const tmp = mkdtempSync(join(tmpdir(), 'konstellio-ftp-'));
 		mkdirSync(join(tmp, 'Griffin'));
@@ -30,26 +29,22 @@ describe('FTP', () => {
 	});
 
 	after(async () => {
-		await fs.disposeAsync();
+		await fs.dispose();
 		await ftpd.close();
 	});
 
 	const fs = new FileSystemFTP({
 		host: '127.0.0.1',
-		port: 2121
+		port: 2121,
 	});
-	
+
 	it('can stat a directory', async () => {
 		const stats = await fs.stat('Griffin');
 		expect(stats).to.be.an.instanceof(Stats);
 	});
 	it('can read a directory', async () => {
 		const children = await fs.readDirectory('Griffin');
-		expect(children).to.deep.equal([
-			'Lois.txt',
-			'Peter.txt',
-			'Stewie.txt'
-		]);
+		expect(children).to.deep.equal(['Lois.txt', 'Peter.txt', 'Stewie.txt']);
 	}).timeout(10000);
 	it('can stat a file', async () => {
 		const stats = await fs.stat('Griffin/Peter.txt');
@@ -73,7 +68,7 @@ describe('FTP', () => {
 		const writeStream = await fs.createWriteStream('Griffin/Christ.txt');
 		expect(writeStream).to.be.an.instanceof(Writable);
 
-		await new Promise<void>((resolve) => {
+		await new Promise<void>(resolve => {
 			writeStream.end(Buffer.from('Christ Griffin'), 'utf8', () => {
 				return resolve();
 			});
@@ -104,10 +99,8 @@ describe('FTP', () => {
 
 			const exists = await fs.exists('Griffin/Lois.txt');
 			expect(exists).to.equal(true);
-		}
-		catch (err) {
+		} catch (err) {
 			expect(err).to.be.an.instanceof(OperationNotSupported);
 		}
 	});
-
 });

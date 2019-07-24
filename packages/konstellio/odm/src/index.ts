@@ -14,7 +14,7 @@ export {
 	isObjectBase,
 	isUnion,
 	validateSchema,
-	createValidator
+	createValidator,
 } from './schema';
 export * from './collection';
 export * from './migration';

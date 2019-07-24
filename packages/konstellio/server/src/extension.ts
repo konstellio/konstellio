@@ -19,11 +19,12 @@ export interface Context {
 	cache: Cache;
 	mq: MessageQueue;
 	collection: {
-		[name: string]: Collection
+		[name: string]: Collection;
 	};
 }
 
-export type Callable<T, C extends Context = Context> = T
+export type Callable<T, C extends Context = Context> =
+	| T
 	| Promise<T>
 	| ((configuration: Configuration, context: C, loadedExtensions: LoadedExtension<C>[]) => T | Promise<T>);
 

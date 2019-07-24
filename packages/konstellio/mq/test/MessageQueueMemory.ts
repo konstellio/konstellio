@@ -4,18 +4,17 @@ import { MessageQueue, SubscribListener, ConsumeListener, Message, Payload } fro
 import { clearTimeout, setInterval, clearInterval } from 'timers';
 
 type ConsumerList = {
-	consumers: ConsumeListener[]
-	next: number
+	consumers: ConsumeListener[];
+	next: number;
 };
 
 type PendingTask = {
-	queue: string
-	task: Payload
-	done?: (response: Error | any) => void
+	queue: string;
+	task: Payload;
+	done?: (response: Error | any) => void;
 };
 
 export class MessageQueueMemory extends MessageQueue {
-
 	private emitter: EventEmitter;
 	private disposable: CompositeDisposable;
 	private consumers: Map<string, ConsumerList>;
@@ -24,8 +23,8 @@ export class MessageQueueMemory extends MessageQueue {
 	constructor(retryPendingTaskEvery = 2000) {
 		super();
 		this.emitter = new EventEmitter();
-		this.disposable = new CompositeDisposable();
-		this.disposable.add(new Disposable(() => this.emitter.isDisposed() && this.emitter.dispose()));
+		this.disposable = new CompositeDisposable([]);
+		this.disposable.add(new Disposable(() => this.emitter.dispose()));
 		this.consumers = new Map();
 		this.pendingTasks = [];
 
@@ -51,7 +50,7 @@ export class MessageQueueMemory extends MessageQueue {
 	}
 
 	async disconnect(): Promise<void> {
-		await this.disposable.disposeAsync();
+		await this.disposable.dispose();
 		return;
 	}
 
@@ -89,17 +88,18 @@ export class MessageQueueMemory extends MessageQueue {
 	async send(name: string, task: Payload): Promise<void> {
 		if (this.consumers.has(name)) {
 			const queueList = this.consumers.get(name)!;
-			const next = (++queueList.next) % queueList.consumers.length;
+			const next = ++queueList.next % queueList.consumers.length;
 			queueList.next = next;
 			try {
-				queueList.consumers[next](Object.assign({}, task, {
-					ts: Date.now(),
-				}));
+				queueList.consumers[next](
+					Object.assign({}, task, {
+						ts: Date.now(),
+					})
+				);
 			} catch (err) {
 				this.pendingTasks.push({ task, queue: name });
 			}
-		}
-		else {
+		} else {
 			this.pendingTasks.push({ task, queue: name });
 		}
 	}
@@ -112,12 +112,14 @@ export class MessageQueueMemory extends MessageQueue {
 
 			if (this.consumers.has(name)) {
 				const queueList = this.consumers.get(name)!;
-				const next = (++queueList.next) % queueList.consumers.length;
+				const next = ++queueList.next % queueList.consumers.length;
 				queueList.next = next;
 				try {
-					const result = await queueList.consumers[next](Object.assign({}, task, {
-						ts: Date.now(),
-					}));
+					const result = await queueList.consumers[next](
+						Object.assign({}, task, {
+							ts: Date.now(),
+						})
+					);
 					clearTimeout(timer);
 					resolve(result ? result : { ts: Date.now() });
 				} catch (err) {
@@ -125,10 +127,14 @@ export class MessageQueueMemory extends MessageQueue {
 					reject(err);
 				}
 			} else {
-				this.pendingTasks.push({ task, queue: name, done: (resp) => {
-					if (resp instanceof Error) return reject(resp);
-					resolve(resp);
-				}});
+				this.pendingTasks.push({
+					task,
+					queue: name,
+					done: resp => {
+						if (resp instanceof Error) return reject(resp);
+						resolve(resp);
+					},
+				});
 			}
 		});
 	}

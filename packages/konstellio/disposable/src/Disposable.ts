@@ -1,108 +1,64 @@
 const isArray = Array.isArray;
 
-export function isDisposableInterface (obj: any): boolean {
-	return typeof obj === 'object' && 
-		typeof obj.isDisposed === 'function' &&
-		typeof obj.dispose === 'function';
+export function isDisposableInterface(obj: any): boolean {
+	return typeof obj === 'object' && typeof obj.isDisposed === 'function' && typeof obj.dispose === 'function';
 }
 
 export interface IDisposable {
-	isDisposed (): boolean;
-	dispose (): void;
+	isDisposed(): boolean;
+	dispose(): void;
 }
 
-export interface IDisposableAsync {
-	isDisposed (): boolean;
-	disposeAsync (): Promise<void>;
-}
+export class Disposable implements IDisposable {
+	protected disposed: boolean = false;
 
-export class Disposable implements IDisposable, IDisposableAsync {
-
-	protected disposed: boolean;
-	private disposable: (() => void) | null;
-
-	constructor (disposable?: () => void) {
-		this.disposed = false;
+	constructor(private disposable: () => void | Promise<void>) {
 		if (typeof disposable !== 'function') {
 			throw new TypeError(`Expected a function as disposable, got ${typeof disposable}.`);
 		}
-		else {
-			this.disposable = disposable;
-		}
 	}
 
-	isDisposed (): boolean {
+	isDisposed() {
 		return !!this.disposed;
 	}
 
-	dispose (): void {
-		this.disposeAsync();
-		this.disposed = true;
-	}
-
-	disposeAsync (): Promise<void> {
-		if (this.disposed) {
-			return Promise.resolve();
-		}
-		return new Promise<void>((resolve) => {
-			resolve((<() => void>this.disposable)());
-		}).then(() => {
+	async dispose() {
+		if (!this.disposed) {
+			await this.disposable();
 			this.disposed = true;
-			this.disposable = null;
-		});
+		}
 	}
-
 }
 
-export class CompositeDisposable implements IDisposable, IDisposableAsync {
+export class CompositeDisposable implements IDisposable {
+	protected disposed: boolean = false;
 
-	protected disposed: boolean;
-	private disposables: Set<Disposable> | null;
+	private disposables: Set<Disposable>;
 
-	constructor (disposables?: Set<Disposable> | Disposable[]) {
-		this.disposed = false;
-		if (disposables) {
-			if (!(disposables instanceof Set) && !isArray(disposables)) {
-				throw new TypeError(`Expected "disposables" argument to be an array or Set, got ${typeof disposables}.`);
+	constructor(disposables: Set<Disposable> | Disposable[]) {
+		if (!(disposables instanceof Set) && !isArray(disposables)) {
+			throw new TypeError(`Expected "disposables" argument to be an array or Set, got ${typeof disposables}.`);
+		}
+		Array.from(disposables).forEach(disposable => {
+			if (!isDisposableInterface(disposable)) {
+				throw new TypeError(`Expected a Disposable object, got ${typeof disposable}.`);
 			}
-			Array.from(disposables).forEach(disposable => {
-				if (!isDisposableInterface(disposable)) {
-					throw new TypeError(`Expected a Disposable object, got ${typeof disposable}.`);
-				}
-			});
-			this.disposables = new Set(disposables);
-		}
-		else {
-			this.disposables = new Set();
-		}
+		});
+		this.disposables = new Set(disposables);
 	}
 
-	isDisposed (): boolean {
+	isDisposed(): boolean {
 		return !!this.disposed;
 	}
 
-	dispose (): void {
-		this.disposeAsync();
-		this.disposed = true;
-	}
-
-	disposeAsync (): Promise<void> {
-		if (this.disposed) {
-			return Promise.resolve();
+	async dispose() {
+		if (!this.disposed) {
+			await Promise.all(Array.from(this.disposables.values()).map(disposable => disposable.dispose()));
+			this.disposed = true;
 		}
-		return new Promise<void>((resolve) => {
-			const promises: Promise<void>[] = [];
-			(<Set<Disposable>>this.disposables).forEach((disposable) => {
-				promises.push(disposable.disposeAsync());
-			});
-			resolve(Promise.all<void>(promises).then(() => {
-				this.disposed = true;
-				this.disposables = null;
-			}));
-		});
 	}
 
-	add (...disposables: Disposable[]): void {
+	add(...disposables: Disposable[]): void {
 		if (!this.disposed) {
 			disposables.forEach(disposable => {
 				if (!isDisposableInterface(disposable)) {
@@ -113,13 +69,13 @@ export class CompositeDisposable implements IDisposable, IDisposableAsync {
 		}
 	}
 
-	remove (disposable: Disposable): void {
+	remove(disposable: Disposable): void {
 		if (!this.disposed) {
 			(<Set<Disposable>>this.disposables).delete(disposable);
 		}
 	}
 
-	clear (): void {
+	clear(): void {
 		if (!this.disposed) {
 			(<Set<Disposable>>this.disposables).clear();
 		}

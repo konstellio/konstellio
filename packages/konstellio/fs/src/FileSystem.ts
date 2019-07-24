@@ -1,10 +1,9 @@
 import * as assert from 'assert';
-import { IDisposableAsync } from '@konstellio/disposable';
+import { IDisposable } from '@konstellio/disposable';
 import { Readable, Writable, Transform } from 'stream';
 import { Pool, Deferred } from '@konstellio/promised';
 
 export class Stats {
-
 	public constructor(
 		public readonly isFile: boolean,
 		public readonly isDirectory: boolean,
@@ -13,17 +12,14 @@ export class Stats {
 		public readonly atime: Date,
 		public readonly mtime: Date,
 		public readonly ctime: Date
-	) {
-
-	}
-
+	) {}
 }
 
 const ZeroBuffer = Buffer.alloc(0);
 
-export abstract class FileSystem implements IDisposableAsync {
+export abstract class FileSystem implements IDisposable {
 	abstract isDisposed(): boolean;
-	abstract disposeAsync(): Promise<void>;
+	abstract dispose(): Promise<void>;
 	abstract clone(): FileSystem;
 	abstract stat(path: string): Promise<Stats>;
 	abstract exists(path: string): Promise<boolean>;
@@ -34,12 +30,14 @@ export abstract class FileSystem implements IDisposableAsync {
 	abstract readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 
 	createEmptyFile(path: string): Promise<void> {
-		return this.createWriteStream(path)
-		.then((stream) => new Promise<void>((resolve, reject) => {
-			stream.on('error', (err) => reject(err));
-			stream.on('end', () => setTimeout(() => resolve(), 100));
-			stream.end(ZeroBuffer);
-		}));
+		return this.createWriteStream(path).then(
+			stream =>
+				new Promise<void>((resolve, reject) => {
+					stream.on('error', err => reject(err));
+					stream.on('end', () => setTimeout(() => resolve(), 100));
+					stream.end(ZeroBuffer);
+				})
+		);
 	}
 
 	abstract createDirectory(path: string, recursive?: boolean): Promise<void>;
@@ -48,7 +46,6 @@ export abstract class FileSystem implements IDisposableAsync {
 }
 
 export class FileSystemMirror extends FileSystem {
-
 	private disposed: boolean;
 	private pool: Pool<FileSystem>;
 
@@ -63,7 +60,7 @@ export class FileSystemMirror extends FileSystem {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.isDisposed()) {
 			this.disposed = true;
 			this.pool.dispose();
@@ -110,7 +107,7 @@ export class FileSystemMirror extends FileSystem {
 		this.pool.release(fs);
 		return entries;
 	}
-	
+
 	createDirectory(path: string, recursive?: boolean): Promise<void> {
 		return Promise.all(this.fss.map(fs => fs.createDirectory(path, recursive))).then(() => {});
 	}
@@ -128,7 +125,7 @@ export class FileSystemMirror extends FileSystem {
 			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
-			}
+			},
 		});
 
 		for (const fs of this.fss) {
@@ -138,7 +135,6 @@ export class FileSystemMirror extends FileSystem {
 
 		return stream;
 	}
-
 }
 
 export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSystem {
@@ -156,7 +152,7 @@ export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSyste
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.isDisposed()) {
 			this.disposed = true;
 			this.pool.dispose();
@@ -242,7 +238,7 @@ export class FileSystemPool<T extends FileSystem = FileSystem> extends FileSyste
 			throw err;
 		}
 	}
-	
+
 	async createDirectory(path: string, recursive?: boolean): Promise<void> {
 		const fs = await this.pool.acquires();
 		try {
@@ -291,10 +287,7 @@ export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 	private disposed: boolean;
 	private cache: Map<string, [number, Deferred<any>]>;
 
-	constructor(
-		protected readonly fs: FileSystem,
-		protected ttl: number = 60000
-	) {
+	constructor(protected readonly fs: FileSystem, protected ttl: number = 60000) {
 		super();
 		this.disposed = false;
 		this.cache = new Map();
@@ -304,7 +297,7 @@ export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.isDisposed()) {
 			this.disposed = true;
 			(this as any).fs = undefined;
@@ -335,7 +328,9 @@ export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 		const defer = new Deferred<T>();
 		this.cache.set(hash, [now + this.ttl, defer]);
 
-		compute().then(res => defer.resolve(res)).catch(err => defer.reject(err));
+		compute()
+			.then(res => defer.resolve(res))
+			.catch(err => defer.reject(err));
 
 		return defer.promise;
 	}
@@ -365,7 +360,7 @@ export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 	readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
 		return this.cacheOrCompute(`readdir:${path}`, () => this.fs.readDirectory(path, stat!));
 	}
-	
+
 	createDirectory(path: string, recursive?: boolean): Promise<void> {
 		return this.fs.createDirectory(path, recursive);
 	}
@@ -377,5 +372,4 @@ export class FileSystemCache extends FileSystem implements FileSystemCacheable {
 	createWriteStream(path: string, overwrite?: boolean): Promise<Writable> {
 		return this.fs.createWriteStream(path, overwrite);
 	}
-
 }

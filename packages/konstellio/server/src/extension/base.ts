@@ -49,7 +49,5 @@ export default {
 			_ImATeaPot: Boolean
 		}
 	`,
-	resolvers: {
-
-	}
+	resolvers: {},
 } as Extension;
