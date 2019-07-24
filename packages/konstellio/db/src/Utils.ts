@@ -183,7 +183,7 @@ export function replaceField(source: any, replace: Map<Field, Field>, matches: F
 		return source.map(source => replaceField(source as Field, replace, matches));
 	} else if (source && 'withMutations' in source) {
 		return source.withMutations((source: any) => {
-			source.forEach((field: any, idx = 0) => {
+			source.forEach((field: any, idx: any = 0) => {
 				if (field instanceof Field || field instanceof FieldDirection || field instanceof Function) {
 					const replaced = replaceField(field as Field, replace, matches);
 					if (replaced !== field) {
