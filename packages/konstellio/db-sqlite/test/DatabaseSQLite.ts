@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { DatabaseSQLite } from '../src/DatabaseSQLite';
 import {
@@ -10,51 +10,55 @@ import {
 	QuerySelectResult,
 	QueryShowCollectionResult,
 	QueryCollectionExistsResult,
-	QueryDescribeCollectionResult
+	QueryDescribeCollectionResult,
 } from '@konstellio/db';
 import { mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 describe('SQLite', () => {
-
 	type Foo = {
-		title: string
-		postDate: Date
-		likes: number
+		title: string;
+		postDate: Date;
+		likes: number;
 	};
 
 	let driver: DatabaseSQLite;
 
-	before(function (done) {
+	before(function(done) {
 		this.timeout(10000);
 
 		const tmp = mkdtempSync(join(tmpdir(), 'konstellio-db-sqlite-'));
 
 		driver = new DatabaseSQLite({
-			filename: ':memory:'
+			filename: ':memory:',
 			// filename: join(tmp, 'test.sqlite')
 		});
 
-		driver.connect()
-		.then(() => driver.transaction())
-		.then(transaction => {
-			transaction.execute('CREATE TABLE Bar_Foo (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, postDate TEXT, likes INTEGER)');
-			transaction.execute('CREATE INDEX Bar_Foo_postDate ON Bar_Foo (postDate ASC, likes ASC)');
-			transaction.execute('CREATE INDEX Bar_Foo_title ON Bar_Foo (title ASC)');
-			return transaction.commit();
-		})
-		.then(() => done());
+		driver
+			.connect()
+			.then(() => driver.transaction())
+			.then(transaction => {
+				transaction.execute(
+					'CREATE TABLE Bar_Foo (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, postDate TEXT, likes INTEGER)'
+				);
+				transaction.execute('CREATE INDEX Bar_Foo_postDate ON Bar_Foo (postDate ASC, likes ASC)');
+				transaction.execute('CREATE INDEX Bar_Foo_title ON Bar_Foo (title ASC)');
+				return transaction.commit();
+			})
+			.then(() => done());
 	});
 
 	it('insert', async () => {
 		const transaction = await driver.transaction();
 
-		transaction.execute(q.insert(q.collection('Foo', 'Bar')).add({
-			title: 'Hello world',
-			postDate: new Date(),
-			likes: 10
-		}));
+		transaction.execute(
+			q.insert(q.collection('Foo', 'Bar')).add({
+				title: 'Hello world',
+				postDate: new Date(),
+				likes: 10,
+			})
+		);
 
 		await transaction.commit().should.be.fulfilled;
 	});
@@ -62,23 +66,35 @@ describe('SQLite', () => {
 	it('update', async () => {
 		const transaction = await driver.transaction();
 
-		transaction.execute(q.update(q.collection('Foo', 'Bar')).set({ likes: 11 }).where(q.eq('title', 'Hello world')));
+		transaction.execute(
+			q
+				.update(q.collection('Foo', 'Bar'))
+				.set({ likes: 11 })
+				.where(q.eq('title', 'Hello world'))
+		);
 
 		await transaction.commit().should.be.fulfilled;
 	});
 
 	it('select', async () => {
-		const select = q.select().from(q.collection('Foo', 'Bar')).range({ limit: 1 });
+		const select = q
+			.select()
+			.from(q.collection('Foo', 'Bar'))
+			.range({ limit: 1 });
 
 		const result: QuerySelectResult<any> = await driver.execute<Foo>(select).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QuerySelectResult);
 	});
 
 	it('variable', async () => {
-		const select = q.select().from(q.collection('Foo', 'Bar')).where(q.eq('title', q.var('title')));
+		const select = q
+			.select()
+			.from(q.collection('Foo', 'Bar'))
+			.where(q.eq('title', q.var('title')));
 		await driver.execute<Foo>(select).should.be.rejected;
 
-		const result: QuerySelectResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be.fulfilled;
+		const result: QuerySelectResult<any> = await driver.execute<Foo>(select, { title: 'Hello world' }).should.be
+			.fulfilled;
 		expect(result).to.be.an.instanceOf(QuerySelectResult);
 	});
 
@@ -91,7 +107,9 @@ describe('SQLite', () => {
 	});
 
 	it('describe collection', async () => {
-		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Foo', 'Bar'))).should.be.fulfilled;
+		const desc: QueryDescribeCollectionResult = await driver.execute(
+			q.describeCollection(q.collection('Foo', 'Bar'))
+		).should.be.fulfilled;
 		expect(desc).to.be.an.instanceOf(QueryDescribeCollectionResult);
 		expect(desc.columns.length).to.be.equal(4);
 		expect(desc.columns[0].name).to.be.equal('id');
@@ -127,26 +145,32 @@ describe('SQLite', () => {
 	});
 
 	it('create collection', async () => {
-		const create = q.createCollection(q.collection('Moo', 'Joo'))
+		const create = q
+			.createCollection(q.collection('Moo', 'Joo'))
 			.define(
 				[
 					q.column('id', ColumnType.UInt, 64, null, true),
 					q.column('title', ColumnType.Text),
-					q.column('date', ColumnType.Date)
+					q.column('date', ColumnType.Date),
 				],
 				[
 					q.index('Joo_Moo_id', IndexType.Primary, [q.sort(q.field('id'), 'asc')]),
-					q.index('Joo_Moo_date', IndexType.Unique, [q.sort(q.field('id'), 'asc'), q.sort(q.field('date'), 'desc')])
+					q.index('Joo_Moo_date', IndexType.Unique, [
+						q.sort(q.field('id'), 'asc'),
+						q.sort(q.field('date'), 'desc'),
+					]),
 				]
 			);
 
 		const transaction = await driver.transaction();
 
 		transaction.execute(create);
-		
+
 		await transaction.commit().should.be.fulfilled;
 
-		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Joo'))).should.be.fulfilled;
+		const desc: QueryDescribeCollectionResult = await driver.execute(
+			q.describeCollection(q.collection('Moo', 'Joo'))
+		).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
 		expect(desc.columns[0].name).to.be.equal('id');
 		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
@@ -173,7 +197,8 @@ describe('SQLite', () => {
 	});
 
 	it('alter collection', async () => {
-		const alter = q.alterCollection(q.collection('Moo', 'Joo'))
+		const alter = q
+			.alterCollection(q.collection('Moo', 'Joo'))
 			.addColumn(q.column('content', ColumnType.Text))
 			.alterColumn('date', q.column('postDate', ColumnType.Date))
 			.dropColumn('title')
@@ -187,7 +212,9 @@ describe('SQLite', () => {
 
 		await transaction.commit().should.be.fulfilled;
 
-		const desc: QueryDescribeCollectionResult = await driver.execute(q.describeCollection(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		const desc: QueryDescribeCollectionResult = await driver.execute(
+			q.describeCollection(q.collection('Moo', 'Boo'))
+		).should.be.fulfilled;
 		expect(desc.columns.length).to.be.equal(3);
 		expect(desc.columns[0].name).to.be.equal('id');
 		expect(desc.columns[0].type).to.be.equal(ColumnType.Int);
@@ -213,7 +240,8 @@ describe('SQLite', () => {
 	});
 
 	it('exists collection', async () => {
-		let result: QueryCollectionExistsResult = await driver.execute(q.collectionExists(q.collection('Moo', 'Boo'))).should.be.fulfilled;
+		let result: QueryCollectionExistsResult = await driver.execute(q.collectionExists(q.collection('Moo', 'Boo')))
+			.should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryCollectionExistsResult);
 		expect(result.exists).to.equal(true);
 
@@ -223,13 +251,11 @@ describe('SQLite', () => {
 	});
 
 	it('describe collection', async () => {
-
 		const result: QueryShowCollectionResult = await driver.execute(q.showCollection()).should.be.fulfilled;
 		expect(result).to.be.an.instanceOf(QueryShowCollectionResult);
 		expect(result.collections.length).to.equal(2);
 		expect(result.collections[0].toString()).to.equal('Bar__Foo');
 		expect(result.collections[1].toString()).to.equal('Boo__Moo');
-
 	});
 
 	it('drop collection', async () => {
@@ -239,5 +265,4 @@ describe('SQLite', () => {
 
 		await transaction.commit().should.be.fulfilled;
 	});
-
 });

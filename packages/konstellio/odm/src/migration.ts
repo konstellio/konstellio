@@ -1,5 +1,27 @@
-import { Database, q, ColumnType, IndexType as DBIndexType, Index as DBIndex, QueryDropCollection, QueryCreateCollection, QueryAlterCollection, Transaction, Column } from "@konstellio/db";
-import { Schema, Field, Index, IndexField, localizedFieldName, FieldType, IndexType, isUnion, Object, ObjectBase } from "./schema";
+import {
+	Database,
+	q,
+	ColumnType,
+	IndexType as DBIndexType,
+	Index as DBIndex,
+	QueryDropCollection,
+	QueryCreateCollection,
+	QueryAlterCollection,
+	Transaction,
+	Column,
+} from '@konstellio/db';
+import {
+	Schema,
+	Field,
+	Index,
+	IndexField,
+	localizedFieldName,
+	FieldType,
+	IndexType,
+	isUnion,
+	Object,
+	ObjectBase,
+} from './schema';
 
 function dbFieldTypeToSchemaFieldType(type: ColumnType): FieldType {
 	switch (type) {
@@ -44,67 +66,89 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 
 		schemas.push({
 			handle: description.collection.name,
-			fields: description.columns.reduce((fields, column) => {
-				const localizedMatch = localizedFieldName.exec(column.name);
-				if (localizedMatch) {
-					const handle = localizedMatch[1];
-					const locale = localizedMatch[2];
-					locales.includes(locale) || locales.push(locale);
-					if (!fields.find(field => field.handle === handle)) {
+			fields: description.columns.reduce(
+				(fields, column) => {
+					const localizedMatch = localizedFieldName.exec(column.name);
+					if (localizedMatch) {
+						const handle = localizedMatch[1];
+						const locale = localizedMatch[2];
+						locales.includes(locale) || locales.push(locale);
+						if (!fields.find(field => field.handle === handle)) {
+							fields.push({
+								handle,
+								type: dbFieldTypeToSchemaFieldType(column.type),
+								size: column.size,
+								localized: true,
+							});
+						}
+					} else {
 						fields.push({
-							handle,
+							handle: column.name,
 							type: dbFieldTypeToSchemaFieldType(column.type),
-							size: column.size
+							size: column.size,
+							localized: false,
 						});
 					}
-				} else {
-					fields.push({
-						handle: column.name,
-						type: dbFieldTypeToSchemaFieldType(column.type),
-						size: column.size
-					});
-				}
-				return fields;
-			}, [] as Field[]),
-			indexes: description.indexes.reduce((indexes, index) => {
-				const localizedMatch = localizedFieldName.exec(index.name);
-				if (localizedMatch) {
-					const handle = localizedMatch[1];
-					const locale = localizedMatch[2];
-					locales.includes(locale) || locales.push(locale);
-					if (!indexes.find(index => index.handle === handle)) {
-						const fields = index.columns.reduce((fields, column) => {
-							const localizedMatch = localizedFieldName.exec(column!.field.name as string);
-							fields!.push({
-								handle: localizedMatch && localizedMatch[1] || column!.field.name as string,
-								direction: column!.direction
-							});
-							return fields!;
-						}, [] as IndexField[]);
+					return fields;
+				},
+				[] as Field[]
+			),
+			indexes: description.indexes.reduce(
+				(indexes, index) => {
+					const localizedMatch = localizedFieldName.exec(index.name);
+					if (localizedMatch) {
+						const handle = localizedMatch[1];
+						const locale = localizedMatch[2];
+						locales.includes(locale) || locales.push(locale);
+						if (!indexes.find(index => index.handle === handle)) {
+							const fields = index.columns.reduce(
+								(fields, column) => {
+									const localizedMatch = localizedFieldName.exec(column!.field.name as string);
+									fields!.push({
+										handle: (localizedMatch && localizedMatch[1]) || (column!.field.name as string),
+										direction: column!.direction,
+									});
+									return fields!;
+								},
+								[] as IndexField[]
+							);
 
+							indexes.push({
+								fields,
+								handle,
+								type: dbIndexTypeToSchemaIndexType(index.type),
+							});
+						}
+					} else {
 						indexes.push({
-							fields,
-							handle,
+							handle: index.name,
 							type: dbIndexTypeToSchemaIndexType(index.type),
+							fields: index.columns.reduce(
+								(fields, column) => {
+									fields!.push({
+										handle: column!.field.name as string,
+										direction: column!.direction,
+									});
+									return fields!;
+								},
+								[] as IndexField[]
+							),
 						});
 					}
-				} else {
-					indexes.push({
-						handle: index.name,
-						type: dbIndexTypeToSchemaIndexType(index.type),
-						fields: index.columns.reduce((fields, column) => {
-							fields!.push({
-								handle: column!.field.name as string,
-								direction: column!.direction
-							});
-							return fields!;
-						}, [] as IndexField[])
-					});
-				}
-				return indexes;
-			}, [] as Index[])
+					return indexes;
+				},
+				[] as Index[]
+			),
 		});
 	}
+
+	schemas.push(...(await extractDatabaseMandatorySchema(database)));
+
+	return [schemas, locales];
+}
+
+export async function extractDatabaseMandatorySchema(database: Database): Promise<Schema[]> {
+	const schemas: Schema[] = [];
 
 	if (database.features.join) {
 		schemas.push({
@@ -115,34 +159,34 @@ export async function extractSchemaFromDatabase(database: Database): Promise<[Sc
 				{ handle: 'field', type: 'string' },
 				{ handle: 'source', type: 'string' },
 				{ handle: 'target', type: 'string' },
-				{ handle: 'seq', type: 'int' }
+				{ handle: 'seq', type: 'int' },
 			],
 			indexes: [
 				{ handle: 'Relation_pk', type: 'primary', fields: [{ handle: 'id' }] },
-				{ handle: 'Relation_collection_field_source', type: 'sparse', fields: [
-					{ handle: 'collection' },
-					{ handle: 'field' },
-					{ handle: 'source' },
-					{ handle: 'seq' }
-				] }
-			]
+				{
+					handle: 'Relation_collection_field_source',
+					type: 'sparse',
+					fields: [{ handle: 'collection' }, { handle: 'field' }, { handle: 'source' }, { handle: 'seq' }],
+				},
+			],
 		});
 	}
 
-	return [schemas, locales];
+	return schemas;
 }
 
-export type Diff = { action: 'add_collection', collection: Schema }
-	| { action: 'rename_collection', collection: string, target: string }
-	| { action: 'drop_collection', collection: string }
-	| { action: 'add_field', collection: string, field: Field, copyFrom?: string }
-	| { action: 'drop_field', collection: string, field: string }
-	| { action: 'alter_field', collection: string, field: string, definition: Field }
-	| { action: 'add_index', collection: string, index: Index }
-	| { action: 'alter_index', collection: string, index: Index }
-	| { action: 'drop_index', collection: string, index: string }
-	| { action: 'add_locale', locale: string, copyFrom?: string }
-	| { action: 'drop_locale', locale: string };
+export type Diff =
+	| { action: 'add_collection'; collection: Schema }
+	| { action: 'rename_collection'; collection: string; target: string }
+	| { action: 'drop_collection'; collection: string }
+	| { action: 'add_field'; collection: string; field: Field; copyFrom?: string }
+	| { action: 'drop_field'; collection: string; field: string }
+	| { action: 'alter_field'; collection: string; field: string; definition: Field }
+	| { action: 'add_index'; collection: string; index: Index }
+	| { action: 'alter_index'; collection: string; index: Index }
+	| { action: 'drop_index'; collection: string; index: string }
+	| { action: 'add_locale'; locale: string; copyFrom?: string }
+	| { action: 'drop_locale'; locale: string };
 
 export type FieldComparator = (fieldA: Field, fieldB: Field) => boolean;
 
@@ -177,7 +221,7 @@ export function computeSchemaDiff(source: Schema[], target: Schema[], comparator
 				}
 			}
 
-			for(const sourceIndex of sourceObject.indexes) {
+			for (const sourceIndex of sourceObject.indexes) {
 				const targetIndex = targetObject.indexes.find(index => index.handle === sourceIndex.handle);
 				if (!targetIndex) {
 					diffs.push({ action: 'drop_index', collection: targetObject.handle, index: sourceIndex.handle });
@@ -191,19 +235,24 @@ export function computeSchemaDiff(source: Schema[], target: Schema[], comparator
 			const sourceFields = isUnion(sourceObject)
 				? sourceObject.objects.reduce(reduceUniqueField, [] as Field[])
 				: sourceObject.fields;
-			
+
 			for (const targetField of targetFields) {
 				const sourceField = sourceFields.find(field => field.handle === targetField.handle);
 				if (!sourceField) {
 					diffs.push({ action: 'add_field', collection: targetObject.handle, field: targetField });
 				} else if (
-					targetField.localized !== sourceField.localized
+					targetField.localized !== sourceField.localized ||
 					// || targetField.multiple !== sourceField.multiple
 					// || targetField.relation !== sourceField.relation
 					// || targetField.inlined !== sourceField.inlined
-					|| !comparator(targetField, sourceField)
+					!comparator(targetField, sourceField)
 				) {
-					diffs.push({ action: 'alter_field', collection: targetObject.handle, field: targetField.handle, definition: targetField });
+					diffs.push({
+						action: 'alter_field',
+						collection: targetObject.handle,
+						field: targetField.handle,
+						definition: targetField,
+					});
 				}
 			}
 
@@ -257,9 +306,14 @@ export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: 
 	const dropCollections: QueryDropCollection[] = [];
 	const createCollections: QueryCreateCollection[] = [];
 	const alterCollections: Map<string, QueryAlterCollection> = new Map();
-	
+
 	const sortedDiffs = diffs.sort((a, b) => {
-		if (a.action === 'drop_collection' || a.action === 'drop_field' || a.action === 'drop_index' || a.action === 'drop_locale') {
+		if (
+			a.action === 'drop_collection' ||
+			a.action === 'drop_field' ||
+			a.action === 'drop_index' ||
+			a.action === 'drop_locale'
+		) {
 			return 1;
 		}
 		return 0;
@@ -283,10 +337,7 @@ export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: 
 				if (!alterCollections.has(diff.collection)) {
 					alterCollections.set(diff.collection, q.alterCollection(diff.collection));
 				}
-				alterCollections.set(
-					diff.collection,
-					alterCollections.get(diff.collection)!.rename(diff.target)
-				);
+				alterCollections.set(diff.collection, alterCollections.get(diff.collection)!.rename(diff.target));
 				break;
 			case 'drop_collection':
 				dropCollections.push(q.dropCollection(diff.collection));
@@ -298,7 +349,10 @@ export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: 
 						if (field.localized) {
 							ensureAlterIsInMap(schema.handle);
 
-							const newColumn = mapSchemaFieldToDbColumn({ ...field, handle: `${field.handle}__${diff.locale}` });
+							const newColumn = mapSchemaFieldToDbColumn({
+								...field,
+								handle: `${field.handle}__${diff.locale}`,
+							});
 							alterCollections.set(
 								schema.handle,
 								alterCollections.get(schema.handle)!.addColumn(newColumn, diff.copyFrom)
@@ -358,7 +412,8 @@ export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: 
 						const alteredIndex = mapSchemaIndexToDbIndex(diff.index);
 						alterCollections.set(
 							diff.collection,
-							alterCollections.get(diff.collection)!
+							alterCollections
+								.get(diff.collection)!
 								.dropIndex(diff.index.handle)
 								.addIndex(alteredIndex)
 						);
@@ -380,24 +435,32 @@ export function executeDiff(transaction: Transaction, schemas: Schema[], diffs: 
 
 function reduceSchemaFields(schema: Schema): Field[] {
 	return isUnion(schema)
-		? schema.objects.reduce((fields, object) => {
-			for (const field of object.fields) {
-				if (!fields.find(f => f.handle === field.handle)) {
-					fields.push(field);
-				}
-			}
-			return fields;
-		}, [] as Field[])
+		? schema.objects.reduce(
+				(fields, object) => {
+					for (const field of object.fields) {
+						if (!fields.find(f => f.handle === field.handle)) {
+							fields.push(field);
+						}
+					}
+					return fields;
+				},
+				[] as Field[]
+		  )
 		: schema.fields;
 }
 
 function mapSchemaColumnTypeToDbColumnType(type: FieldType): ColumnType {
 	switch (type) {
-		case 'int': return ColumnType.Int;
-		case 'float': return ColumnType.Float;
-		case 'boolean': return ColumnType.Boolean;
-		case 'date': return ColumnType.Date;
-		case 'datetime': return ColumnType.DateTime;
+		case 'int':
+			return ColumnType.Int;
+		case 'float':
+			return ColumnType.Float;
+		case 'boolean':
+			return ColumnType.Boolean;
+		case 'date':
+			return ColumnType.Date;
+		case 'datetime':
+			return ColumnType.DateTime;
 		case 'string':
 		default:
 			return ColumnType.Text;
@@ -405,17 +468,15 @@ function mapSchemaColumnTypeToDbColumnType(type: FieldType): ColumnType {
 }
 
 function mapSchemaFieldToDbColumn(field: Field): Column {
-	return q.column(
-		field.handle,
-		mapSchemaColumnTypeToDbColumnType(field.type),
-		field.size
-	);
+	return q.column(field.handle, mapSchemaColumnTypeToDbColumnType(field.type), field.size);
 }
 
 function mapSchemaIndexTypeToDbIndexType(type: IndexType): DBIndexType {
 	switch (type) {
-		case 'primary': return DBIndexType.Primary;
-		case 'unique': return DBIndexType.Unique;
+		case 'primary':
+			return DBIndexType.Primary;
+		case 'unique':
+			return DBIndexType.Unique;
 		case 'sparse':
 		default:
 			return DBIndexType.Index;
@@ -425,5 +486,4 @@ function mapSchemaIndexTypeToDbIndexType(type: IndexType): DBIndexType {
 function mapSchemaIndexToDbIndex(index: Index): DBIndex {
 	const columns = index.fields.map(field => q.sort(field.handle, field.direction));
 	return q.index(index.handle, mapSchemaIndexTypeToDbIndexType(index.type), columns);
-	
 }

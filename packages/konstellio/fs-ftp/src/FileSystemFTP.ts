@@ -1,4 +1,12 @@
-import { FileSystem, Stats, FileSystemCacheable, FileNotFound, OperationNotSupported, FileAlreadyExists, CouldNotConnect } from '@konstellio/fs';
+import {
+	FileSystem,
+	Stats,
+	FileSystemCacheable,
+	FileNotFound,
+	OperationNotSupported,
+	FileAlreadyExists,
+	CouldNotConnect,
+} from '@konstellio/fs';
 import { Pool, Deferred } from '@konstellio/promised';
 import * as FTPClient from 'ftp';
 import { Readable, Writable, Transform } from 'stream';
@@ -6,7 +14,10 @@ import { dirname, basename, sep } from 'path';
 import { ConnectionOptions } from 'tls';
 
 function normalizePath(path: string) {
-	path = path.split(sep).join('/').trim();
+	path = path
+		.split(sep)
+		.join('/')
+		.trim();
 	while (path.startsWith('/')) {
 		path = path.substr(1);
 	}
@@ -23,7 +34,7 @@ export enum FTPConnectionState {
 	Disconnecting,
 	Closed,
 	Connecting,
-	Ready
+	Ready,
 }
 
 export interface FileSystemFTPOptions {
@@ -40,17 +51,13 @@ export interface FileSystemFTPOptions {
 }
 
 export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
-
 	private disposed: boolean;
 	private connection?: FTPClient;
 	private connectionState: FTPConnectionState;
 	private pool: Pool;
 	private cache: Map<string, [number, Deferred<any>]>;
 
-	constructor(
-		private readonly options: FileSystemFTPOptions,
-		protected ttl: number = 60000
-	) {
+	constructor(private readonly options: FileSystemFTPOptions, protected ttl: number = 60000) {
 		super();
 		this.disposed = false;
 		this.connectionState = FTPConnectionState.Closed;
@@ -66,11 +73,9 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === FTPConnectionState.Disconnecting) {
 				return reject(new Error(`Filesystem is currently disconnecting.`));
-			}
-			else if (this.connectionState === FTPConnectionState.Ready) {
+			} else if (this.connectionState === FTPConnectionState.Ready) {
 				return resolve(this.connection!);
-			}
-			else if (this.connectionState === FTPConnectionState.Closed) {
+			} else if (this.connectionState === FTPConnectionState.Closed) {
 				this.connection = new FTPClient();
 				this.connection.on('end', () => {
 					this.connectionState = FTPConnectionState.Closed;
@@ -91,7 +96,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 
 			this.connection!.once('ready', onReady);
 			this.connection!.once('error', onError);
-			
+
 			if (this.connectionState !== FTPConnectionState.Connecting) {
 				this.connectionState = FTPConnectionState.Connecting;
 				this.connection!.connect(this.options);
@@ -103,7 +108,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = FTPConnectionState.Disconnecting;
@@ -137,7 +142,9 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		const defer = new Deferred<T>();
 		this.cache.set(hash, [now + this.ttl, defer]);
 
-		compute().then(res => defer.resolve(res)).catch(err => defer.reject(err));
+		compute()
+			.then(res => defer.resolve(res))
+			.catch(err => defer.reject(err));
 
 		return defer.promise;
 	}
@@ -166,7 +173,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		const conn = await this.getConnection();
 		if (stats.isFile) {
 			return new Promise<void>((resolve, reject) => {
-				conn.delete(normalizePath(path), (err) => {
+				conn.delete(normalizePath(path), err => {
 					if (err) {
 						reject(err);
 					} else {
@@ -177,10 +184,9 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 					this.pool.release(token);
 				});
 			});
-		}
-		else if (stats.isDirectory) {
+		} else if (stats.isDirectory) {
 			return new Promise<void>((resolve, reject) => {
-				conn.rmdir(normalizePath(path), recursive, (err) => {
+				conn.rmdir(normalizePath(path), recursive, err => {
 					if (err) {
 						reject(err);
 					} else {
@@ -202,7 +208,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
 		return new Promise<void>((resolve, reject) => {
-			conn.rename(normalizePath(oldPath), normalizePath(newPath), (err) => {
+			conn.rename(normalizePath(oldPath), normalizePath(newPath), err => {
 				if (err) {
 					reject(err);
 				} else {
@@ -230,7 +236,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 				const transfer = new Transform({
 					transform(chunk, encode, done) {
 						done(undefined, chunk);
-					}
+					},
 				});
 				transfer.on('end', () => this.pool.release(token));
 				transfer.on('error', () => this.pool.release(token));
@@ -254,11 +260,11 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
-			}
+			},
 		});
 
-		return new Promise<Writable>((resolve) => {
-			conn.put(stream, normalizePath(path), (err) => {
+		return new Promise<Writable>(resolve => {
+			conn.put(stream, normalizePath(path), err => {
 				this.cache.delete(`readdir:${normalizePath(dirname(path))}`);
 				this.cache.delete(`readdirstat:${normalizePath(dirname(path))}`);
 				this.pool.release(token);
@@ -271,7 +277,7 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 		const token = await this.pool.acquires();
 		const conn = await this.getConnection();
 		return new Promise<void>((resolve, reject) => {
-			conn.mkdir(normalizePath(path), recursive === true, (err) => {
+			conn.mkdir(normalizePath(path), recursive === true, err => {
 				if (err) {
 					reject(err);
 				} else {
@@ -287,7 +293,9 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 	async readDirectory(path: string): Promise<string[]>;
 	async readDirectory(path: string, stat: boolean): Promise<[string, Stats][]>;
 	async readDirectory(path: string, stat?: boolean): Promise<(string | [string, Stats])[]> {
-		return this.cacheOrCompute(`readdir${stat && 'stat'}:${normalizePath(path)}`, () => this.readDirectoryImpl(path, stat!));
+		return this.cacheOrCompute(`readdir${stat && 'stat'}:${normalizePath(path)}`, () =>
+			this.readDirectoryImpl(path, stat!)
+		);
 	}
 
 	protected async readDirectoryImpl(path: string): Promise<string[]>;
@@ -311,23 +319,27 @@ export class FileSystemFTP extends FileSystem implements FileSystemCacheable {
 					return;
 				}
 
-				resolve(entries.map(entry => [
-					entry.name,
-					new Stats(
-						entry.type === '-',
-						entry.type === 'd',
-						entry.type === 'l',
-						parseInt(entry.size, 10),
-						entry.date,
-						entry.date,
-						entry.date
+				resolve(
+					entries.map(
+						entry =>
+							[
+								entry.name,
+								new Stats(
+									entry.type === '-',
+									entry.type === 'd',
+									entry.type === 'l',
+									parseInt(entry.size, 10),
+									entry.date,
+									entry.date,
+									entry.date
+								),
+							] as [string, Stats]
 					)
-				] as [string, Stats]));
+				);
 				this.pool.release(token);
 			});
 		});
 	}
-
 }
 
 export default FileSystemFTP;

@@ -1,58 +1,60 @@
 {
-  "name": "@konstellio/fs-sftp",
-  "version": "0.2.9",
-  "description": "",
-  "main": "dist/FileSystemSFTP.js",
-  "types": "dist/FileSystemSFTP.d.ts",
-  "scripts": {
-    "prepublishOnly": "npm run compile",
-    "compile": "rimraf dist && tsc --pretty",
-    "test": "cross-env TS_NODE_FILES=true mocha --require ts-node/register --full-trace test/**/*.ts --exit",
-    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
-    "lint": "tslint --project ./tsconfig.json"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/konstellio/konstellio.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/konstellio/konstellio/issues"
-  },
-  "homepage": "https://github.com/konstellio/konstellio#readme",
-  "peerDependencies": {
-    "@konstellio/disposable": "^0.2.0",
-    "@konstellio/eventemitter": "^0.2.0",
-    "@konstellio/fs": "^0.2.0",
-    "@konstellio/promised": "^0.2.0",
-    "ssh2": "^0.6.1"
-  },
-  "devDependencies": {
-    "@konstellio/disposable": "^0.2.9",
-    "@konstellio/eventemitter": "^0.2.9",
-    "@konstellio/fs": "^0.2.9",
-    "@konstellio/promised": "^0.2.9",
-    "@types/chai-as-promised": "7.1.0",
-    "@types/mocha": "^5.2.5",
-    "@types/node": "^10.5.7",
-    "@types/ssh2": "^0.5.35",
-    "chai": "^4.1.2",
-    "chai-as-promised": "^7.1.1",
-    "cross-env": "^5.2.0",
-    "istanbul": "^1.1.0-alpha.1",
-    "mocha": "^5.2.0",
-    "node-sftp-server": "^0.3.0",
-    "rimraf": "^2.6.2",
-    "ssh2": "^0.6.1",
-    "ts-node": "^7.0.0",
-    "tslint": "^5.11.0",
-    "tslint-config-airbnb": "^5.9.2",
-    "tslint-config-prettier": "^1.14.0",
-    "typescript": "^3.1.6"
-  }
+	"name": "@konstellio/fs-sftp",
+	"version": "0.2.9",
+	"description": "",
+	"main": "dist/FileSystemSFTP.js",
+	"types": "dist/FileSystemSFTP.d.ts",
+	"scripts": {
+		"prepublishOnly": "npm run compile",
+		"compile": "rimraf dist && tsc --pretty",
+		"prettier": "prettier --write {src,test}/**/*.ts",
+		"test": "cross-env TS_NODE_FILES=true mocha --require ts-node/register --full-trace test/**/*.ts --exit",
+		"coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
+		"lint": "tslint --project ./tsconfig.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/konstellio/konstellio.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/konstellio/konstellio/issues"
+	},
+	"homepage": "https://github.com/konstellio/konstellio#readme",
+	"peerDependencies": {
+		"@konstellio/disposable": "^0.2.0",
+		"@konstellio/eventemitter": "^0.2.0",
+		"@konstellio/fs": "^0.2.0",
+		"@konstellio/promised": "^0.2.0",
+		"ssh2": "^0.6.1"
+	},
+	"devDependencies": {
+		"@konstellio/disposable": "^0.2.9",
+		"@konstellio/eventemitter": "^0.2.9",
+		"@konstellio/fs": "^0.2.9",
+		"@konstellio/promised": "^0.2.9",
+		"@types/chai-as-promised": "7.1.0",
+		"@types/mocha": "^5.2.5",
+		"@types/node": "^10.5.7",
+		"@types/ssh2": "^0.5.35",
+		"chai": "^4.1.2",
+		"chai-as-promised": "^7.1.1",
+		"cross-env": "^5.2.0",
+		"istanbul": "^1.1.0-alpha.1",
+		"mocha": "^5.2.0",
+		"prettier": "^1.18.2",
+		"node-sftp-server": "^0.3.0",
+		"rimraf": "^2.6.2",
+		"ssh2": "^0.6.1",
+		"ts-node": "^7.0.0",
+		"tslint": "^5.11.0",
+		"tslint-config-airbnb": "^5.9.2",
+		"tslint-config-prettier": "^1.14.0",
+		"typescript": "^3.1.6"
+	}
 }

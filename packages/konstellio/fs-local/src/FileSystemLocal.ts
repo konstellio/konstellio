@@ -5,7 +5,6 @@ import { join } from 'path';
 import { FileSystem, Stats, FileAlreadyExists, FileNotFound } from '@konstellio/fs';
 
 export class FileSystemLocal extends FileSystem {
-
 	private disposed: boolean;
 
 	constructor(
@@ -21,7 +20,7 @@ export class FileSystemLocal extends FileSystem {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.disposed) {
 			this.disposed = true;
 		}
@@ -37,15 +36,17 @@ export class FileSystemLocal extends FileSystem {
 				if (err) {
 					return reject(err);
 				}
-				resolve(new Stats(
-					stats.isFile(),
-					stats.isDirectory(),
-					stats.isSymbolicLink(),
-					stats.size,
-					stats.atime,
-					stats.mtime,
-					stats.ctime
-				));
+				resolve(
+					new Stats(
+						stats.isFile(),
+						stats.isDirectory(),
+						stats.isSymbolicLink(),
+						stats.size,
+						stats.atime,
+						stats.mtime,
+						stats.ctime
+					)
+				);
 			});
 		});
 	}
@@ -58,20 +59,19 @@ export class FileSystemLocal extends FileSystem {
 		const stats = await this.stat(path);
 		if (stats.isFile) {
 			return await new Promise<void>((resolve, reject) => {
-				unlink(join(this.rootDirectory, path), (err) => {
+				unlink(join(this.rootDirectory, path), err => {
 					if (err) {
 						return reject(err);
 					}
 					return resolve();
 				});
 			});
-		}
-		else if (stats.isDirectory && recursive) {
+		} else if (stats.isDirectory && recursive) {
 			const children = await this.readDirectory(path, true);
 			for (const [child] of children) {
 				await this.unlink(join(path, child), true);
 				await new Promise<void>((resolve, reject) => {
-					unlink(join(path, child), (err) => {
+					unlink(join(path, child), err => {
 						if (err) {
 							return reject(err);
 						}
@@ -86,35 +86,26 @@ export class FileSystemLocal extends FileSystem {
 		const stats = await this.stat(source);
 		if (stats.isFile) {
 			return await new Promise<void>((resolve, reject) => {
-				copyFile(
-					join(this.rootDirectory, source),
-					join(this.rootDirectory, destination),
-					(err) => {
-						if (err) {
-							return reject(err);
-						}
-						return resolve();
+				copyFile(join(this.rootDirectory, source), join(this.rootDirectory, destination), err => {
+					if (err) {
+						return reject(err);
 					}
-				);
+					return resolve();
+				});
 			});
-		}
-		else if (stats.isDirectory) {
+		} else if (stats.isDirectory) {
 			debugger;
 		}
 	}
 
 	rename(oldPath: string, newPath: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			rename(
-				join(this.rootDirectory, oldPath),
-				join(this.rootDirectory, newPath),
-				(err) => {
-					if (err) {
-						return reject(err);
-					}
-					return resolve();
+			rename(join(this.rootDirectory, oldPath), join(this.rootDirectory, newPath), err => {
+				if (err) {
+					return reject(err);
 				}
-			);
+				return resolve();
+			});
 		});
 	}
 
@@ -123,10 +114,8 @@ export class FileSystemLocal extends FileSystem {
 		if (!exists) {
 			throw new FileNotFound();
 		}
-		
-		return createReadStream(
-			join(this.rootDirectory, path)
-		);
+
+		return createReadStream(join(this.rootDirectory, path));
 	}
 
 	async createWriteStream(path: string, overwrite?: boolean, encoding?: string): Promise<Writable> {
@@ -136,27 +125,24 @@ export class FileSystemLocal extends FileSystem {
 				throw new FileAlreadyExists();
 			}
 		}
-		return createWriteStream(
-			join(this.rootDirectory, path),
-			{
-				encoding,
-				mode: this.fileMode,
-				autoClose: true
-			}
-		);
+		return createWriteStream(join(this.rootDirectory, path), {
+			encoding,
+			mode: this.fileMode,
+			autoClose: true,
+		});
 	}
 
 	createDirectory(path: string, recursive?: boolean): Promise<void> {
 		return new Promise((resolve, reject) => {
 			if (recursive) {
-				mkdirp(join(this.rootDirectory, path), this.directoryMode, (err) => {
+				mkdirp(join(this.rootDirectory, path), this.directoryMode, err => {
 					if (err) {
 						return reject(err);
 					}
 					return resolve();
 				});
 			} else {
-				mkdir(join(this.rootDirectory, path), this.directoryMode, (err) => {
+				mkdir(join(this.rootDirectory, path), this.directoryMode, err => {
 					if (err) {
 						return reject(err);
 					}
@@ -178,18 +164,18 @@ export class FileSystemLocal extends FileSystem {
 					return resolve(entries);
 				}
 
-				Promise.all(entries.map<Promise<Stats>>(entry => {
-					const entryPath = join(path, entry);
-					return this.stat(entryPath);
-				}))
-				.then(
-					(stats) => resolve(entries.map((entry, idx) => [entry, stats[idx]] as [string, Stats])),
-					(err) => reject(err)
+				Promise.all(
+					entries.map<Promise<Stats>>(entry => {
+						const entryPath = join(path, entry);
+						return this.stat(entryPath);
+					})
+				).then(
+					stats => resolve(entries.map((entry, idx) => [entry, stats[idx]] as [string, Stats])),
+					err => reject(err)
 				);
 			});
 		});
 	}
-
 }
 
 export default FileSystemLocal;

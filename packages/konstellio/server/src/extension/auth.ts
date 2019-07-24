@@ -1,20 +1,20 @@
-import { SchemaDirectiveVisitor } from "graphql-tools";
-import { GraphQLField, GraphQLObjectType, GraphQLInterfaceType } from "graphql";
-import { AuthenticationError } from "apollo-server-core";
-import { isArray } from "util";
+import { SchemaDirectiveVisitor } from 'graphql-tools';
+import { GraphQLField, GraphQLObjectType, GraphQLInterfaceType } from 'graphql';
+import { AuthenticationError } from 'apollo-server-core';
+import { isArray } from 'util';
 import { hash, compare } from 'bcrypt';
 import { sign, verify } from 'jsonwebtoken';
 import { q } from '@konstellio/db';
 import { Collection } from '@konstellio/odm';
-import { getSelectionsFromInfo } from "../util/resolver";
-import { Context, Extension } from "../extension";
-import { User, UserIndexes, UserGroup, UserGroupIndexes, UserInputs, UserGroupInputs } from "./schema";
+import { getSelectionsFromInfo } from '../util/resolver';
+import { Context, Extension } from '../extension';
+import { User, UserIndexes, UserGroup, UserGroupIndexes, UserInputs, UserGroupInputs } from './schema';
 
 class PermissionDirective extends SchemaDirectiveVisitor {
 	visitFieldDefinition(
 		field: GraphQLField<any, any>,
 		details: {
-			objectType: GraphQLObjectType | GraphQLInterfaceType
+			objectType: GraphQLObjectType | GraphQLInterfaceType;
 		}
 	): GraphQLField<any, any> | void | null {
 		const { resolve } = field;
@@ -27,7 +27,7 @@ class PermissionDirective extends SchemaDirectiveVisitor {
 			roles.push(...this.args.roles);
 		}
 
-		field.resolve = async function PermissionDirectiveResolver (obj, args, ctx: AuthContext, info) {
+		field.resolve = async function PermissionDirectiveResolver(obj, args, ctx: AuthContext, info) {
 			let userRoles: string[] = ['auth.loggedout'];
 
 			if (ctx.userRoles) {
@@ -56,8 +56,8 @@ export interface AuthContext extends Context {
 	userId?: string;
 	userRoles?: string[];
 	collection: {
-		User: Collection<User, UserIndexes, UserInputs>,
-		UserGroup: Collection<UserGroup, UserGroupIndexes, UserGroupInputs>,
+		User: Collection<User, UserIndexes, UserInputs>;
+		UserGroup: Collection<UserGroup, UserGroupIndexes, UserGroupInputs>;
 	};
 }
 
@@ -105,7 +105,7 @@ export default {
 		}
 	`,
 	directives: {
-		permission: PermissionDirective
+		permission: PermissionDirective,
 	},
 	resolvers({ secret }) {
 		return {
@@ -114,37 +114,37 @@ export default {
 					const selections: any[] = getSelectionsFromInfo(info);
 					const groups = await UserGroup.findByIds(user.groups, { fields: selections });
 					return groups;
-				}
+				},
 			},
 			Query: {
-				async me(_, {  }, { userId, collection: { User } }, info) {
+				async me(_, {}, { userId, collection: { User } }, info) {
 					if (!userId) {
 						throw new AuthenticationError(`Not authenticated.`);
 					}
 					const selections: any[] = getSelectionsFromInfo(info);
 					const user = await User.findById(userId, { fields: selections });
 					return user;
-				}
+				},
 			},
 			Mutation: {
 				async login(_, { username, password }, { collection: { User } }) {
 					try {
 						const user = await User.findOne({
 							fields: ['id', 'password'],
-							condition: q.eq('username', username)
+							condition: q.eq('username', username),
 						});
 
 						if (await comparePassword(password, user.password)) {
 							const token = sign({ userid: user.id }, secret);
 							return {
-								token
+								token,
 							};
 						}
 					} catch (err) {}
 
 					throw new AuthenticationError(`Could not authenticate. Please try again later.`);
-				}
-			}
+				},
+			},
 		};
 	},
 	main({ app, context, configuration: { secret } }) {
@@ -152,10 +152,13 @@ export default {
 			request.context = {
 				...request.context,
 				userId: undefined,
-				userRoles: undefined
+				userRoles: undefined,
 			} as any;
 
-			const { cache, collection: { User, UserGroup } } = context;
+			const {
+				cache,
+				collection: { User, UserGroup },
+			} = context;
 			const authorization = request.req.headers['authorization'];
 			if (authorization && authorization.substr(0, 6) === 'Bearer') {
 				const token = authorization.substr(7);
@@ -164,22 +167,31 @@ export default {
 
 					let userGroups: string[] = [];
 					if (await cache.has(`auth.userGroups:${userId}`)) {
-						userGroups = (await cache.get(`auth.userGroups:${userId}`) || '').toString().split(',');
+						userGroups = ((await cache.get(`auth.userGroups:${userId}`)) || '').toString().split(',');
 					} else {
 						const user = await User.findById(userId, { fields: ['id', 'groups'] });
 						userGroups = user.groups;
 						await cache.set(`auth.userGroups:${userId}`, userGroups.join(','));
 					}
 
-					const groupRoles = await Promise.all(userGroups.map(groupId => new Promise<string[]>(async (resolve, reject) => {
-						if (await cache.has(`auth.groupRoles:${groupId}`)) {
-							return resolve(await (await cache.get(`auth.groupRoles:${groupId}`) || '').toString().split(','));
-						}
-						const group = await UserGroup.findById(groupId, { fields: ['id', 'roles'] });
-						const roles: string[] = group.roles || [];
-						await cache.set(`auth.groupRoles:${groupId}`, roles.join(','));
-						resolve(roles);
-					})));
+					const groupRoles = await Promise.all(
+						userGroups.map(
+							groupId =>
+								new Promise<string[]>(async (resolve, reject) => {
+									if (await cache.has(`auth.groupRoles:${groupId}`)) {
+										return resolve(
+											await ((await cache.get(`auth.groupRoles:${groupId}`)) || '')
+												.toString()
+												.split(',')
+										);
+									}
+									const group = await UserGroup.findById(groupId, { fields: ['id', 'roles'] });
+									const roles: string[] = group.roles || [];
+									await cache.set(`auth.groupRoles:${groupId}`, roles.join(','));
+									resolve(roles);
+								})
+						)
+					);
 
 					request.context.userId = userId;
 					request.context.userRoles = groupRoles.reduce((roles, groupRoles) => [...roles, ...groupRoles], []);
@@ -187,9 +199,9 @@ export default {
 			}
 		});
 
-		context.collection.User.on('delete', (id) => context.cache.unset(`auth.userGroups:${id}`));
+		context.collection.User.on('delete', id => context.cache.unset(`auth.userGroups:${id}`));
 		context.collection.User.on('replace', ({ id }) => context.cache.unset(`auth.userGroups:${id}`));
-		context.collection.UserGroup.on('delete', (id) => context.cache.unset(`auth.groupRoles:${id}`));
+		context.collection.UserGroup.on('delete', id => context.cache.unset(`auth.groupRoles:${id}`));
 		context.collection.UserGroup.on('replace', ({ id }) => context.cache.unset(`auth.groupRoles:${id}`));
-	}
+	},
 } as Extension<AuthContext>;

@@ -6,7 +6,10 @@ import { sep } from 'path';
 import { parseEntries } from 'parse-listing';
 
 function normalizePath(path: string) {
-	path = path.split(sep).join('/').trim();
+	path = path
+		.split(sep)
+		.join('/')
+		.trim();
 	while (path.startsWith('/')) {
 		path = path.substr(1);
 	}
@@ -23,7 +26,7 @@ export enum SSH2ConnectionState {
 	Disconnecting,
 	Closed,
 	Connecting,
-	Ready
+	Ready,
 }
 
 export interface FileSystemSSHAlgorithms {
@@ -39,7 +42,7 @@ export interface FileSystemSSHOptions {
 	port?: number;
 	forceIPv4?: boolean;
 	forceIPv6?: boolean;
-	hostHash?: "md5" | "sha1";
+	hostHash?: 'md5' | 'sha1';
 	hostVerifier?: (keyHash: string) => boolean;
 	username?: string;
 	password?: string;
@@ -61,15 +64,12 @@ export interface FileSystemSSHOptions {
 }
 
 export class FileSystemSSH extends FileSystem {
-
 	private disposed: boolean;
 	protected connection?: Client;
 	protected connectionState: SSH2ConnectionState;
 	private pool: Pool;
 
-	constructor(
-		protected readonly options: FileSystemSSHOptions
-	) {
+	constructor(protected readonly options: FileSystemSSHOptions) {
 		super();
 		this.disposed = false;
 		this.connectionState = SSH2ConnectionState.Closed;
@@ -84,11 +84,9 @@ export class FileSystemSSH extends FileSystem {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === SSH2ConnectionState.Disconnecting) {
 				return reject(new Error(`Filesystem is currently disconnecting.`));
-			}
-			else if (this.connectionState === SSH2ConnectionState.Ready) {
+			} else if (this.connectionState === SSH2ConnectionState.Ready) {
 				return resolve(this.connection!);
-			}
-			else if (this.connectionState === SSH2ConnectionState.Closed) {
+			} else if (this.connectionState === SSH2ConnectionState.Closed) {
 				this.connection = new Client();
 				this.connection.on('end', () => {
 					this.connectionState = SSH2ConnectionState.Closed;
@@ -121,7 +119,7 @@ export class FileSystemSSH extends FileSystem {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = SSH2ConnectionState.Disconnecting;
@@ -140,11 +138,11 @@ export class FileSystemSSH extends FileSystem {
 		return this.options.sudo === true
 			? `sudo -s `
 			: typeof this.options.sudo === 'string'
-				? `sudo -i -u ${this.options.sudo} `
-				: '';
+			? `sudo -i -u ${this.options.sudo} `
+			: '';
 	}
 
-	protected async exec (conn: Client, cmd: string): Promise<[number | null, string | undefined, Buffer]> {
+	protected async exec(conn: Client, cmd: string): Promise<[number | null, string | undefined, Buffer]> {
 		return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
 			const sudo = this.getSudo();
 
@@ -190,8 +188,7 @@ export class FileSystemSSH extends FileSystem {
 			await this.exec(conn, `rm -f "${normalizePath(path)}"`);
 			// TODO: check error ?
 			this.pool.release(token);
-		}
-		else if (stats.isDirectory && recursive) {
+		} else if (stats.isDirectory && recursive) {
 			await this.exec(conn, `rm -fr "${normalizePath(path)}"`);
 			// TODO: check error ?
 			this.pool.release(token);
@@ -289,9 +286,9 @@ export class FileSystemSSH extends FileSystem {
 					reject(err);
 				} else {
 					if (stat !== true) {
-						resolve(entries.map((entry) => entry.name));
+						resolve(entries.map(entry => entry.name));
 					} else {
-						resolve(entries.map((entry) => [
+						resolve(entries.map(entry => [
 							entry.name,
 							new Stats(
 								entry.type === 0,
@@ -301,7 +298,7 @@ export class FileSystemSSH extends FileSystem {
 								new Date(entry.time),
 								new Date(entry.time),
 								new Date(entry.time)
-							)
+							),
 						]) as [string, Stats][]);
 					}
 				}
@@ -338,13 +335,5 @@ function parseStat(stat: string): Stats {
 		ctime = Date.parse(match[1]);
 	}
 
-	return new Stats(
-		type === '-',
-		type === 'd',
-		type === 'l',
-		size,
-		new Date(atime),
-		new Date(mtime),
-		new Date(ctime)
-	);
+	return new Stats(type === '-', type === 'd', type === 'l', size, new Date(atime), new Date(mtime), new Date(ctime));
 }

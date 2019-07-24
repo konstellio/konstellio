@@ -38,7 +38,7 @@
 			"name": "Debug @konstellio/cli",
 			"program": "${workspaceFolder}/packages/konstellio/cli/dist/cli.js",
 			"args": [
-				"generate",
+				"migrate",
 			],
 			"cwd": "${workspaceFolder}/packages/examples/blog",
 			"internalConsoleOptions": "openOnSessionStart"

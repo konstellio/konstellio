@@ -1,7 +1,4 @@
-
-export class FileSystemError extends Error {
-
-}
+export class FileSystemError extends Error {}
 
 export class CouldNotConnect extends FileSystemError {
 	constructor(error?: Error) {

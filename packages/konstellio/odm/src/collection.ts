@@ -1,7 +1,20 @@
 import { EventEmitter } from '@konstellio/eventemitter';
-import { Database, q, Collection as DBCollection, Field, FieldAs, FieldDirection, BinaryExpression, Function, Transaction, QueryDelete, replaceField, Comparison } from '@konstellio/db';
+import {
+	Database,
+	q,
+	Collection as DBCollection,
+	Field,
+	FieldAs,
+	FieldDirection,
+	BinaryExpression,
+	Function,
+	Transaction,
+	QueryDelete,
+	replaceField,
+	Comparison,
+} from '@konstellio/db';
 import * as assert from 'assert';
-import * as Dataloader from "dataloader";
+import * as Dataloader from 'dataloader';
 import * as Joi from 'joi';
 import { Schema, Field as SchemaField, validateSchema, createValidator, isUnion } from './schema';
 import { KnownDirectivesRule, assertType } from 'graphql';
@@ -9,18 +22,24 @@ import { isArray } from 'util';
 import uuid = require('uuid');
 
 const relationCollection = q.collection('Relation');
-const selectRelationQuery = q.select('field', 'source', 'target').from(relationCollection).sort(q.sort('seq', 'asc')).where(q.and(
-	q.eq(q.field('collection'), q.var('collection')),
-	q.in(q.field('source'), q.var('sources')),
-	q.in(q.field('field'), q.var('fields'))
-));
+const selectRelationQuery = q
+	.select('field', 'source', 'target')
+	.from(relationCollection)
+	.sort(q.sort('seq', 'asc'))
+	.where(
+		q.and(
+			q.eq(q.field('collection'), q.var('collection')),
+			q.in(q.field('source'), q.var('sources')),
+			q.in(q.field('field'), q.var('fields'))
+		)
+	);
 const createRelationQuery = q.insert(relationCollection).add({
 	id: q.var('id'),
 	collection: q.var('collection'),
 	field: q.var('field'),
 	source: q.var('source'),
 	target: q.var('target'),
-	seq: q.var('seq')
+	seq: q.var('seq'),
 });
 const deleteRelationQuery = q.delete(relationCollection).where(q.in('source', q.var('sources')));
 
@@ -93,12 +112,11 @@ export class Collection<
 	Indexes extends { id: string } = any,
 	Inputs extends { id?: string } = any
 > extends EventEmitter {
-
 	protected readonly deleteQuery: QueryDelete;
 	protected readonly validator: Joi.Schema;
 	protected readonly localizedFieldMap: Map<string, Map<Field, Field>>;
 	protected readonly loader: Dataloader<LoaderInput<keyof Columns>, Partial<Columns> | undefined>;
-	
+
 	protected readonly collection: DBCollection;
 	protected readonly schema: Schema;
 	protected readonly schemaFields: SchemaField[];
@@ -111,74 +129,113 @@ export class Collection<
 		protected readonly mandatoryFields: string[] = []
 	) {
 		super();
-		
+
 		assert(validateSchema(schema), `Parameter \`schema\` is not a valid Schema.`);
 
 		!this.mandatoryFields.includes('id') && this.mandatoryFields.push('id');
 
 		this.schema = schema;
 		this.schemaFields = isUnion(this.schema)
-			? this.schema.objects.reduce((fields, obj) => { return [...fields, ...obj.fields]; }, [] as SchemaField[])
+			? this.schema.objects.reduce(
+					(fields, obj) => {
+						return [...fields, ...obj.fields];
+					},
+					[] as SchemaField[]
+			  )
 			: this.schema.fields;
-		this.fieldTransforms = this.schemaFields.reduce((prev, def) => {
-			if (def.inlined) {
-				return (row: any) => { row[def.handle] && (row[def.handle] = JSON.parse(row[def.handle])); return prev(row); };
-			}
-			else if (def.multiple) {
-				return (row: any) => { row[def.handle] = row[def.handle] || []; return prev(row); };
-			}
-			else if (def.type === 'int') {
-				return (row: any) => { row[def.handle] && (row[def.handle] = parseInt(row[def.handle], 10) || 0); return prev(row); };
-			}
-			else if (def.type === 'float') {
-				return (row: any) => { row[def.handle] && (row[def.handle] = parseFloat(row[def.handle]) || 0); return prev(row); };
-			}
-			else if (def.type === 'boolean') {
-				return (row: any) => { row[def.handle] && (row[def.handle] = !!row[def.handle]); return prev(row); };
-			}
-			else if (def.type === 'date' || def.type === 'datetime') {
-				return (row: any) => { row[def.handle] && (row[def.handle] = new Date(row[def.handle])); return prev(row); };
-			}
-			return prev;
-		}, (row: any) => row);
+		this.fieldTransforms = this.schemaFields.reduce(
+			(prev, def) => {
+				if (def.inlined) {
+					return (row: any) => {
+						row[def.handle] && (row[def.handle] = JSON.parse(row[def.handle]));
+						return prev(row);
+					};
+				} else if (def.multiple) {
+					return (row: any) => {
+						row[def.handle] = row[def.handle] || [];
+						return prev(row);
+					};
+				} else if (def.type === 'int') {
+					return (row: any) => {
+						row[def.handle] && (row[def.handle] = parseInt(row[def.handle], 10) || 0);
+						return prev(row);
+					};
+				} else if (def.type === 'float') {
+					return (row: any) => {
+						row[def.handle] && (row[def.handle] = parseFloat(row[def.handle]) || 0);
+						return prev(row);
+					};
+				} else if (def.type === 'boolean') {
+					return (row: any) => {
+						row[def.handle] && (row[def.handle] = !!row[def.handle]);
+						return prev(row);
+					};
+				} else if (def.type === 'date' || def.type === 'datetime') {
+					return (row: any) => {
+						row[def.handle] && (row[def.handle] = new Date(row[def.handle]));
+						return prev(row);
+					};
+				}
+				return prev;
+			},
+			(row: any) => row
+		);
 		this.collection = q.collection(this.schema.handle);
 		this.deleteQuery = q.delete(this.collection).where(q.eq('id', q.var('id')));
-		this.validator = createValidator(this.schema, locales).required().strict(true);
+		this.validator = createValidator(this.schema, locales)
+			.required()
+			.strict(true);
 
 		// Build a map of each locale renamed localized fields { en: { title: title__en, ... }, fr: { ... } }
 		this.localizedFieldMap = new Map(locales.map(locale => [
 			locale,
-			new Map(this.schemaFields.reduce((map, def) => {
-				const field = q.field(def.handle);
-				if (this.database.features.join && (def.relation || def.multiple)) {
-					map.push([field, q.field('target', `ref__${def.handle}${def.localized ? `__${locale}` : ''}`)]);
-				} else {
-					map.push([field, q.field(def.localized ? `${def.handle}__${locale}` : def.handle)]);
-				}
-				return map;
-			}, [] as [Field, Field][]))
+			new Map(
+				this.schemaFields.reduce(
+					(map, def) => {
+						const field = q.field(def.handle);
+						if (this.database.features.join && (def.relation || def.multiple)) {
+							map.push([
+								field,
+								q.field('target', `ref__${def.handle}${def.localized ? `__${locale}` : ''}`),
+							]);
+						} else {
+							map.push([field, q.field(def.localized ? `${def.handle}__${locale}` : def.handle)]);
+						}
+						return map;
+					},
+					[] as [Field, Field][]
+				)
+			),
 		]) as [string, Map<Field, Field>][]);
 		if (this.locales.length === 0) {
-			this.localizedFieldMap.set('', new Map(this.schemaFields.reduce((map, def) => {
-				const field = q.field(def.handle);
-				if (this.database.features.join && (def.relation || def.multiple)) {
-					map.push([field, q.field('target', `ref__${def.handle}`)]);
-				} else {
-					map.push([field, q.field(def.handle)]);
-				}
-				return map;
-			}, [] as [Field, Field][])));
+			this.localizedFieldMap.set(
+				'',
+				new Map(
+					this.schemaFields.reduce(
+						(map, def) => {
+							const field = q.field(def.handle);
+							if (this.database.features.join && (def.relation || def.multiple)) {
+								map.push([field, q.field('target', `ref__${def.handle}`)]);
+							} else {
+								map.push([field, q.field(def.handle)]);
+							}
+							return map;
+						},
+						[] as [Field, Field][]
+					)
+				)
+			);
 		}
 
 		// Setup loader to minimize database bandwidth
 		this.loader = new Dataloader(
-			async (keys) => {
+			async keys => {
 				const batched: {
 					[locale: string]: {
 						locale: string;
 						ids: string[];
 						fields: any[];
-					}
+					};
 				} = {};
 
 				const defaultLocale = this.locales.length ? this.locales[0] : '';
@@ -192,17 +249,22 @@ export class Collection<
 
 				const results: { [hash: string]: any } = {};
 
-				await Promise.all(Object.keys(batched).reduce((promises, locale) => {
-					const { ids, fields } = batched[locale];
-					return [
-						...promises,
-						this.findMany({ locale, fields, condition: q.in('id', ids) }).then(rows => {
-							for (const row of rows) {
-								results[`${row.id}-${locale}`] = row;
-							}
-						})
-					];
-				}, [] as Promise<void>[]));
+				await Promise.all(
+					Object.keys(batched).reduce(
+						(promises, locale) => {
+							const { ids, fields } = batched[locale];
+							return [
+								...promises,
+								this.findMany({ locale, fields, condition: q.in('id', ids) }).then(rows => {
+									for (const row of rows) {
+										results[`${row.id}-${locale}`] = row;
+									}
+								}),
+							];
+						},
+						[] as Promise<void>[]
+					)
+				);
 
 				return keys.map<any>(key => {
 					return results[`${key.id}-${key.locale || defaultLocale}`];
@@ -212,7 +274,7 @@ export class Collection<
 				cache: false, // TODO: Investigate if batching still happens ?
 				cacheKeyFn(key: LoaderInput<Columns>) {
 					return `${key.id}=${key.locale}`;
-				}
+				},
 			}
 		);
 	}
@@ -227,7 +289,10 @@ export class Collection<
 
 	async findById(id: string, options?: OptionFindById): Promise<Columns>;
 	async findById<K extends keyof Columns>(id: string, options?: OptionFindByIdSelect<K>): Promise<Pick<Columns, K>>;
-	async findById<K extends keyof Columns>(id: string, options: OptionFindById | OptionFindByIdSelect<K> = {}): Promise<Columns | Pick<Columns, K>> {
+	async findById<K extends keyof Columns>(
+		id: string,
+		options: OptionFindById | OptionFindByIdSelect<K> = {}
+	): Promise<Columns | Pick<Columns, K>> {
 		const results = await this.findByIds([id], options);
 		if (results.length === 0) {
 			throw new Error(`Could not find ID ${id} in collection \`${this.schema.handle}\`.`);
@@ -236,25 +301,35 @@ export class Collection<
 	}
 
 	async findByIds(ids: string[], options?: OptionFindById): Promise<Columns[]>;
-	async findByIds<K extends keyof Columns>(ids: string[], options?: OptionFindByIdSelect<K>): Promise<Pick<Columns, K>[]>;
-	async findByIds<K extends keyof Columns>(ids: string[], options: OptionFindById | OptionFindByIdSelect<K> = {}): Promise<Columns[] | Pick<Columns, K>[]> {
+	async findByIds<K extends keyof Columns>(
+		ids: string[],
+		options?: OptionFindByIdSelect<K>
+	): Promise<Pick<Columns, K>[]>;
+	async findByIds<K extends keyof Columns>(
+		ids: string[],
+		options: OptionFindById | OptionFindByIdSelect<K> = {}
+	): Promise<Columns[] | Pick<Columns, K>[]> {
 		try {
-			const results = await this.loader.loadMany(ids.map(id => ({
-				id,
-				locale: options && options.locale,
-				fields: options && (options as OptionFindByIdSelect<K>).fields
-			})));
+			const results = await this.loader.loadMany(
+				ids.map(id => ({
+					id,
+					locale: options && options.locale,
+					fields: options && (options as OptionFindByIdSelect<K>).fields,
+				}))
+			);
 			const realResults = results.filter((result): result is Partial<Columns> => result !== undefined);
 			if (realResults.length === ids.length) {
 				return realResults as Columns[];
 			}
-		} catch (err) { }
+		} catch (err) {}
 		throw new Error(`Could not find IDs ${ids.join(', ')} in collection \`${this.schema.handle}\`.`);
 	}
 
 	async findOne(options?: OptionFindOne<Indexes>): Promise<Columns>;
 	async findOne<K extends keyof Columns>(options?: OptionFindOneSelect<K, Indexes>): Promise<Pick<Columns, K>>;
-	async findOne<K extends keyof Columns>(options: OptionFindOne<Indexes> | OptionFindOneSelect<K, Indexes> = {}): Promise<Columns | Pick<Columns, K>> {
+	async findOne<K extends keyof Columns>(
+		options: OptionFindOne<Indexes> | OptionFindOneSelect<K, Indexes> = {}
+	): Promise<Columns | Pick<Columns, K>> {
 		const results = await this.findMany({ ...options, limit: 1 });
 		if (results.length === 0) {
 			throw new Error(`Could not find anything matching query in collection \`${this.schema.handle}\`.`);
@@ -264,8 +339,10 @@ export class Collection<
 
 	async findMany(options?: OptionFindMany<Indexes>): Promise<Columns[]>;
 	async findMany<K extends keyof Columns>(options?: OptionFindManySelect<K, Indexes>): Promise<Pick<Columns, K>[]>;
-	async findMany<K extends keyof Columns>(options: OptionFindMany<Indexes> | OptionFindManySelect<K, Indexes> = {}): Promise<Columns[] | Pick<Columns, K>[]> {
-		const locale = this.locales.length ? (options.locale || this.locales[0]) : undefined;
+	async findMany<K extends keyof Columns>(
+		options: OptionFindMany<Indexes> | OptionFindManySelect<K, Indexes> = {}
+	): Promise<Columns[] | Pick<Columns, K>[]> {
+		const locale = this.locales.length ? options.locale || this.locales[0] : undefined;
 		const fieldMap = this.localizedFieldMap.get(locale || '');
 
 		if (!fieldMap) {
@@ -273,7 +350,8 @@ export class Collection<
 		}
 
 		const featuresJoin = this.database.features.join;
-		const fields: string[] = (options as OptionAggregateSelect<K, Indexes>).fields as (string[] | undefined) || [];
+		const fields: string[] =
+			((options as OptionAggregateSelect<K, Indexes>).fields as (string[] | undefined)) || [];
 
 		if (fields.length === 0) {
 			fields.push(...this.schemaFields.map(field => field.handle));
@@ -297,12 +375,11 @@ export class Collection<
 			}
 		}
 
-		const selectFields = relationalFields.length && !nonRelationalFields.includes('id') ? nonRelationalFields.concat(['id']) : nonRelationalFields;
-		const localizedSelect = replaceField(
-			selectFields.map(handle => q.as(handle, handle)),
-			fieldMap,
-			fieldUsed
-		);
+		const selectFields =
+			relationalFields.length && !nonRelationalFields.includes('id')
+				? nonRelationalFields.concat(['id'])
+				: nonRelationalFields;
+		const localizedSelect = replaceField(selectFields.map(handle => q.as(handle, handle)), fieldMap, fieldUsed);
 
 		let query = q.aggregate(...localizedSelect);
 		query = query.from(this.collection);
@@ -334,14 +411,8 @@ export class Collection<
 							q
 								.select('collection', 'field', 'source', 'target', 'seq')
 								.from(relationCollection)
-								.where(q.and(
-									q.eq('collection', this.schema.handle),
-									q.eq('field', localizedHandle)
-								)),
-							q.eq(
-								q.field('source', alias),
-								q.field('id')
-							)
+								.where(q.and(q.eq('collection', this.schema.handle), q.eq('field', localizedHandle))),
+							q.eq(q.field('source', alias), q.field('id'))
 						);
 					}
 				}
@@ -352,13 +423,21 @@ export class Collection<
 
 		if (featuresJoin && relationalFields.length) {
 			const sources: string[] = result.results.map(({ id }: any) => id);
-			const relationFieldMap: Map<string, SchemaField> = new Map(this.schemaFields.reduce((map, def) => {
-				if (relationalFields.includes(def.handle)) {
-					map.push([locale && def.localized ? `${def.handle}__${locale}` : def.handle, def]);
-				}
-				return map;
-			}, [] as [string, SchemaField][]));
-			const relResult = await this.database.execute<{ field: string, source: string, target: string }>(selectRelationQuery, { sources, fields: Array.from(relationFieldMap.keys()), collection: this.schema.handle });
+			const relationFieldMap: Map<string, SchemaField> = new Map(
+				this.schemaFields.reduce(
+					(map, def) => {
+						if (relationalFields.includes(def.handle)) {
+							map.push([locale && def.localized ? `${def.handle}__${locale}` : def.handle, def]);
+						}
+						return map;
+					},
+					[] as [string, SchemaField][]
+				)
+			);
+			const relResult = await this.database.execute<{ field: string; source: string; target: string }>(
+				selectRelationQuery,
+				{ sources, fields: Array.from(relationFieldMap.keys()), collection: this.schema.handle }
+			);
 			for (const row of result.results) {
 				for (const rel of relResult.results) {
 					if (rel.source === row.id) {
@@ -385,31 +464,38 @@ export class Collection<
 
 	protected flattenLocalizedFields(data: any): FlatInput {
 		const featuresJoin = this.database.features.join;
-		return this.schemaFields.reduce((flatten, def) => {
-			if (def.localized) {
-				for (const locale of this.locales) {
-					if (def.inlined) {
-						data[def.handle][locale] = JSON.stringify(data[def.handle][locale]);
+		return this.schemaFields.reduce(
+			(flatten, def) => {
+				if (def.localized) {
+					for (const locale of this.locales) {
+						if (def.inlined) {
+							data[def.handle][locale] = JSON.stringify(data[def.handle][locale]);
+						}
+						const handle = `${def.handle}__${locale}`;
+						if (featuresJoin && (def.relation || def.multiple)) {
+							flatten.relations[handle] = isArray(data[def.handle][locale])
+								? data[def.handle][locale]
+								: [data[def.handle][locale]];
+						} else {
+							flatten.fields[handle] = data[def.handle][locale];
+						}
 					}
-					const handle = `${def.handle}__${locale}`;
-					if (featuresJoin && (def.relation || def.multiple)) {
-						flatten.relations[handle] = isArray(data[def.handle][locale]) ? data[def.handle][locale] : [data[def.handle][locale]];
-					} else {
-						flatten.fields[handle] = data[def.handle][locale];
-					}
-				}
-			} else {
-				if (def.inlined) {
-					data[def.handle] = JSON.stringify(data[def.handle]);
-				}
-				if (featuresJoin && (def.relation || def.multiple)) {
-					flatten.relations[def.handle] = isArray(data[def.handle]) ? data[def.handle] : [data[def.handle]];
 				} else {
-					flatten.fields[def.handle] = data[def.handle];
+					if (def.inlined) {
+						data[def.handle] = JSON.stringify(data[def.handle]);
+					}
+					if (featuresJoin && (def.relation || def.multiple)) {
+						flatten.relations[def.handle] = isArray(data[def.handle])
+							? data[def.handle]
+							: [data[def.handle]];
+					} else {
+						flatten.fields[def.handle] = data[def.handle];
+					}
 				}
-			}
-			return flatten;
-		}, { fields: {}, relations: {} } as FlatInput);
+				return flatten;
+			},
+			{ fields: {}, relations: {} } as FlatInput
+		);
 	}
 
 	protected addRelationToTransaction(transaction: Transaction, id: string, relations: { [key: string]: string[] }) {
@@ -420,7 +506,7 @@ export class Collection<
 				collection: this.schema.handle,
 				field: handle,
 				id: uuid(),
-				source: id
+				source: id,
 			});
 		};
 		for (const def of this.schemaFields) {
@@ -451,7 +537,7 @@ export class Collection<
 	create(data: Inputs, transaction: Transaction): void;
 	create(data: Inputs, transaction?: Transaction): Promise<string> | void {
 		data.id = data.id || uuid();
-		
+
 		const featuresJoin = this.database.features.join;
 		const executeCreate = (transaction: Transaction, data: any) => {
 			assert(this.validate(data), `Provided data is not valid for ${this.schema.handle}.`);
@@ -472,7 +558,7 @@ export class Collection<
 			executeCreate(transaction, data);
 			return;
 		} else {
-			return new Promise<any>(async (resolve) => {
+			return new Promise<any>(async resolve => {
 				const transaction = await this.database.transaction();
 				executeCreate(transaction, data);
 				await transaction.commit();
@@ -494,7 +580,12 @@ export class Collection<
 			delete fields.id;
 
 			transaction.execute(deleteRelationQuery, { sources: [id] });
-			transaction.execute(q.update(this.collection).set(fields).where(q.eq('id', id)));
+			transaction.execute(
+				q
+					.update(this.collection)
+					.set(fields)
+					.where(q.eq('id', id))
+			);
 			if (featuresJoin) {
 				this.addRelationToTransaction(transaction, id!, relations);
 			}
@@ -506,7 +597,7 @@ export class Collection<
 			executeCreate(transaction, data);
 			return;
 		} else {
-			return new Promise<any>(async (resolve) => {
+			return new Promise<any>(async resolve => {
 				const transaction = await this.database.transaction();
 				executeCreate(transaction, data);
 				await transaction.commit();
@@ -541,5 +632,4 @@ export class Collection<
 		}
 		return true;
 	}
-
 }

@@ -2,11 +2,14 @@ import { Cache, Serializable } from '@konstellio/cache';
 import { ClientOpts, RedisClient, createClient } from 'redis';
 
 export class CacheRedis extends Cache {
-
 	protected client: RedisClient;
 	protected disposed: boolean;
 
-	constructor(redis_url: string, options?: ClientOpts, clientFactory?: (redis_url: string, options?: ClientOpts) => RedisClient) {
+	constructor(
+		redis_url: string,
+		options?: ClientOpts,
+		clientFactory?: (redis_url: string, options?: ClientOpts) => RedisClient
+	) {
 		super();
 
 		this.client = (clientFactory || createClient)(redis_url, options);
@@ -17,15 +20,15 @@ export class CacheRedis extends Cache {
 		return this.disposed;
 	}
 
-	disposeAsync(): Promise<void> {
+	dispose(): Promise<void> {
 		return this.disposed
 			? Promise.resolve()
 			: new Promise((resolve, reject) => {
-				this.client.quit((err) => {
-					if (err) return reject(err);
-					resolve();
-				});
-			});
+					this.client.quit(err => {
+						if (err) return reject(err);
+						resolve();
+					});
+			  });
 	}
 
 	connect(): Promise<this> {
@@ -33,7 +36,7 @@ export class CacheRedis extends Cache {
 	}
 
 	disconnect(): Promise<void> {
-		return this.disposeAsync();
+		return this.dispose();
 	}
 
 	get(key: string): Promise<Serializable> {
@@ -61,14 +64,14 @@ export class CacheRedis extends Cache {
 	set(key: string, value: Serializable, ttl?: number): Promise<void> {
 		return new Promise((resolve, reject) => {
 			if (ttl) {
-				this.client.set(key, value && value.toString() || '', 'EX', ttl, (err) => {
+				this.client.set(key, (value && value.toString()) || '', 'EX', ttl, err => {
 					if (err) {
 						return reject(err);
 					}
 					resolve();
 				});
 			} else {
-				this.client.set(key, value && value.toString() || '', (err) => {
+				this.client.set(key, (value && value.toString()) || '', err => {
 					if (err) {
 						return reject(err);
 					}
@@ -80,7 +83,7 @@ export class CacheRedis extends Cache {
 
 	unset(key: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this.client.del(key, (err) => {
+			this.client.del(key, err => {
 				if (err) {
 					return reject(err);
 				}
@@ -95,7 +98,7 @@ export class CacheRedis extends Cache {
 			if (ttl) {
 				cmd = cmd.expire(key, ttl);
 			}
-			cmd.exec((err) => {
+			cmd.exec(err => {
 				if (err) {
 					return reject(err);
 				}
@@ -110,7 +113,7 @@ export class CacheRedis extends Cache {
 			if (ttl) {
 				cmd = cmd.expire(key, ttl);
 			}
-			cmd.exec((err) => {
+			cmd.exec(err => {
 				if (err) {
 					return reject(err);
 				}
@@ -119,10 +122,9 @@ export class CacheRedis extends Cache {
 		});
 	}
 
-
 	expire(key: string, ttl: number): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this.client.expire(key, ttl, (err) => {
+			this.client.expire(key, ttl, err => {
 				if (err) {
 					return reject(err);
 				}

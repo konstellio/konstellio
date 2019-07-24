@@ -8,7 +8,6 @@ function isKeyOf<T = any>(value: any): value is keyof T {
 
 // tslint:disable:class-name
 export class q {
-
 	public static select<F = any, I = any>(...fields: (keyof F | Field<F>)[]) {
 		return new QuerySelect<F, I>().select(...fields);
 	}
@@ -113,53 +112,77 @@ export class q {
 		return new FunctionConcat<F>(List<Value<F>>(args));
 	}
 
-	public static eq<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static eq<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static ne<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static ne<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonNotEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static gt<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static gt<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonGreaterThan<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static gte<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static gte<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonGreaterThanOrEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static lt<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static lt<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonLesserThan<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static lte<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K] | Field<F> | Function<F>) {
+	public static lte<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		value: F[K] | Field<F> | Function<F>
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		assert(value !== undefined);
 
 		return new ComparisonLesserThanOrEqual<F>(isKeyOf(field) ? new Field(field) : field, List([value as Value]));
 	}
 
-	public static in<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, values: F[K] | Value<F> | Value<F>[]) {
+	public static in<F = any, K extends keyof F = any>(
+		field: K | Field<F> | Function<F>,
+		values: F[K] | Value<F> | Value<F>[]
+	) {
 		assert(typeof field === 'string' || field instanceof Field || field instanceof Function);
 		// assert(isArray(values) && values.length > 0);
 
-		return new ComparisonIn<F>(isKeyOf(field) ? new Field(field) : field, List(isArray(values) ? values : [values as Value]));
+		return new ComparisonIn<F>(
+			isKeyOf(field) ? new Field(field) : field,
+			List(isArray(values) ? values : [values as Value])
+		);
 	}
 
 	public static beginsWith<F = any, K extends keyof F = any>(field: K | Field<F> | Function<F>, value: F[K]) {
@@ -170,21 +193,30 @@ export class q {
 	}
 
 	public static and<I = any>(...operands: BinaryExpression<I>[]) {
-		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
+		assert(
+			operands.length > 0 &&
+				operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0
+		);
 
-		return new Binary<I>("and", List(operands));
+		return new Binary<I>('and', List(operands));
 	}
 
 	public static or<I = any>(...operands: BinaryExpression<I>[]) {
-		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
+		assert(
+			operands.length > 0 &&
+				operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0
+		);
 
-		return new Binary<I>("or", List(operands));
+		return new Binary<I>('or', List(operands));
 	}
 
 	public static xor<I = any>(...operands: BinaryExpression<I>[]) {
-		assert(operands.length > 0 && operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0);
+		assert(
+			operands.length > 0 &&
+				operands.filter(op => !(op instanceof Binary || op instanceof Comparison)).length === 0
+		);
 
-		return new Binary<I>("xor", List(operands));
+		return new Binary<I>('xor', List(operands));
 	}
 }
 
@@ -222,7 +254,7 @@ export enum ColumnType {
 	Text = 'text',
 	Blob = 'blob',
 	Date = 'date',
-	DateTime = 'datetime'
+	DateTime = 'datetime',
 }
 
 export class Column {
@@ -258,18 +290,26 @@ export class Column {
 	}
 
 	public equal(column: Column): boolean {
-		return this.name === column.name && this.type === column.type && this.size === column.size && this.defaultValue === column.defaultValue && this.autoIncrement === column.autoIncrement;
+		return (
+			this.name === column.name &&
+			this.type === column.type &&
+			this.size === column.size &&
+			this.defaultValue === column.defaultValue &&
+			this.autoIncrement === column.autoIncrement
+		);
 	}
 
 	public toString(): string {
-		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''}${this.autoIncrement ? ' AUTOINCREMENT' : ''}`;
+		return `${this.name} ${this.type.toString().toUpperCase()}${this.size ? `(${this.size})` : ''}${
+			this.defaultValue ? ` DEFAULT(${this.defaultValue})` : ''
+		}${this.autoIncrement ? ' AUTOINCREMENT' : ''}`;
 	}
 }
 
 export enum IndexType {
 	Primary = 'primary',
 	Unique = 'unique',
-	Index = 'index'
+	Index = 'index',
 }
 
 export class Index {
@@ -295,7 +335,9 @@ export class Index {
 	}
 
 	public toString(): string {
-		return `${this.type.toString().toLocaleUpperCase()} ${this.name} (${this.columns.map(c => c ? c.toString() : '').join(', ')})`;
+		return `${this.type.toString().toLocaleUpperCase()} ${this.name} (${this.columns
+			.map(c => (c ? c.toString() : ''))
+			.join(', ')})`;
 	}
 }
 
@@ -318,7 +360,6 @@ export class Variable {
 }
 
 export class Field<T = any> {
-
 	constructor(public readonly name: keyof T, public readonly alias?: string) {
 		assert(typeof name === 'string');
 		assert(alias === undefined || typeof alias === 'string');
@@ -386,17 +427,14 @@ export class FieldDirection<T = any> {
 }
 
 export abstract class Function<T = any> {
-	constructor(
-		public readonly fn: string,
-		public readonly args: List<Value<T>> = List()
-	) {
+	constructor(public readonly fn: string, public readonly args: List<Value<T>> = List()) {
 		assert(typeof fn === 'string');
 		assert(args instanceof List);
 	}
 
 	public replaceArgument(replacer: (arg: Value<T>) => undefined | Value<T>) {
 		assert(typeof replacer === 'function');
-		
+
 		let args = List<Value<T>>();
 		let changed = false;
 
@@ -502,7 +540,16 @@ export abstract class Comparison<T = any> {
 		public readonly args: List<Value<T>> = List()
 	) {
 		assert(field instanceof Field || field instanceof Function);
-		assert(operator === '=' || operator === '!=' || operator === '>' || operator === '>=' || operator === '<' || operator === '<=' || operator === 'beginsWith' || operator === 'in');
+		assert(
+			operator === '=' ||
+				operator === '!=' ||
+				operator === '>' ||
+				operator === '>=' ||
+				operator === '<' ||
+				operator === '<=' ||
+				operator === 'beginsWith' ||
+				operator === 'in'
+		);
 		assert(args instanceof List);
 	}
 
@@ -515,17 +562,14 @@ export abstract class Comparison<T = any> {
 		const constructor = this.constructor as any;
 		if (name instanceof Field || name instanceof Function) {
 			return new constructor(name, this.args);
-		}
-		else {
+		} else {
 			if (this.field instanceof Field) {
 				return new constructor(new Field(name), this.args);
-			}
-			else {
+			} else {
 				const renameArg = (arg: Value): Value => {
 					if (arg instanceof Field) {
 						return arg.rename(name);
-					}
-					else if (arg instanceof Function) {
+					} else if (arg instanceof Function) {
 						return arg.replaceArgument(renameArg);
 					}
 					return arg;
@@ -563,11 +607,15 @@ export abstract class Comparison<T = any> {
 	}
 
 	public equal(comparison: Comparison<T>): boolean {
-		return this.field === comparison.field && this.operator === comparison.operator && this.args === comparison.args;
+		return (
+			this.field === comparison.field && this.operator === comparison.operator && this.args === comparison.args
+		);
 	}
 
 	public toString(): string {
-		return `${this.field.toString()} ${this.operator} ${this.args.map(arg => arg ? arg.toString() : 'NULL').join(', ')}`;
+		return `${this.field.toString()} ${this.operator} ${this.args
+			.map(arg => (arg ? arg.toString() : 'NULL'))
+			.join(', ')}`;
 	}
 }
 
@@ -630,7 +678,7 @@ export class Binary<T = any> {
 		assert(operator === 'and' || operator === 'or' || operator === 'xor');
 		assert(operands instanceof List);
 	}
-	
+
 	public isLeaf() {
 		return this.operands.filter(op => op instanceof Binary).count() === 0;
 	}
@@ -655,7 +703,7 @@ export class Binary<T = any> {
 		assert(replace instanceof Binary || replace instanceof Comparison);
 		assert(typeof deep === 'boolean');
 
-		return this.visit((op) => {
+		return this.visit(op => {
 			if (op === search) {
 				return replace;
 			}
@@ -663,7 +711,10 @@ export class Binary<T = any> {
 		}, deep);
 	}
 
-	public visit(visiter: (op: BinaryExpression<T>) => undefined | BinaryExpression<T>, deep: boolean = false): Binary<T> {
+	public visit(
+		visiter: (op: BinaryExpression<T>) => undefined | BinaryExpression<T>,
+		deep: boolean = false
+	): Binary<T> {
 		assert(typeof visiter === 'function');
 		assert(typeof deep === 'boolean');
 
@@ -675,8 +726,7 @@ export class Binary<T = any> {
 			if (replaced) {
 				changed = changed || arg !== replaced;
 				operands = operands.push(replaced);
-			}
-			else if (deep && arg instanceof Binary) {
+			} else if (deep && arg instanceof Binary) {
 				const replaced = arg.visit(visiter, true);
 				if (replaced) {
 					changed = changed || arg !== replaced;
@@ -707,9 +757,9 @@ export class Binary<T = any> {
 export class Query {}
 
 export type Join<F = any, I = any> = {
-	alias: string
-	on: BinaryExpression
-	query: QuerySelect<F, I>
+	alias: string;
+	on: BinaryExpression;
+	query: QuerySelect<F, I>;
 };
 
 export class QuerySelect<F = any, I = any> extends Query {
@@ -729,17 +779,32 @@ export class QuerySelect<F = any, I = any> extends Query {
 	}
 
 	public select(...fields: (keyof F | Field<F> | FieldAs<F>)[]): QuerySelect<F, I> {
-		return new QuerySelect<F, I>(List(fields.map<Field<F> | FieldAs<F>>(field => isKeyOf(field) ? new Field<F>(field) : field)), this.collection, this.joins, this.conditions, this.sorts, this.limit, this.offset);
+		return new QuerySelect<F, I>(
+			List(fields.map<Field<F> | FieldAs<F>>(field => (isKeyOf(field) ? new Field<F>(field) : field))),
+			this.collection,
+			this.joins,
+			this.conditions,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public from(name: string | Collection): QuerySelect<F, I> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
-				return new QuerySelect(this.fields, renamed, this.joins, this.conditions, this.sorts, this.limit, this.offset);
+				return new QuerySelect(
+					this.fields,
+					renamed,
+					this.joins,
+					this.conditions,
+					this.sorts,
+					this.limit,
+					this.offset
+				);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QuerySelect(this.fields, name, this.joins, this.conditions, this.sorts, this.limit, this.offset);
 		}
 		return this;
@@ -747,20 +812,52 @@ export class QuerySelect<F = any, I = any> extends Query {
 
 	public join(alias: string, query: QuerySelect<F, I>, on: BinaryExpression<I>): QuerySelect<F, I> {
 		const join: Join = { alias, query, on };
-		return new QuerySelect(this.fields, this.collection, this.joins ? this.joins.push(join) : List(join), this.conditions, this.sorts, this.limit, this.offset);
+		return new QuerySelect(
+			this.fields,
+			this.collection,
+			this.joins ? this.joins.push(join) : List(join),
+			this.conditions,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public where(condition: BinaryExpression<I>): QuerySelect<F, I> {
-		return new QuerySelect(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.sorts, this.limit, this.offset);
+		return new QuerySelect(
+			this.fields,
+			this.collection,
+			this.joins,
+			condition instanceof Comparison ? new Binary('and', List([condition])) : condition,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public sort(...fields: FieldDirection<I>[]): QuerySelect<F, I> {
-		return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, List(fields), this.limit, this.offset);
+		return new QuerySelect(
+			this.fields,
+			this.collection,
+			this.joins,
+			this.conditions,
+			List(fields),
+			this.limit,
+			this.offset
+		);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }): QuerySelect<F, I> {
+	public range({ limit, offset }: { limit?: number; offset?: number }): QuerySelect<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
-			return new QuerySelect(this.fields, this.collection, this.joins, this.conditions, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+			return new QuerySelect(
+				this.fields,
+				this.collection,
+				this.joins,
+				this.conditions,
+				this.sorts,
+				limit !== undefined ? limit : this.limit,
+				offset !== undefined ? offset : this.offset
+			);
 		}
 		return this;
 	}
@@ -773,7 +870,7 @@ export class QuerySelect<F = any, I = any> extends Query {
 		let query = `${indent}SELECT `;
 
 		if (this.fields) {
-			query += this.fields.map<string>(field => field ? field.toString() : ``).join(', ');
+			query += this.fields.map<string>(field => (field ? field.toString() : ``)).join(', ');
 		} else {
 			query += `*`;
 		}
@@ -783,12 +880,16 @@ export class QuerySelect<F = any, I = any> extends Query {
 		}
 
 		if (this.joins) {
-			query += this.joins.map<string>(join => {
-				if (join) {
-					return `${newline}${indent}JOIN (${join.query.toString()}) AS ${join.alias} ON ${join.on.toString()}`;
-				}
-				return '';
-			}).join('');
+			query += this.joins
+				.map<string>(join => {
+					if (join) {
+						return `${newline}${indent}JOIN (${join.query.toString()}) AS ${
+							join.alias
+						} ON ${join.on.toString()}`;
+					}
+					return '';
+				})
+				.join('');
 		}
 
 		if (this.conditions) {
@@ -796,7 +897,7 @@ export class QuerySelect<F = any, I = any> extends Query {
 		}
 
 		if (this.sorts) {
-			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
+			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => (s ? s.toString() : '')).join(', ')}`;
 		}
 
 		if (this.offset !== undefined) {
@@ -829,42 +930,113 @@ export class QueryAggregate<F = any, I = any> extends Query {
 	}
 
 	public select(...fields: (keyof F | Field<F> | FieldAs<F>)[]): QueryAggregate<F, I> {
-		return new QueryAggregate(List(fields.map<Field<F> | FieldAs<F>>(field => isKeyOf(field) ? new Field<F>(field) : field)), this.collection, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
+		return new QueryAggregate(
+			List(fields.map<Field<F> | FieldAs<F>>(field => (isKeyOf(field) ? new Field<F>(field) : field))),
+			this.collection,
+			this.joins,
+			this.conditions,
+			this.groups,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public from(name: string | Collection): QueryAggregate<F, I> {
 		if (typeof name === 'string') {
 			const renamed = this.collection ? this.collection.rename(name) : new Collection(name);
 			if (renamed !== this.collection) {
-				return new QueryAggregate(this.fields, renamed, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
+				return new QueryAggregate(
+					this.fields,
+					renamed,
+					this.joins,
+					this.conditions,
+					this.groups,
+					this.sorts,
+					this.limit,
+					this.offset
+				);
 			}
-		}
-		else if (name !== this.collection) {
-			return new QueryAggregate(this.fields, name, this.joins, this.conditions, this.groups, this.sorts, this.limit, this.offset);
+		} else if (name !== this.collection) {
+			return new QueryAggregate(
+				this.fields,
+				name,
+				this.joins,
+				this.conditions,
+				this.groups,
+				this.sorts,
+				this.limit,
+				this.offset
+			);
 		}
 		return this;
 	}
 
 	public join(alias: string, query: QuerySelect<F, I>, on: BinaryExpression<I>): QueryAggregate<F, I> {
 		const join: Join = { alias, query, on };
-		return new QueryAggregate(this.fields, this.collection, this.joins ? this.joins.push(join) : List([join]), this.conditions, this.groups, this.sorts, this.limit, this.offset);
+		return new QueryAggregate(
+			this.fields,
+			this.collection,
+			this.joins ? this.joins.push(join) : List([join]),
+			this.conditions,
+			this.groups,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public where(condition: BinaryExpression<I>): QueryAggregate<F, I> {
-		return new QueryAggregate(this.fields, this.collection, this.joins, condition instanceof Comparison ? new Binary('and', List([condition])) : condition, this.groups, this.sorts, this.limit, this.offset);
+		return new QueryAggregate(
+			this.fields,
+			this.collection,
+			this.joins,
+			condition instanceof Comparison ? new Binary('and', List([condition])) : condition,
+			this.groups,
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public group(...groups: (Field<I> | Function<I>)[]): QueryAggregate<F, I> {
-		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, List(groups), this.sorts, this.limit, this.offset);
+		return new QueryAggregate(
+			this.fields,
+			this.collection,
+			this.joins,
+			this.conditions,
+			List(groups),
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public sort(...fields: FieldDirection<I>[]): QueryAggregate<F, I> {
-		return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, List(fields), this.limit, this.offset);
+		return new QueryAggregate(
+			this.fields,
+			this.collection,
+			this.joins,
+			this.conditions,
+			this.groups,
+			List(fields),
+			this.limit,
+			this.offset
+		);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }): QueryAggregate<F, I> {
+	public range({ limit, offset }: { limit?: number; offset?: number }): QueryAggregate<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
-			return new QueryAggregate(this.fields, this.collection, this.joins, this.conditions, this.groups, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+			return new QueryAggregate(
+				this.fields,
+				this.collection,
+				this.joins,
+				this.conditions,
+				this.groups,
+				this.sorts,
+				limit !== undefined ? limit : this.limit,
+				offset !== undefined ? offset : this.offset
+			);
 		}
 		return this;
 	}
@@ -877,7 +1049,7 @@ export class QueryAggregate<F = any, I = any> extends Query {
 		let query = `${indent}SELECT `;
 
 		if (this.fields) {
-			query += this.fields.map<string>(field => field ? field.toString() : ``).join(', ');
+			query += this.fields.map<string>(field => (field ? field.toString() : ``)).join(', ');
 		} else {
 			query += `*`;
 		}
@@ -887,12 +1059,16 @@ export class QueryAggregate<F = any, I = any> extends Query {
 		}
 
 		if (this.joins) {
-			query += this.joins.map<string>(join => {
-				if (join) {
-					return `${newline}${indent}JOIN (${join.query.toString()}) AS ${join.alias} ON ${join.on.toString()}`;
-				}
-				return '';
-			}).join('');
+			query += this.joins
+				.map<string>(join => {
+					if (join) {
+						return `${newline}${indent}JOIN (${join.query.toString()}) AS ${
+							join.alias
+						} ON ${join.on.toString()}`;
+					}
+					return '';
+				})
+				.join('');
 		}
 
 		if (this.conditions) {
@@ -900,11 +1076,11 @@ export class QueryAggregate<F = any, I = any> extends Query {
 		}
 
 		if (this.groups) {
-			query += `${newline}${indent}GROUP BY ${this.groups.map<string>(s => s ? s.toString() : '').join(', ')}`;
+			query += `${newline}${indent}GROUP BY ${this.groups.map<string>(s => (s ? s.toString() : '')).join(', ')}`;
 		}
 
 		if (this.sorts) {
-			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
+			query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => (s ? s.toString() : '')).join(', ')}`;
 		}
 
 		if (this.offset !== undefined) {
@@ -933,16 +1109,26 @@ export class QueryUnion<F = any, I = any> extends Query {
 	}
 
 	public add(select: QuerySelect<F, I>): QueryUnion<F, I> {
-		return new QueryUnion(this.selects ? this.selects.push(select) : List([select]), this.sorts, this.limit, this.offset);
+		return new QueryUnion(
+			this.selects ? this.selects.push(select) : List([select]),
+			this.sorts,
+			this.limit,
+			this.offset
+		);
 	}
 
 	public sort(...fields: FieldDirection<I>[]): QueryUnion<F, I> {
 		return new QueryUnion(this.selects, List(fields), this.limit, this.offset);
 	}
 
-	public range({ limit, offset }: { limit?: number, offset?: number }): QueryUnion<F, I> {
+	public range({ limit, offset }: { limit?: number; offset?: number }): QueryUnion<F, I> {
 		if (limit !== this.limit || offset !== this.offset) {
-			return new QueryUnion(this.selects, this.sorts, limit !== undefined ? limit : this.limit, offset !== undefined ? offset : this.offset);
+			return new QueryUnion(
+				this.selects,
+				this.sorts,
+				limit !== undefined ? limit : this.limit,
+				offset !== undefined ? offset : this.offset
+			);
 		}
 		return this;
 	}
@@ -953,10 +1139,14 @@ export class QueryUnion<F = any, I = any> extends Query {
 		const newline = multiline ? `\n` : ' ';
 
 		if (this.selects) {
-			let query = `(${newline}${this.selects.map<string>(s => s ? s.toString(!!multiline, `${indent}\t`) : '').join(`${newline}) UNION (${newline}`)}${newline})`;
+			let query = `(${newline}${this.selects
+				.map<string>(s => (s ? s.toString(!!multiline, `${indent}\t`) : ''))
+				.join(`${newline}) UNION (${newline}`)}${newline})`;
 
 			if (this.sorts) {
-				query += `${newline}${indent}SORT BY ${this.sorts.map<string>(s => s ? s.toString() : '').join(', ')}`;
+				query += `${newline}${indent}SORT BY ${this.sorts
+					.map<string>(s => (s ? s.toString() : ''))
+					.join(', ')}`;
 			}
 
 			if (this.offset !== undefined) {
@@ -979,10 +1169,7 @@ export class QueryInsert<T = any> extends Query {
 	// @ts-ignore
 	private type: 'insert';
 
-	constructor(
-		public readonly objects?: List<T>,
-		public readonly collection?: Collection
-	) {
+	constructor(public readonly objects?: List<T>, public readonly collection?: Collection) {
 		super();
 	}
 
@@ -996,8 +1183,7 @@ export class QueryInsert<T = any> extends Query {
 			if (renamed !== this.collection) {
 				return new QueryInsert(this.objects, renamed);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryInsert(this.objects, name);
 		}
 		return this;
@@ -1017,16 +1203,20 @@ export class QueryInsert<T = any> extends Query {
 		if (this.objects && this.objects.count() > 0) {
 			const keys = Object.keys(this.objects.get(0));
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
-			query += `${newline}${indent}VALUES ${this.objects.map<string>(obj => {
-				return `(${keys.map(key => {
-					// @ts-ignore
-					const value = obj![key];
-					if (typeof value === 'string') {
-						return `"${value}"`;
-					}
-					return `${value}`;
-				}).join(', ')})`;
-			}).join(', ')}`;
+			query += `${newline}${indent}VALUES ${this.objects
+				.map<string>(obj => {
+					return `(${keys
+						.map(key => {
+							// @ts-ignore
+							const value = obj![key];
+							if (typeof value === 'string') {
+								return `"${value}"`;
+							}
+							return `${value}`;
+						})
+						.join(', ')})`;
+				})
+				.join(', ')}`;
 		}
 
 		return query;
@@ -1051,8 +1241,7 @@ export class QueryUpdate<T = any, I = any> extends Query {
 			if (renamed !== this.collection) {
 				return new QueryUpdate(this.object, renamed, this.conditions);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryUpdate(this.object, name, this.conditions);
 		}
 		return this;
@@ -1063,7 +1252,11 @@ export class QueryUpdate<T = any, I = any> extends Query {
 	}
 
 	public where(condition: BinaryExpression<I>): QueryUpdate<T> {
-		return new QueryUpdate(this.object, this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
+		return new QueryUpdate(
+			this.object,
+			this.collection,
+			condition instanceof Comparison ? new Binary('and', List([condition])) : condition
+		);
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -1080,14 +1273,16 @@ export class QueryUpdate<T = any, I = any> extends Query {
 		if (this.object) {
 			const keys = Object.keys(this.object);
 			query += `${newline}${indent}(${keys.map<string>(key => key || '').join(', ')})`;
-			query += `${newline}${indent}VALUES (${keys.map<string>(key => {
-				// @ts-ignore
-				const value = this.object![key];
-				if (typeof value === 'string') {
-					return `"${value}"`;
-				}
-				return `${value}`;
-			}).join(', ')})`;
+			query += `${newline}${indent}VALUES (${keys
+				.map<string>(key => {
+					// @ts-ignore
+					const value = this.object![key];
+					if (typeof value === 'string') {
+						return `"${value}"`;
+					}
+					return `${value}`;
+				})
+				.join(', ')})`;
 		}
 
 		if (this.where) {
@@ -1102,10 +1297,7 @@ export class QueryDelete<I = any> extends Query {
 	// @ts-ignore
 	private type: 'delete';
 
-	constructor(
-		public readonly collection?: Collection,
-		public readonly conditions?: Binary<I>
-	) {
+	constructor(public readonly collection?: Collection, public readonly conditions?: Binary<I>) {
 		super();
 	}
 
@@ -1115,15 +1307,17 @@ export class QueryDelete<I = any> extends Query {
 			if (renamed !== this.collection) {
 				return new QueryDelete(renamed, this.conditions);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryDelete(name, this.conditions);
 		}
 		return this;
 	}
 
 	public where(condition: BinaryExpression<I>): QueryDelete<I> {
-		return new QueryDelete(this.collection, condition instanceof Comparison ? new Binary('and', List([condition])) : condition);
+		return new QueryDelete(
+			this.collection,
+			condition instanceof Comparison ? new Binary('and', List([condition])) : condition
+		);
 	}
 
 	public toString(multiline: boolean = false, indent?: string): string {
@@ -1163,9 +1357,7 @@ export class QueryCollectionExists extends Query {
 	// @ts-ignore
 	private type: 'collectionexists';
 
-	constructor(
-		public readonly collection: Collection
-	) {
+	constructor(public readonly collection: Collection) {
 		super();
 	}
 
@@ -1175,8 +1367,7 @@ export class QueryCollectionExists extends Query {
 			if (renamed !== this.collection) {
 				return new QueryCollectionExists(renamed);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryCollectionExists(name);
 		}
 		return this;
@@ -1200,9 +1391,7 @@ export class QueryDescribeCollection extends Query {
 	// @ts-ignore
 	private type: 'describecollection';
 
-	constructor(
-		public readonly collection: Collection
-	) {
+	constructor(public readonly collection: Collection) {
 		super();
 	}
 
@@ -1212,8 +1401,7 @@ export class QueryDescribeCollection extends Query {
 			if (renamed !== this.collection) {
 				return new QueryDescribeCollection(renamed);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryDescribeCollection(name);
 		}
 		return this;
@@ -1251,8 +1439,7 @@ export class QueryCreateCollection extends Query {
 			if (renamed !== this.collection) {
 				return new QueryCreateCollection(renamed, this.columns, this.indexes);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryCreateCollection(name, this.columns, this.indexes);
 		}
 		return this;
@@ -1275,16 +1462,19 @@ export class QueryCreateCollection extends Query {
 
 		query += ` (`;
 
-
 		if (this.columns) {
-			query += `${newline}${indent}${this.columns.map<string>(c => c ? c.toString() : '').join(`,${newline}${indent}`)}`;
+			query += `${newline}${indent}${this.columns
+				.map<string>(c => (c ? c.toString() : ''))
+				.join(`,${newline}${indent}`)}`;
 		}
 
 		query += `${newline}${indent})`;
 
 		if (this.indexes) {
 			query += ` ${newline}${indent}INDEXES (`;
-			query += `${newline}${indent}${this.indexes.map<string>(i => i ? i.toString() : '').join(`,${newline}${indent}`)}`;
+			query += `${newline}${indent}${this.indexes
+				.map<string>(i => (i ? i.toString() : ''))
+				.join(`,${newline}${indent}`)}`;
 			query += `${newline}${indent})`;
 		}
 
@@ -1293,26 +1483,26 @@ export class QueryCreateCollection extends Query {
 }
 
 export type ChangeAddColumn = {
-	type: 'addColumn'
-	column: Column
-	copyColumn?: string
+	type: 'addColumn';
+	column: Column;
+	copyColumn?: string;
 };
 export type ChangeAlterColumn = {
-	type: 'alterColumn'
-	oldColumn: string
-	newColumn: Column
+	type: 'alterColumn';
+	oldColumn: string;
+	newColumn: Column;
 };
 export type ChangeDropColumn = {
-	type: 'dropColumn'
-	column: string
+	type: 'dropColumn';
+	column: string;
 };
 export type ChangeAddIndex = {
-	type: 'addIndex'
-	index: Index
+	type: 'addIndex';
+	index: Index;
 };
 export type ChangeDropIndex = {
-	type: 'dropIndex'
-	index: string
+	type: 'dropIndex';
+	index: string;
 };
 
 export type Change = ChangeAddColumn | ChangeAlterColumn | ChangeDropColumn | ChangeAddIndex | ChangeDropIndex;
@@ -1335,8 +1525,7 @@ export class QueryAlterCollection extends Query {
 			if (renamed !== this.collection) {
 				return new QueryAlterCollection(this.collection, renamed, this.changes);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryAlterCollection(this.collection, name, this.changes);
 		}
 		return this;
@@ -1344,12 +1533,20 @@ export class QueryAlterCollection extends Query {
 
 	public addColumn(column: Column, copyColumn?: string): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ column, copyColumn, type: 'addColumn' }));
+		return new QueryAlterCollection(
+			this.collection,
+			this.renamed,
+			changes.push({ column, copyColumn, type: 'addColumn' })
+		);
 	}
 
 	public alterColumn(oldColumn: string, newColumn: Column): QueryAlterCollection {
 		const changes = this.changes ? this.changes : List<Change>();
-		return new QueryAlterCollection(this.collection, this.renamed, changes.push({ oldColumn, newColumn, type: 'alterColumn' }));
+		return new QueryAlterCollection(
+			this.collection,
+			this.renamed,
+			changes.push({ oldColumn, newColumn, type: 'alterColumn' })
+		);
 	}
 
 	public dropColumn(column: string): QueryAlterCollection {
@@ -1381,26 +1578,23 @@ export class QueryAlterCollection extends Query {
 		query += ` (`;
 
 		if (this.changes) {
-			query += `${newline}${indent}${this.changes.map<string>(c => {
-				if (c && c.type === 'addColumn') {
-					return `ADDCOL ${c.column.toString()}`;
-				}
-				else if (c && c.type === 'alterColumn') {
-					return `ALTERCOL ${c.oldColumn} AS ${c.newColumn.toString()}`;
-				}
-				else if (c && c.type === 'dropColumn') {
-					return `DROPCOL ${c.column}`;
-				}
-				else if (c && c.type === 'addIndex') {
-					return `ADDIDX ${c.index.toString()}`;
-				}
-				else if (c && c.type === 'dropIndex') {
-					return `DROPIDX ${c.index}`;
-				}
-				else {
-					return '';
-				}
-			}).join(`,${newline}${indent}`)}`;
+			query += `${newline}${indent}${this.changes
+				.map<string>(c => {
+					if (c && c.type === 'addColumn') {
+						return `ADDCOL ${c.column.toString()}`;
+					} else if (c && c.type === 'alterColumn') {
+						return `ALTERCOL ${c.oldColumn} AS ${c.newColumn.toString()}`;
+					} else if (c && c.type === 'dropColumn') {
+						return `DROPCOL ${c.column}`;
+					} else if (c && c.type === 'addIndex') {
+						return `ADDIDX ${c.index.toString()}`;
+					} else if (c && c.type === 'dropIndex') {
+						return `DROPIDX ${c.index}`;
+					} else {
+						return '';
+					}
+				})
+				.join(`,${newline}${indent}`)}`;
 		}
 
 		query += `${newline}${indent})`;
@@ -1417,9 +1611,7 @@ export class QueryDropCollection extends Query {
 	// @ts-ignore
 	private type: 'dropcollection';
 
-	constructor(
-		public readonly collection: Collection
-	) {
+	constructor(public readonly collection: Collection) {
 		super();
 	}
 
@@ -1429,8 +1621,7 @@ export class QueryDropCollection extends Query {
 			if (renamed !== this.collection) {
 				return new QueryDropCollection(renamed);
 			}
-		}
-		else if (name !== this.collection) {
+		} else if (name !== this.collection) {
 			return new QueryDropCollection(name);
 		}
 		return this;

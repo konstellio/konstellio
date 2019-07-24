@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, should, expect } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { MessageQueueAMQP } from '../src/MessageQueueAMQP';
 import { Disposable } from '@konstellio/disposable';
@@ -10,14 +10,17 @@ function wait(ms: number): Promise<void> {
 }
 
 describe('AMQP', () => {
-
 	const mq = new MessageQueueAMQP('amqp://guest:guest@localhost/');
 	before(done => {
-		mq.connect().then(() => done()).catch(done);
+		mq.connect()
+			.then(() => done())
+			.catch(done);
 	});
 
 	after(done => {
-		mq.disconnect().then(() => done()).catch(done);
+		mq.disconnect()
+			.then(() => done())
+			.catch(done);
 	});
 
 	it('can publish to channel', async () => {
@@ -27,7 +30,7 @@ describe('AMQP', () => {
 	it('can subscribe to channel', async () => {
 		let count = 0;
 
-		const subscriber1 = await mq.subscribe('foo2', (msg) => {
+		const subscriber1 = await mq.subscribe('foo2', msg => {
 			count += msg.add as number;
 		});
 		expect(subscriber1).to.be.an.instanceOf(Disposable);
@@ -36,7 +39,7 @@ describe('AMQP', () => {
 		await wait(500);
 		expect(count).to.equal(1);
 
-		const subscriber2 = await mq.subscribe('foo2', (msg) => {
+		const subscriber2 = await mq.subscribe('foo2', msg => {
 			count += msg.add as number;
 		});
 		expect(subscriber2).to.be.an.instanceOf(Disposable);
@@ -49,7 +52,7 @@ describe('AMQP', () => {
 	it('can unsubscribe', async () => {
 		let count = 0;
 
-		const subscriber1 = await mq.subscribe('foo3', (msg) => {
+		const subscriber1 = await mq.subscribe('foo3', msg => {
 			count += msg.add as number;
 		});
 		expect(subscriber1).to.be.an.instanceOf(Disposable);
@@ -77,7 +80,7 @@ describe('AMQP', () => {
 		});
 		expect(consumer).to.be.an.instanceOf(Disposable);
 
-		await mq.send('bar2', {  });
+		await mq.send('bar2', {});
 		await wait(500);
 		expect(count).to.equal(1);
 	});
@@ -90,18 +93,18 @@ describe('AMQP', () => {
 		});
 		expect(consumer).to.be.an.instanceOf(Disposable);
 
-		await mq.send('bar3', {  });
+		await mq.send('bar3', {});
 		await wait(500);
 		expect(count).to.equal(1);
 
 		consumer.dispose();
-		await mq.send('bar3', {  });
+		await mq.send('bar3', {});
 		await wait(500);
 		expect(count).to.equal(1);
 	});
 
 	it('can get result from rpc', async () => {
-		const consumer = await mq.consume('bar4', (msg) => {
+		const consumer = await mq.consume('bar4', msg => {
 			return { ts: Date.now(), bar: msg.bar };
 		});
 		expect(consumer).to.be.an.instanceOf(Disposable);
@@ -126,7 +129,7 @@ describe('AMQP', () => {
 	it('can consume pending task', async () => {
 		let count = 0;
 
-		await mq.send('bar6', {  });
+		await mq.send('bar6', {});
 		await wait(500);
 		expect(count).to.equal(0);
 
@@ -137,5 +140,4 @@ describe('AMQP', () => {
 		await wait(2000);
 		expect(count).to.equal(1);
 	}).timeout(3000);
-
 });

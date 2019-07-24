@@ -1,8 +1,6 @@
 import * as Query from './Query';
 
-export class QueryResult {
-
-}
+export class QueryResult {}
 
 export class QuerySelectResult<T> extends QueryResult {
 	constructor(public readonly results: T[]) {
@@ -29,7 +27,11 @@ export class QueryShowCollectionResult extends QueryResult {
 }
 
 export class QueryDescribeCollectionResult extends QueryResult {
-	constructor(public readonly collection: Query.Collection, public readonly columns: Query.Column[], public readonly indexes: Query.Index[]) {
+	constructor(
+		public readonly collection: Query.Collection,
+		public readonly columns: Query.Column[],
+		public readonly indexes: Query.Index[]
+	) {
 		super();
 	}
 }

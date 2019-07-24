@@ -1,52 +1,54 @@
 {
-  "name": "@konstellio/cache-redis",
-  "version": "0.2.9",
-  "description": "",
-  "main": "dist/CacheRedis.js",
-  "types": "dist/CacheRedis.d.ts",
-  "scripts": {
-    "prepublishOnly": "npm run compile",
-    "compile": "rimraf dist && tsc --pretty",
-    "test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
-    "coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
-    "lint": "tslint --project ./tsconfig.json"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/konstellio/konstellio.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/konstellio/konstellio/issues"
-  },
-  "homepage": "https://github.com/konstellio/konstellio#readme",
-  "peerDependencies": {
-    "@konstellio/cache": "^0.2.0",
-    "@konstellio/disposable": "^0.2.0",
-    "redis": "^2.8.0"
-  },
-  "devDependencies": {
-    "@konstellio/cache": "^0.2.9",
-    "@konstellio/disposable": "^0.2.9",
-    "@types/chai-as-promised": "7.1.0",
-    "@types/mocha": "^5.2.5",
-    "@types/node": "^10.5.7",
-    "@types/redis": "^2.8.6",
-    "chai": "^4.1.2",
-    "chai-as-promised": "^7.1.1",
-    "istanbul": "^1.1.0-alpha.1",
-    "mocha": "^5.2.0",
-    "redis": "^2.8.0",
-    "rimraf": "^2.6.2",
-    "ts-node": "^7.0.0",
-    "tslint": "^5.11.0",
-    "tslint-config-airbnb": "^5.9.2",
-    "tslint-config-prettier": "^1.14.0",
-    "typescript": "^3.1.6"
-  }
+	"name": "@konstellio/cache-redis",
+	"version": "0.2.9",
+	"description": "",
+	"main": "dist/CacheRedis.js",
+	"types": "dist/CacheRedis.d.ts",
+	"scripts": {
+		"prepublishOnly": "npm run compile",
+		"compile": "rimraf dist && tsc --pretty",
+		"prettier": "prettier --write {src,test}/**/*.ts",
+		"test": "mocha --require ts-node/register --full-trace test/**/*.ts --exit",
+		"coverage": "rimraf ./coverage && istanbul cover ./node_modules/mocha/bin/_mocha -- --require ts-node/register --full-trace test/**/*.ts --exit",
+		"lint": "tslint --project ./tsconfig.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/konstellio/konstellio.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/konstellio/konstellio/issues"
+	},
+	"homepage": "https://github.com/konstellio/konstellio#readme",
+	"peerDependencies": {
+		"@konstellio/cache": "^0.2.0",
+		"@konstellio/disposable": "^0.2.0",
+		"redis": "^2.8.0"
+	},
+	"devDependencies": {
+		"@konstellio/cache": "^0.2.9",
+		"@konstellio/disposable": "^0.2.9",
+		"@types/chai-as-promised": "7.1.0",
+		"@types/mocha": "^5.2.5",
+		"@types/node": "^10.5.7",
+		"@types/redis": "^2.8.6",
+		"chai": "^4.1.2",
+		"chai-as-promised": "^7.1.1",
+		"istanbul": "^1.1.0-alpha.1",
+		"mocha": "^5.2.0",
+		"prettier": "^1.18.2",
+		"redis": "^2.8.0",
+		"rimraf": "^2.6.2",
+		"ts-node": "^7.0.0",
+		"tslint": "^5.11.0",
+		"tslint-config-airbnb": "^5.9.2",
+		"tslint-config-prettier": "^1.14.0",
+		"typescript": "^3.1.6"
+	}
 }

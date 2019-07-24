@@ -6,7 +6,10 @@ import { sep } from 'path';
 import { constants } from 'fs';
 
 function normalizePath(path: string) {
-	path = path.split(sep).join('/').trim();
+	path = path
+		.split(sep)
+		.join('/')
+		.trim();
 	while (path.startsWith('/')) {
 		path = path.substr(1);
 	}
@@ -23,7 +26,7 @@ export enum SFTPConnectionState {
 	Disconnecting,
 	Closed,
 	Connecting,
-	Ready
+	Ready,
 }
 
 export interface FileSystemSFTPAlgorithms {
@@ -39,7 +42,7 @@ export interface FileSystemSFTPOptions {
 	port?: number;
 	forceIPv4?: boolean;
 	forceIPv6?: boolean;
-	hostHash?: "md5" | "sha1";
+	hostHash?: 'md5' | 'sha1';
 	hostVerifier?: (keyHash: string) => boolean;
 	username?: string;
 	password?: string;
@@ -60,16 +63,13 @@ export interface FileSystemSFTPOptions {
 }
 
 export class FileSystemSFTP extends FileSystem {
-
 	private disposed: boolean;
 	protected connection?: Client;
 	protected connectionState: SFTPConnectionState;
 	protected sftp?: SFTPWrapper;
 	private pool: Pool;
 
-	constructor(
-		protected readonly options: FileSystemSFTPOptions
-	) {
+	constructor(protected readonly options: FileSystemSFTPOptions) {
 		super();
 		this.disposed = false;
 		this.connectionState = SFTPConnectionState.Closed;
@@ -84,11 +84,9 @@ export class FileSystemSFTP extends FileSystem {
 		return new Promise((resolve, reject) => {
 			if (this.connectionState === SFTPConnectionState.Disconnecting) {
 				return reject(new Error(`Filesystem is currently disconnecting.`));
-			}
-			else if (this.connectionState === SFTPConnectionState.Ready) {
+			} else if (this.connectionState === SFTPConnectionState.Ready) {
 				return resolve([this.connection!, this.sftp!]);
-			}
-			else if (this.connectionState === SFTPConnectionState.Closed) {
+			} else if (this.connectionState === SFTPConnectionState.Closed) {
 				this.connection = new Client();
 				this.connection.on('end', () => {
 					this.connectionState = SFTPConnectionState.Closed;
@@ -131,7 +129,7 @@ export class FileSystemSFTP extends FileSystem {
 		return this.disposed;
 	}
 
-	async disposeAsync(): Promise<void> {
+	async dispose(): Promise<void> {
 		if (!this.disposed) {
 			this.disposed = true;
 			this.connectionState = SFTPConnectionState.Disconnecting;
@@ -155,15 +153,17 @@ export class FileSystemSFTP extends FileSystem {
 				if (err) {
 					reject(err);
 				} else {
-					resolve(new Stats(
-						stat.isFile(),
-						stat.isDirectory(),
-						stat.isSymbolicLink(),
-						stat.size,
-						new Date(stat.atime),
-						new Date(stat.mtime),
-						new Date(stat.mtime)
-					));
+					resolve(
+						new Stats(
+							stat.isFile(),
+							stat.isDirectory(),
+							stat.isSymbolicLink(),
+							stat.size,
+							new Date(stat.atime),
+							new Date(stat.mtime),
+							new Date(stat.mtime)
+						)
+					);
 				}
 				this.pool.release(token);
 			});
@@ -180,7 +180,7 @@ export class FileSystemSFTP extends FileSystem {
 		const [, sftp] = await this.getConnection();
 		if (stats.isFile) {
 			return new Promise<void>((resolve, reject) => {
-				sftp.unlink(normalizePath(path), (err) => {
+				sftp.unlink(normalizePath(path), err => {
 					if (err) {
 						reject(err);
 					} else {
@@ -189,8 +189,7 @@ export class FileSystemSFTP extends FileSystem {
 					this.pool.release(token);
 				});
 			});
-		}
-		else if (stats.isDirectory) {
+		} else if (stats.isDirectory) {
 			return new Promise<void>((resolve, reject) => {
 				// if (recursive === true) {
 				// 	return new Promise<[number | null, string | undefined, Buffer]>((resolve, reject) => {
@@ -198,13 +197,13 @@ export class FileSystemSFTP extends FileSystem {
 				// 			if (err) {
 				// 				return reject(err);
 				// 			}
-			
+
 				// 			const chunks: Buffer[] = [];
-			
+
 				// 			stream.on('exit', (code, signal) => {
 				// 				resolve([code, signal, Buffer.concat(chunks)]);
 				// 			});
-			
+
 				// 			stream.on('data', chunk => {
 				// 				chunks.push(chunk);
 				// 			});
@@ -214,14 +213,14 @@ export class FileSystemSFTP extends FileSystem {
 				// 		this.pool.release(token);
 				// 	});
 				// } else {
-					sftp.rmdir(normalizePath(path), (err) => {
-						if (err) {
-							reject(err);
-						} else {
-							resolve();
-						}
-						this.pool.release(token);
-					});
+				sftp.rmdir(normalizePath(path), err => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+					this.pool.release(token);
+				});
 				// }
 			});
 		}
@@ -257,7 +256,7 @@ export class FileSystemSFTP extends FileSystem {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
 		return new Promise<void>((resolve, reject) => {
-			sftp.rename(normalizePath(oldPath), normalizePath(newPath), (err) => {
+			sftp.rename(normalizePath(oldPath), normalizePath(newPath), err => {
 				if (err) {
 					reject(err);
 				} else {
@@ -271,7 +270,7 @@ export class FileSystemSFTP extends FileSystem {
 	async createReadStream(path: string): Promise<Readable> {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
-		return new Promise<Readable>((resolve) => {
+		return new Promise<Readable>(resolve => {
 			const readStream = sftp.createReadStream(normalizePath(path));
 			readStream.on('end', () => this.pool.release(token));
 			readStream.on('error', () => this.pool.release(token));
@@ -286,17 +285,17 @@ export class FileSystemSFTP extends FileSystem {
 				throw new FileAlreadyExists();
 			}
 		}
-		
+
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
 		const stream = new Transform({
 			transform(chunk, _, done) {
 				this.push(chunk);
 				done();
-			}
+			},
 		});
 
-		return new Promise<Writable>((resolve) => {
+		return new Promise<Writable>(resolve => {
 			const writeStream = stream.pipe(sftp.createWriteStream(normalizePath(path)));
 			writeStream.on('finish', () => this.pool.release(token));
 			writeStream.on('error', () => this.pool.release(token));
@@ -308,7 +307,7 @@ export class FileSystemSFTP extends FileSystem {
 		const token = await this.pool.acquires();
 		const [, sftp] = await this.getConnection();
 		return new Promise<void>((resolve, reject) => {
-			sftp.mkdir(normalizePath(path), (err) => {
+			sftp.mkdir(normalizePath(path), err => {
 				if (err) {
 					reject(err);
 				} else {
@@ -340,23 +339,27 @@ export class FileSystemSFTP extends FileSystem {
 					return;
 				}
 
-				resolve(entries.map(entry => [
-					entry.filename,
-					new Stats(
-						(entry.attrs.mode & constants.S_IFREG) > 0,
-						(entry.attrs.mode & constants.S_IFDIR) > 0,
-						(entry.attrs.mode & constants.S_IFLNK) > 0,
-						entry.attrs.size,
-						new Date(entry.attrs.atime),
-						new Date(entry.attrs.mtime),
-						new Date(entry.attrs.mtime)
+				resolve(
+					entries.map(
+						entry =>
+							[
+								entry.filename,
+								new Stats(
+									(entry.attrs.mode & constants.S_IFREG) > 0,
+									(entry.attrs.mode & constants.S_IFDIR) > 0,
+									(entry.attrs.mode & constants.S_IFLNK) > 0,
+									entry.attrs.size,
+									new Date(entry.attrs.atime),
+									new Date(entry.attrs.mtime),
+									new Date(entry.attrs.mtime)
+								),
+							] as [string, Stats]
 					)
-				] as [string, Stats]));
+				);
 				this.pool.release(token);
 			});
 		});
 	}
-
 }
 
 export default FileSystemSFTP;

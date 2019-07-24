@@ -1,6 +1,6 @@
 import 'mocha';
 import { use, expect, should } from 'chai';
-use(require("chai-as-promised"));
+use(require('chai-as-promised'));
 should();
 import { FileSystemLocal } from '../FileSystemLocal';
 import { tmpdir } from 'os';
@@ -9,7 +9,6 @@ import { join } from 'path';
 import { copy, FileSystemPool } from '../../src';
 
 describe('copy', () => {
-
 	const tmpA = mkdtempSync(join(tmpdir(), 'konstellio-copyA-'));
 	const tmpB = mkdtempSync(join(tmpdir(), 'konstellio-copyB-'));
 	const fsA = new FileSystemLocal(tmpA);
@@ -25,7 +24,7 @@ describe('copy', () => {
 		writeFileSync(join(tmpA, 'Griffin/SubFolder/B.txt'), 'B');
 		writeFileSync(join(tmpA, 'Griffin/SubFolder/D.txt'), 'D');
 	});
-	
+
 	it('copy file', async () => {
 		await new Promise((resolve, reject) => {
 			const t = copy(fsA, 'Griffin/Peter.txt', fsB, 'Peter.txt');
@@ -54,7 +53,12 @@ describe('copy', () => {
 
 	it('copy parallel directory', async () => {
 		await new Promise((resolve, reject) => {
-			const t = copy(new FileSystemPool([fsA, fsA.clone()]), 'Griffin', new FileSystemPool([fsB, fsB.clone()]), 'Griffin copy');
+			const t = copy(
+				new FileSystemPool([fsA, fsA.clone()]),
+				'Griffin',
+				new FileSystemPool([fsB, fsB.clone()]),
+				'Griffin copy'
+			);
 			t.on('end', resolve);
 			t.on('error', reject);
 			t.on('data', chunk => {
@@ -64,5 +68,4 @@ describe('copy', () => {
 
 		// TODO: validate copy of directory
 	});
-
 });

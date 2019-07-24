@@ -1,7 +1,3 @@
 import 'mocha';
 
-describe('Database', () => {
-
-	
-
-});
+describe('Database', () => {});

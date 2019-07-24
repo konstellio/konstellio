@@ -3,6 +3,7 @@ secret: '1234'
 locales:
   fr: Français
   en: English
+  es: Spanish
 
 extensions:
   - ./dist/blog.js

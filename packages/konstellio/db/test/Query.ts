@@ -5,7 +5,6 @@ import * as Query from '../src/Query';
 const { q, ColumnType, IndexType } = Query;
 
 describe('Query', () => {
-
 	it('collection', async () => {
 		expect(q.collection).to.be.a('function');
 		expect(q.collection('foo')).to.be.an.instanceof(Query.Collection);
@@ -28,7 +27,6 @@ describe('Query', () => {
 	});
 
 	it('field', async () => {
-
 		expect(q.field).to.be.a('function');
 		expect(q.field('foo')).to.be.an.instanceof(Query.Field);
 		expect(q.field('foo').name).to.equal('foo');
@@ -52,7 +50,9 @@ describe('Query', () => {
 		expect(q.sort(q.field('foo', 'bar'), 'asc')).to.be.an.instanceof(Query.FieldDirection);
 		expect(q.sort(q.field('foo', 'bar'), 'asc').field).to.be.an.instanceof(Query.Field);
 		expect(q.sort(q.field('foo', 'bar'), 'asc').direction).to.equal('asc');
-		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo')).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo')).to.be.an.instanceof(
+			Query.FieldDirection
+		);
 		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field).to.be.an.instanceof(Query.Field);
 		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field.name).to.equal('moo');
 		expect(q.sort(q.field<any>('foo', 'bar'), 'asc').rename('moo', 'joo').field.alias).to.equal('joo');
@@ -82,7 +82,15 @@ describe('Query', () => {
 	});
 
 	it('comparison', async () => {
-		[['eq', '='], ['ne', '!='], ['gt', '>'], ['gte', '>='], ['lt', '<'], ['lte', '<='], ['beginsWith', 'beginsWith']].forEach(([fnName, operator]) => {
+		[
+			['eq', '='],
+			['ne', '!='],
+			['gt', '>'],
+			['gte', '>='],
+			['lt', '<'],
+			['lte', '<='],
+			['beginsWith', 'beginsWith'],
+		].forEach(([fnName, operator]) => {
 			const fn = (q as any)[fnName];
 			expect(fn).to.be.a('function');
 			expect(fn(q.field('foo'), 'bar')).to.be.an.instanceof(Query.Comparison);
@@ -114,8 +122,12 @@ describe('Query', () => {
 			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo'))).to.be.an.instanceof(Query.Binary);
 			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operator).to.equal(op);
 			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.count()).to.equal(2);
-			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(0)).to.be.an.instanceof(Query.ComparisonEqual);
-			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(1)).to.be.an.instanceof(Query.ComparisonGreaterThan);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(0)).to.be.an.instanceof(
+				Query.ComparisonEqual
+			);
+			expect(fn(q.eq('foo', 'bar'), q.gt('moo', 'joo')).operands.get(1)).to.be.an.instanceof(
+				Query.ComparisonGreaterThan
+			);
 		});
 
 		const op1 = q.lt('boo', 'hoo');
@@ -166,12 +178,13 @@ describe('Query', () => {
 		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).name).to.equal('foo');
 		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).type).to.equal(IndexType.Primary);
 		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).columns.count()).to.equal(1);
-		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).columns.get(0)).to.be.an.instanceof(Query.FieldDirection);
+		expect(q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]).columns.get(0)).to.be.an.instanceof(
+			Query.FieldDirection
+		);
 
 		const a = q.index('foo', IndexType.Primary, [q.sort('foo', 'asc')]);
 		const b = a.add(q.sort('moo', 'asc'));
 		expect(a).to.not.equal(b);
 		expect(b.columns.count()).to.equal(2);
 	});
-
 });
