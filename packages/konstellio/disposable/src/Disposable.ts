@@ -64,20 +64,20 @@ export class CompositeDisposable implements IDisposable {
 				if (!isDisposableInterface(disposable)) {
 					throw new TypeError(`Expected a Disposable object, got ${typeof disposable}.`);
 				}
-				(<Set<Disposable>>this.disposables).add(disposable);
+				this.disposables.add(disposable);
 			});
 		}
 	}
 
 	remove(disposable: Disposable): void {
 		if (!this.disposed) {
-			(<Set<Disposable>>this.disposables).delete(disposable);
+			this.disposables.delete(disposable);
 		}
 	}
 
 	clear(): void {
 		if (!this.disposed) {
-			(<Set<Disposable>>this.disposables).clear();
+			this.disposables.clear();
 		}
 	}
 }
