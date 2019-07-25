@@ -14,7 +14,7 @@ export class Gate implements IDisposable {
 		return this.disposed;
 	}
 
-	dispose() {
+	async dispose() {
 		if (!this.disposed) {
 			this.disposed = true;
 			this.waiters = [];

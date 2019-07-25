@@ -22,7 +22,7 @@ export class Pool<T = any> implements IDisposable {
 		return this.disposed;
 	}
 
-	dispose() {
+	async dispose() {
 		if (!this.disposed) {
 			this.disposed = true;
 			for (const waiter of this.waiters) {

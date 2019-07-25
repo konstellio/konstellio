@@ -6,7 +6,7 @@ export function isDisposableInterface(obj: any): boolean {
 
 export interface IDisposable {
 	isDisposed(): boolean;
-	dispose(): void;
+	dispose(): Promise<void>;
 }
 
 export class Disposable implements IDisposable {
