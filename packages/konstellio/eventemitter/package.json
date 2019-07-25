@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/eventemitter",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"description": "",
 	"main": "dist/EventEmitter.js",
 	"types": "dist/EventEmitter.d.ts",
@@ -30,7 +30,7 @@
 		"@konstellio/disposable": "^0.2.0"
 	},
 	"devDependencies": {
-		"@konstellio/disposable": "^0.3.2",
+		"@konstellio/disposable": "^0.3.3",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "^5.2.5",
 		"@types/node": "^10.5.7",

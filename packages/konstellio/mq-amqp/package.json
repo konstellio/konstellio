@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/mq-amqp",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"description": "",
 	"main": "dist/MessageQueueAMQP.js",
 	"types": "dist/MessageQueueAMQP.d.ts",
@@ -33,9 +33,9 @@
 		"amqplib": "^0.5.2"
 	},
 	"devDependencies": {
-		"@konstellio/disposable": "^0.3.2",
-		"@konstellio/eventemitter": "^0.3.2",
-		"@konstellio/mq": "^0.3.2",
+		"@konstellio/disposable": "^0.3.3",
+		"@konstellio/eventemitter": "^0.3.3",
+		"@konstellio/mq": "^0.3.3",
 		"@types/amqplib": "^0.5.8",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "^5.2.5",

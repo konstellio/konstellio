@@ -1,6 +1,6 @@
 {
 	"name": "@konstellio/mq",
-	"version": "0.3.2",
+	"version": "0.3.3",
 	"description": "",
 	"main": "dist/MessageQueue.js",
 	"types": "dist/MessageQueue.d.ts",
@@ -32,9 +32,9 @@
 		"@konstellio/promised": "^0.2.3"
 	},
 	"devDependencies": {
-		"@konstellio/disposable": "^0.3.2",
-		"@konstellio/eventemitter": "^0.3.2",
-		"@konstellio/promised": "^0.3.2",
+		"@konstellio/disposable": "^0.3.3",
+		"@konstellio/eventemitter": "^0.3.3",
+		"@konstellio/promised": "^0.3.3",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "^5.2.5",
 		"@types/node": "^10.5.7",
